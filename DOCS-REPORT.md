@@ -42,14 +42,15 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 10 | `admin-guide/basic-functionality/runtime-control.md` | `3a1e0292` | Master/worker process model; reload sequence |
 | 11 | `admin-guide/web-server/serving-static-content.md` | `0eb345f5` | How a URI is mapped to a file (index, autoindex, 301/403/404) |
 | 12 | `admin-guide/web-server/compression.md` | `b67408bd` | When NGINX compresses a response |
+| 13 | `admin-guide/load-balancer/tcp-udp-load-balancer.md` | see `git log` for this file | TCP connection and UDP session through the proxy |
 
 These pages keep every URL, file path and anchor. Headings keep their wording or custom IDs, so their anchors stay the same, and existing `<span id>` anchors stay.
 
 ## Pages not reached
 
-This work didn't reach 123 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
+This work didn't reach 122 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
 
-- `admin-guide/load-balancer/tcp-udp-load-balancer.md`, the health-check pages and `using-proxy-protocol.md`
+- the load-balancer health-check pages and `using-proxy-protocol.md`
 - the remaining security-controls pages: TCP termination, upstream TLS, access by GeoIP, subrequest authentication, JWT and OIDC
 - `admin-guide/monitoring/debugging.md` and `live-activity-monitoring.md`
 - `admin-guide/installing-nginx/*`
@@ -130,6 +131,10 @@ The page that each fix applies to is in brackets. Source references are in the n
   - `netstat -Lan` is FreeBSD syntax; the Linux equivalent is `ss -lnt`.
   - The default backlog is 511.
   - The `$geo` example had no `geo` block.
+- **[TCP/UDP load balancing]**
+  - The connect and failover description was TCP-only; UDP datagrams aren't retried and `proxy_connect_timeout` doesn't apply.
+  - Fixed the step numbering, a `proxy_bind` example that couldn't reach a remote server, a stream server without `listen`, an API `PATCH` call to the HTTP path, a zone name mismatch and an empty upstream group.
+  - Added UDP sessions (`proxy_responses`, `proxy_requests`, `proxy_timeout`), weighted Least Connections and the required `least_time` parameter.
 - **[compression]**
   - Corrected the `gzip_proxied` logic.
   - Added `.xml` as `text/xml`.
@@ -153,7 +158,8 @@ Fixed across the pages:
   - [load balancing] `slow_start`, `queue`, `ntlm` (4 blocks), sticky `sync`;
   - [caching] `proxy_cache_purge` and `purger` (4 blocks);
   - [rate limiting] `limit_req_zone ... sync`;
-  - [logging] `error_log ... json`, `keyval_zone` and `keyval`.
+  - [logging] `error_log ... json`, `keyval_zone` and `keyval`;
+  - [TCP/UDP load balancing] `health_check`, the `api` location blocks (3) and `random ... least_time=`.
 - **Not runnable here:**
   - [TLS] the separate-IP example passes the syntax check, but needs `192.168.1.x` addresses on the host.
   - [basic auth, TLS, runtime control] `user` switching needs root.

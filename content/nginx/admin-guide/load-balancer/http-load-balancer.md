@@ -42,7 +42,7 @@ For each request to a location with `proxy_pass http://<group>`, NGINX does the 
 2. It passes the request to that server.
 3. If the attempt fails, NGINX counts a failure for the server. An error or a timeout always counts. The other conditions listed in [proxy_next_upstream](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream) count too, except `http_403` and `http_404`.
 4. NGINX passes the request to the next server if `proxy_next_upstream` allows it (by default, after `error` and `timeout`). It doesn't retry a `POST`, `LOCK`, or `PATCH` request that it has already sent, unless `proxy_next_upstream` has `non_idempotent`. The `proxy_next_upstream_tries` and `proxy_next_upstream_timeout` directives limit the retries.
-5. If a server fails `max_fails` times (default `1`) within `fail_timeout` (default `10s`), NGINX considers it unavailable for `fail_timeout`, then tries it again.
+5. If a server fails `max_fails` times (default `1`) without a successful request more than `fail_timeout` (default `10s`) after a failure, NGINX considers it unavailable for `fail_timeout`, then tries it again.
 6. If no primary server can take the request, NGINX uses the servers marked `backup`. This happens when all primary servers are down, unavailable, at their `max_conns` limit, or already tried for this request. If no backup server can take it either, NGINX returns `502` and logs `no live upstreams`.
 
 ```mermaid
@@ -52,7 +52,7 @@ flowchart TD
     skip --> send[Pass the request to the server]
     send --> ok{"Response received?"}
     ok -- Yes --> resp([Send the response to the client])
-    ok -- "No: error or timeout" --> count["Count a failure; after max_fails within fail_timeout, mark the server unavailable"]
+    ok -- "No: error or timeout" --> count["Count a failure; after max_fails failures, mark the server unavailable"]
     count --> next{"Retry allowed? (proxy_next_upstream, method, tries, timeout)"}
     next -- Yes --> method
     next -- No --> err([Return 502 or 504])
@@ -211,8 +211,10 @@ In this example, **backend1.example.com** has weight `5`, and the other two serv
 
 NGINX marks a server as unavailable after failed attempts to pass it requests. Two parameters of the `server` directive control this:
 
-- [max_fails](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#max_fails) – The number of failed attempts within `fail_timeout` after which NGINX considers the server unavailable. The default is `1`. The value `0` turns off the accounting.
-- [fail_timeout](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#fail_timeout) – The period in which failures are counted, and how long NGINX considers the server unavailable. The default is `10s`.
+- [max_fails](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#max_fails) – The number of failures after which NGINX considers the server unavailable. The default is `1`. The value `0` turns off the accounting.
+- [fail_timeout](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#fail_timeout) – How long NGINX considers the server unavailable. A successful request resets the count of failures only if NGINX sent it more than `fail_timeout` after the last failure. The default is `10s`.
+
+For details, see [HTTP Health Checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md#hc_passive" >}}).
 
 ```nginx
 upstream backend {

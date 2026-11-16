@@ -7,7 +7,7 @@ This report covers documentation work on the NGINX section of this repository (f
 | | |
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
-| Head | the commit that adds this version of the report (the last page commit is `b67408bd`) |
+| Head | the commit that adds this version of the report (the last page commit is `f2b86498`) |
 | Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 7 behind. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed, and none of them touch the pages changed here. |
 
 ## Scope
@@ -42,15 +42,22 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 10 | `admin-guide/basic-functionality/runtime-control.md` | `3a1e0292` | Master/worker process model; reload sequence |
 | 11 | `admin-guide/web-server/serving-static-content.md` | `0eb345f5` | How a URI is mapped to a file (index, autoindex, 301/403/404) |
 | 12 | `admin-guide/web-server/compression.md` | `b67408bd` | When NGINX compresses a response |
-| 13 | `admin-guide/load-balancer/tcp-udp-load-balancer.md` | see `git log` for this file | TCP connection and UDP session through the proxy |
+| 13 | `admin-guide/load-balancer/tcp-udp-load-balancer.md` | `d90245f0`, `69c66c16` | TCP connection and UDP session through the proxy |
+| 14 | `admin-guide/load-balancer/http-health-check.md` | `e9518646` | Passive health check states; active health check states |
+| 15 | `admin-guide/load-balancer/tcp-health-check.md` | `84e325a5` | Passive health check states |
+| 16 | `admin-guide/load-balancer/udp-health-check.md` | `441a11da` | When a UDP session counts as failed |
+| 17 | `admin-guide/load-balancer/grpc-health-check.md` | `16856252`, `28deafbd` | The gRPC health check decision |
+| 18 | `admin-guide/load-balancer/using-proxy-protocol.md` | `a4e64ef3` | A PROXY protocol header through NGINX, with Real IP |
+| 19 | `admin-guide/load-balancer/dynamic-configuration-api.md` | `f2b86498` | An API change through the shared memory zone and the state file |
+
+The whole `admin-guide/load-balancer/` section is now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
 
 These pages keep every URL, file path and anchor. Headings keep their wording or custom IDs, so their anchors stay the same, and existing `<span id>` anchors stay.
 
 ## Pages not reached
 
-This work didn't reach 122 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
+This work didn't reach 116 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
 
-- the load-balancer health-check pages and `using-proxy-protocol.md`
 - the remaining security-controls pages: TCP termination, upstream TLS, access by GeoIP, subrequest authentication, JWT and OIDC
 - `admin-guide/monitoring/debugging.md` and `live-activity-monitoring.md`
 - `admin-guide/installing-nginx/*`
@@ -87,6 +94,7 @@ The page that each fix applies to is in brackets. Source references are in the n
   - Weights apply to all methods.
   - `ip_hash`, `hash` and `random` reject `backup`.
   - Corrected when backup servers are used, the single-server rule, the retry conditions and the Exchange port (443).
+  - Correction to this page's first version: `max_fails` failures don't have to happen within `fail_timeout`. The count is reset only by a success that NGINX sent more than `fail_timeout` after the last failure (`ngx_http_upstream_round_robin.c:924-926, 1084-1086`). Fixed in `69c66c16`, also on page 13.
 - **[content caching]**
   - Responses aren't cached "indefinitely": without a validity time they aren't cached at all, and `inactive` (10 minutes) removes unused entries.
   - Bypassed requests still store their responses.
@@ -135,6 +143,31 @@ The page that each fix applies to is in brackets. Source references are in the n
   - The connect and failover description was TCP-only; UDP datagrams aren't retried and `proxy_connect_timeout` doesn't apply.
   - Fixed the step numbering, a `proxy_bind` example that couldn't reach a remote server, a stream server without `listen`, an API `PATCH` call to the HTTP path, a zone name mismatch and an empty upstream group.
   - Added UDP sessions (`proxy_responses`, `proxy_requests`, `proxy_timeout`), weighted Least Connections and the required `least_time` parameter.
+- **[HTTP health checks]**
+  - Only listed 5xx statuses that make NGINX try the next server count as failures. A 5xx from the last server tried, or for a `POST` without `non_idempotent`, doesn't count (`ngx_http_upstream.c:4628-4637`).
+  - After `fail_timeout`, NGINX sends one trial request, not several. Without a `zone`, each worker counts failures separately.
+  - The `upstream server temporarily disabled` message is logged at `warn`, so the default error log level hides it.
+  - Fixed a backup address outside the documentation range, and a mandatory-check example that contradicted the `slow_start` single-server rule.
+- **[TCP health checks]**
+  - With `proxy_ssl`, a failed TLS handshake also counts as a failure. Errors on an established connection don't.
+  - Fixed an upstream port typo (12346) and a backup address outside the documentation range. Added the stream module prerequisite.
+- **[UDP health checks]**
+  - The passive example claimed "2 failures" but didn't set `max_fails`.
+  - The NTP example used port 53 instead of 123, and the hex prefix was written `/x`.
+  - The DNS `expect` regular expression could never match: a DNS response encodes the CNAME target as length-prefixed labels with a compression pointer, so the dotted name isn't in it. See [Decisions](#decisions) item 6.
+  - A failed `connect()` is the only UDP failure that NGINX retries on another server. ICMP errors without `proxy_responses` count only when the session ends.
+- **[gRPC health checks]**
+  - The upstream group was in the `stream` context, where `grpc_pass` can't find it: `nginx -t` failed with `no port in upstream`.
+  - `location /grpc` doesn't match gRPC request paths, which look like `/package.Service/Method`.
+  - Added `http2 on` (1.25.1), the `--with-http_v2_module` build requirement, and that the gRPC server must be the default server of its port.
+- **[PROXY protocol]**
+  - The examples failed `nginx -t`: `log_format combined` redefined a predefined format, and the stream format used `$remote_user`, which doesn't exist in the stream module.
+  - Client-side PROXY protocol in stream arrived in 1.9.2, not 1.9.3. Added 1.11.0 for ports, 1.17.6 for the server address variables, and `proxy_protocol v2` to upstreams (1.31.4).
+  - The `listen` parameter applies to every server on that address and port. `$proxy_protocol_addr` isn't filtered by `set_real_ip_from`. HTTP/3 and UDP aren't supported. Removed SPDY.
+- **[dynamic configuration API]**
+  - The `POST` body had backslashes inside single quotes and wasn't valid JSON. The write requests had no credentials for the page's own `auth_basic` setup, so they got `401`. The examples deleted server 0 before changing it.
+  - The API location was shown as a separate `server` block that wouldn't get requests.
+  - From the repository's release notes: `upstream_conf` was removed in R16; API version 9 needs R30; the Swagger UI isn't in packages since R26.
 - **[compression]**
   - Corrected the `gzip_proxied` logic.
   - Added `.xml` as `text/xml`.
@@ -143,6 +176,7 @@ The page that each fix applies to is in brackets. Source references are in the n
 
 Fixed across the pages:
 
+- Lost anchors: a check of every changed page found that the gRPC page had lost three generated heading anchors. They're aliased again in `28deafbd`. No other page lost an anchor.
 - Broken inbound anchors: 11 links from other pages pointed at anchors on these pages that didn't exist. These are now aliased with `<span id>`; for example `#session-persistence`, `#purging-content-from-the-cache` and `#dns`.
 - Examples that couldn't be pasted, because of `...` placeholders, undefined upstreams, missing `listen` or `server_name`, or names that don't resolve.
 - Links to the retired `www.nginx.com` admin guide.
@@ -159,7 +193,10 @@ Fixed across the pages:
   - [caching] `proxy_cache_purge` and `purger` (4 blocks);
   - [rate limiting] `limit_req_zone ... sync`;
   - [logging] `error_log ... json`, `keyval_zone` and `keyval`;
-  - [TCP/UDP load balancing] `health_check`, the `api` location blocks (3) and `random ... least_time=`.
+  - [TCP/UDP load balancing] `health_check`, the `api` location blocks (3) and `random ... least_time=`;
+  - [HTTP, TCP and UDP health checks] `slow_start`, `health_check`, `match`, `mandatory` and `persistent`, and the NTP and DNS `match` blocks;
+  - [gRPC health checks] `health_check type=grpc`, `grpc_service` and `grpc_status`. The rest of the gRPC proxy was run with a test gRPC server;
+  - [dynamic configuration API] `api write=on`, `state` and the API requests themselves. The access control around the API was run with open-source NGINX.
 - **Not runnable here:**
   - [TLS] the separate-IP example passes the syntax check, but needs `192.168.1.x` addresses on the host.
   - [basic auth, TLS, runtime control] `user` switching needs root.
@@ -174,14 +211,16 @@ These can't be checked against the open-source code:
 - **Operating-system facts**: Linux `somaxconn` defaults (128 before kernel 5.4, 4096 after; this host shows 4096), the FreeBSD sysctl names, `netstat -Lan` output, and the systemd journal.
 - **Figures and dates from the nginx.org reference**: 8,000 cache keys per MB, roughly 4,000 TLS sessions per MB, and versions older than the git history, for example 0.7.62 and 0.7.65.
 - **Browser behaviour**: SNI support of old browsers, and realm display.
+- **NGINX Plus API and active health check details**: the default `interval`, `fails` and `passes`, the `nginx health check` UDP string, the NGINX Plus R23 gRPC support, the API version 9 endpoints, IDs of servers added with the API, and the state file directories.
+- **The NTP health check** matches the byte `\x24` anywhere in the response, because its regular expression isn't anchored. The page now says so. The NGINX Plus example itself was left as it is.
 
 ## Build, lint and link results
 
 | Check | Baseline (`364cbc06`) | After |
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
-| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2340 errors (876 in `content/nginx`); no new errors |
-| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 12 changed pages |
+| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2288 errors (824 in `content/nginx`); no new errors |
+| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 19 changed pages |
 
 The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
 
@@ -193,7 +232,7 @@ Hugo itself checks `ref` shortcode links, and they pass.
 
 ## Tools
 
-Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`.
+Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets.
 
 ## Decisions
 
@@ -204,3 +243,4 @@ The repository owner approved all five decisions on 2026-11-16.
 3. **Page structure.** The pages now carry template sections that weren't there before: Example, Verify, Troubleshooting and References.
 4. **No diagram on the logging page.** Diagrams were added only where they explain a flow, hierarchy or state machine.
 5. **Version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.
+6. **New, not yet approved: one NGINX Plus-only example was changed.** NGINX Plus facts were otherwise left as they are. The DNS health check's `expect` regular expression could never match a real DNS response, which is a fact of the DNS wire format, not of NGINX Plus. This was checked by sending the same kind of query to a real resolver and matching both expressions against the response bytes. The example now matches `healthy\x04svcs`. The `match` block itself still couldn't be run.

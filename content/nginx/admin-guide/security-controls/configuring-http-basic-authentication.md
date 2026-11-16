@@ -68,9 +68,10 @@ Text description: With `satisfy all`, NGINX returns `403` if the IP address isn'
 
 1. Make sure `htpasswd` is installed. It's in the `apache2-utils` package (Debian, Ubuntu) or the `httpd-tools` package (RHEL, CentOS, Oracle Linux).
 
-2. Create a password file and the first user. Run `htpasswd` with the `-c` flag, which creates a new file, the path of the file, and the user name:
+2. Create a password file and the first user. Run `htpasswd` with the `-c` flag, which creates a new file, the path of the file, and the user name. On systems without the `/etc/apache2` directory, such as RHEL, create it first:
 
     ```shell
+    sudo mkdir -p /etc/apache2
     sudo htpasswd -c /etc/apache2/.htpasswd user1
     ```
 
@@ -93,32 +94,32 @@ Text description: With `satisfy all`, NGINX returns `403` if the IP address isn'
     user2:$apr1$...
     ```
 
-5. Let the NGINX worker processes read the file, for example on Debian and Ubuntu:
+5. Let the NGINX worker processes read the file. Use the group of the user that the worker processes run as, set by the `user` directive: `nginx` for NGINX Plus and the packages from nginx.org, `www-data` for Debian and Ubuntu packages. To check it, run `ps -o user= -C nginx`. For example:
 
     ```shell
-    sudo chown root:www-data /etc/apache2/.htpasswd
+    sudo chown root:nginx /etc/apache2/.htpasswd
     sudo chmod 640 /etc/apache2/.htpasswd
     ```
 
-NGINX supports these password formats: the `$apr1$` format, which `htpasswd` uses by default; `{SHA}`, `{SSHA}`, and `{PLAIN}`; and the formats of the system's `crypt()` function, such as bcrypt (`htpasswd -B`) on most current Linux systems.
+NGINX supports these password formats: the `$apr1$` format, which `htpasswd` uses by default; `{SHA}` and `{SSHA}`; and the formats of the system's `crypt()` function, such as bcrypt (`htpasswd -B`), on most current Linux systems. NGINX also accepts passwords in clear text with the `{PLAIN}` prefix, which you have to write into the file yourself; `htpasswd -p` writes clear text without this prefix, which doesn't work. NGINX checks the password on every request, so a high bcrypt cost (`htpasswd -B -C`) slows down every request; keep the default cost.
 
 <span id="config"></span>
 
 ## Configuring NGINX and NGINX Plus for HTTP Basic Authentication
 
-1. In the location to protect, add the [auth_basic](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) directive with the name of the protected area. Browsers show this name when they ask for credentials:
+1. In the location to protect, add the [auth_basic](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) directive with the name of the protected area, called the realm. NGINX sends it in the `WWW-Authenticate` header; some browsers show it when they ask for credentials. Use plain ASCII characters in it:
 
     ```nginx
     location /api {
-        auth_basic "Administrator’s Area";
+        auth_basic "Administrator's Area";
     }
     ```
 
-2. Add the [auth_basic_user_file](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic_user_file) directive with the path of the password file. A relative path is relative to the directory of the main configuration file.
+2. Add the [auth_basic_user_file](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic_user_file) directive with the path of the password file. Both directives are needed: without `auth_basic_user_file`, NGINX doesn't ask for credentials. A relative path is relative to the directory of the main configuration file, so `htpasswd` means `/etc/nginx/htpasswd` for `/etc/nginx/nginx.conf`.
 
     ```nginx
     location /api {
-        auth_basic           "Administrator’s Area";
+        auth_basic           "Administrator's Area";
         auth_basic_user_file /etc/apache2/.htpasswd;
     }
     ```
@@ -137,8 +138,8 @@ To protect a whole website but keep some areas public, use `auth_basic` at the `
 server {
     listen 80;
 
-    auth_basic           "Administrator’s Area";
-    auth_basic_user_file conf/htpasswd;
+    auth_basic           "Administrator's Area";
+    auth_basic_user_file /etc/apache2/.htpasswd;
 
     location /public/ {
         auth_basic off;
@@ -166,9 +167,9 @@ You can combine Basic authentication with access restriction by IP address in tw
     }
     ```
 
-    NGINX checks the rules in order and uses the first one that matches. In this example, it allows the `192.168.1.0/24` network except `192.168.1.2`, and the address `127.0.0.1`. It denies all other addresses with code `403`.
+    NGINX checks the rules in order and uses the first one that matches. In this example, it allows the `192.168.1.0/24` network except `192.168.1.2`, and the address `127.0.0.1`. It denies all other addresses with code `403`. The IPv6 loopback address `::1` needs its own `allow ::1;` rule.
 
-2. Combine the IP address rules and Basic authentication with the [satisfy](https://nginx.org/en/docs/http/ngx_http_core_module.html#satisfy) directive. With `all`, the default, a client must pass both checks. With `any`, one passing check is enough:
+2. Combine the IP address rules and Basic authentication with the [satisfy](https://nginx.org/en/docs/http/ngx_http_core_module.html#satisfy) directive. With `all`, the default, a client must pass both checks. With `any`, one passing check is enough. An address passes the IP check only if an `allow` rule matches it; an address that no rule matches doesn't pass:
 
     ```nginx
     location /api {
@@ -179,8 +180,8 @@ You can combine Basic authentication with access restriction by IP address in tw
         allow 127.0.0.1;
         deny  all;
 
-        auth_basic           "Administrator’s Area";
-        auth_basic_user_file conf/htpasswd;
+        auth_basic           "Administrator's Area";
+        auth_basic_user_file /etc/apache2/.htpasswd;
     }
     ```
 
@@ -188,31 +189,35 @@ You can combine Basic authentication with access restriction by IP address in tw
 
 ## Complete example
 
-This complete configuration protects the **/admin/** area of a website with Basic authentication, and allows access only from the local network. It's a whole **nginx.conf**, so back up your existing file first. To add only the website to a configuration that reads files from `conf.d`, put the `server` block in a file there.
+This complete configuration protects the **/admin/** area of a website with Basic authentication, and allows access only from the local network. It's a whole **nginx.conf**, so back up your existing file first. Keep the `user` directive of your package: `nginx` for NGINX Plus and the packages from nginx.org, `www-data` for Debian and Ubuntu packages. To add only the website to a configuration that reads files from `conf.d`, put the `server` block in a file there; its `server_name` keeps the package's default server from answering the requests.
 
 ```nginx
+user nginx;
+
 events {}
 
 http {
     server {
-        listen 80;
-        root   /usr/share/nginx/html;
+        listen      80;
+        server_name www.example.com;
+        root        /usr/share/nginx/html;
 
         location /admin/ {
             satisfy all;
 
             allow 192.168.1.0/24;
             allow 127.0.0.1;
+            allow ::1;
             deny  all;
 
-            auth_basic           "Administrator’s Area";
+            auth_basic           "Administrator's Area";
             auth_basic_user_file /etc/apache2/.htpasswd;
         }
     }
 }
 ```
 
-To protect the NGINX Plus API in the same way, use these directives in the location with the `api` directive.
+To protect the NGINX Plus API in the same way, copy the `satisfy`, `allow`, `deny`, `auth_basic`, and `auth_basic_user_file` directives into the `location` block that has the `api` directive.
 
 ---
 
@@ -221,7 +226,7 @@ To protect the NGINX Plus API in the same way, use these directives in the locat
 1. Request the protected area without credentials:
 
     ```shell
-    curl -s -o /dev/null -w '%{http_code}\n' http://localhost/admin/
+    curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: www.example.com' http://127.0.0.1/admin/
     ```
 
     The output is `401`. A browser shows a dialog that asks for a user name and password:
@@ -231,10 +236,12 @@ To protect the NGINX Plus API in the same way, use these directives in the locat
 2. Request it with valid credentials:
 
     ```shell
-    curl -s -o /dev/null -w '%{http_code}\n' -u user1 http://localhost/admin/
+    curl -s -o /dev/null -w '%{http_code}\n' -u user1 -H 'Host: www.example.com' http://127.0.0.1/admin/
     ```
 
     Type the password when prompted. The output is the status of the page, for example `200`, or `404` if **/admin/** has no index file.
+
+3. From a host whose address isn't allowed, the same request returns `403`, and the error log shows `access forbidden by rule`.
 
 ---
 
@@ -252,9 +259,11 @@ To protect the NGINX Plus API in the same way, use these directives in the locat
 
 **Symptom**: Requests with a user name and password return `403 Forbidden` or `500 Internal Server Error`, and the error log shows `open() "/etc/apache2/.htpasswd" failed`.
 
-**Cause**: With `403`, the password file doesn't exist at that path. With `500`, NGINX can't open it for another reason, usually because the worker processes can't read it.
+**Cause**: With `403`, the password file doesn't exist at that path. With `500`, NGINX can't open it for another reason, usually because the worker processes can't read it. A `500` with `crypt_r() failed` in the error log means that the system's `crypt()` function doesn't support the password hash.
 
-**Fix**: Check the path in `auth_basic_user_file`, and let the worker processes' user read the file.
+With `satisfy any`, a client whose address isn't allowed also gets `403` when the password file is missing, and the error log shows `access forbidden by rule` after the `open()` error.
+
+**Fix**: Check the path in `auth_basic_user_file`, let the worker processes' user read the file, and create the passwords with `htpasswd`.
 
 ### Allowed clients get 403
 

@@ -191,10 +191,10 @@ Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-che
 
 ## Decisions
 
-The repository owner approved decisions 1–3 on 2026-11-16, for the pages that existed then. Pages 4–12 follow the same decisions.
+The repository owner approved all five decisions on 2026-11-16.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.
 3. **Page structure.** The pages now carry template sections that weren't there before: Example, Verify, Troubleshooting and References.
-4. **New, needs sign-off: no diagram on the logging page.** Diagrams were added only where they explain a flow, hierarchy or state machine.
-5. **New, needs sign-off: version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.
+4. **No diagram on the logging page.** Diagrams were added only where they explain a flow, hierarchy or state machine.
+5. **Version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.

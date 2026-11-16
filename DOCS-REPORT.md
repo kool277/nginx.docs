@@ -109,7 +109,9 @@ Most of the 455 baseline link-check failures come from how the tool works with H
 
 Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2.
 
-## Decisions that need sign-off
+## Decisions
+
+The repository owner approved all three decisions on 2026-11-16.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.

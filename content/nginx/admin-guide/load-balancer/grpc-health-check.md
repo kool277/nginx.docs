@@ -79,6 +79,7 @@ flowchart TD
 Text description: At each health check interval, NGINX Plus calls the `Check` method of the gRPC health service on each server. Without `grpc_status`, the check passes if the server responds with `SERVING`. With `grpc_status`, the check passes if the call ends with that status code. After `passes` passed checks, a server is healthy, and after `fails` failed checks, it's unhealthy. NGINX Plus sends client requests only to healthy servers.
 
 <span id="hc_grpc"></span>
+<span id="grpc-servers-that-accept-health-checking-protocol"></span>
 
 ## gRPC servers that support the health checking protocol
 
@@ -105,6 +106,7 @@ location / {
 ```
 
 <span id="hc_grpc_status"></span>
+<span id="grpc-servers-that-do-not-accept-health-checking-protocol"></span>
 
 ## gRPC servers that don't support the health checking protocol
 
@@ -208,6 +210,7 @@ To try the gRPC proxy with NGINX Open Source, remove the `health_check` line.
 - The servers report `NOT_SERVING`, or NGINX can't connect to them. Check the servers and the network.
 
 <span id="see_also"></span>
+<span id="see-also"></span>
 
 ## References
 

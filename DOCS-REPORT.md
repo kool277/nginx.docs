@@ -1,14 +1,14 @@
 # Documentation report: branch `claude/bugfixes-and-docs`
 
-This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done on 2026-11-14. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
+This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done on 2026-11-14 and 2026-11-16. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
 
 ## Branch state
 
 | | |
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
-| Head | the commit that adds this report (the last page commit is `7548ec0c`) |
-| Compared with `upstream/main` (nginx/documentation) | 4 ahead, including this report; 7 behind. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed, and none of them touch the three pages changed here. |
+| Head | the commit that adds this version of the report (the last page commit is `b67408bd`) |
+| Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 7 behind. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed, and none of them touch the pages changed here. |
 
 ## Scope
 
@@ -16,103 +16,185 @@ This report covers documentation work on the NGINX section of this repository (f
 - **No changes outside `content/nginx/`.** Release notes, legal pages, generated API references, the theme, `layouts/`, site config and `.style-guide` weren't touched.
 - **Mechanical fixes in other product sections: none made.** The Hugo build has no errors or warnings there. `markdownlint` reports about 1,460 blank-line errors (rules MD012/MD022/MD031/MD032/MD058) in those sections. They weren't auto-fixed, because inserted blank lines can change how raw HTML blocks render, and checking that safely needs two full rendered builds to compare. The host didn't have the disk space for those builds.
 
+## How each page was done
+
+Each page was rewritten to the how-to template: overview, prerequisites, how it works, steps, a complete example, verification, troubleshooting and references.
+
+- **Facts:** every directive name, default, context and version note was checked against the source: the `ngx_command_t` tables, the `ngx_conf_merge_*` calls, and `git tag --contains` for versions.
+- **Examples:** every config example passes `nginx -t`. Fragments were wrapped in the minimal surrounding contexts. The complete example and the verification steps were run with a real nginx and `curl`, or `openssl`, `htpasswd` and `ss` where the page uses them.
+- **Diagrams:** each was validated with the Mermaid CLI and has a text description next to it.
+- **Checks:** each page lints clean, link-checks with no new failures, and builds with Hugo.
+- **Review:** a fresh reviewer then followed each page literally on a running nginx, and everything that reviewer found was fixed and checked again. Page 9 was committed before its review and fixed in a follow-up commit, `46f7e06e`.
+
 ## Pages finished
 
-Each page was rewritten to the how-to template: overview, prerequisites, how it works, steps, a complete example, verification, troubleshooting and references. Every directive name, default and context it mentions was checked against the source. Every config example passes `nginx -t`, and every diagram passes the Mermaid CLI. Each page lints clean, link-checks with no new failures, and builds with Hugo. A fresh reviewer then followed each page literally on a running nginx, and everything that reviewer found was fixed and checked again.
+| Order | Page | Commits | Diagram |
+|---|---|---|---|
+| 1 | `admin-guide/basic-functionality/managing-configuration-files.md` | `67940d47` | Configuration context tree |
+| 2 | `admin-guide/web-server/web-server.md` | `b891b122` | How a location is chosen, including predicate locations |
+| 3 | `admin-guide/web-server/reverse-proxy.md` | `7548ec0c` | Proxied request and response buffering path |
+| 4 | `admin-guide/load-balancer/http-load-balancer.md` | `11b1577c` | Server selection, failure accounting, retries and backup servers |
+| 5 | `admin-guide/content-cache/content-caching.md` | `439fce38` | Cache lookup, revalidation and storage |
+| 6 | `admin-guide/security-controls/terminating-ssl-http.md` | `dfb36a45` | Certificate selection with SNI and `ssl_reject_handshake` |
+| 7 | `admin-guide/security-controls/controlling-access-proxied-http.md` | `6d038865` | The `limit_req` decision (burst, `nodelay`, `delay`) |
+| 8 | `admin-guide/monitoring/logging.md` | `d4de98c6` | None. There's no flow that a diagram explains better than text, and the task asked for no decorative diagrams. |
+| 9 | `admin-guide/security-controls/configuring-http-basic-authentication.md` | `0d1ae362`, `46f7e06e` | `satisfy all` / `satisfy any` access checks |
+| 10 | `admin-guide/basic-functionality/runtime-control.md` | `3a1e0292` | Master/worker process model; reload sequence |
+| 11 | `admin-guide/web-server/serving-static-content.md` | `0eb345f5` | How a URI is mapped to a file (index, autoindex, 301/403/404) |
+| 12 | `admin-guide/web-server/compression.md` | `b67408bd` | When NGINX compresses a response |
 
-| Order | Page | Commit | Diagram | Examples |
-|---|---|---|---|---|
-| 1 | `admin-guide/basic-functionality/managing-configuration-files.md` | `67940d47` | Configuration context tree | 5 nginx blocks pass `nginx -t`; `nginx -V`/`-t`/`-T` and the quoted error messages were run |
-| 2 | `admin-guide/web-server/web-server.md` | `b891b122` | How a location is chosen | 19 nginx blocks pass `nginx -t`; the example was run with `curl` and its output matches the page; the reviewer ran every described behaviour live |
-| 3 | `admin-guide/web-server/reverse-proxy.md` | `7548ec0c` | Proxied request and response buffering path | 12 nginx blocks pass `nginx -t`; the verification procedure was run and its output matches the page; the reviewer checked request headers, buffering, 502 and 504 live |
-
-These pages keep every URL, file path and anchor. Headings keep their wording, so Hugo generates the same anchors, and the existing `<span id>` anchors stay.
+These pages keep every URL, file path and anchor. Headings keep their wording or custom IDs, so their anchors stay the same, and existing `<span id>` anchors stay.
 
 ## Pages not reached
 
-This work didn't reach 132 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked, along with the 8 pages in the section that use shared includes. In the requested order, the next pages are:
+This work didn't reach 123 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
 
-- `admin-guide/load-balancer/*`
-- `admin-guide/content-cache/content-caching.md`
-- `admin-guide/security-controls/terminating-ssl-http.md` and the other security-controls pages
-- `admin-guide/monitoring/logging.md`
-- `admin-guide/basic-functionality/runtime-control.md`
-- `admin-guide/web-server/serving-static-content.md` and `compression.md`
+- `admin-guide/load-balancer/tcp-udp-load-balancer.md`, the health-check pages and `using-proxy-protocol.md`
+- the remaining security-controls pages: TCP termination, upstream TLS, access by GeoIP, subrequest authentication, JWT and OIDC
+- `admin-guide/monitoring/debugging.md` and `live-activity-monitoring.md`
+- `admin-guide/installing-nginx/*`
+- `admin-guide/dynamic-modules/*`
+- `deployment-guides/*`
 
-Proposed diagrams for those pages: the master/worker process model, the request-processing phases, upstream load-balancing methods, cache lookup and revalidation, TLS termination, and rate limiting.
+The 8 pages in the section that use shared includes weren't reached either.
 
 ## Defects fixed
 
-The page that each fix applies to is in brackets. The source references are in the nginx repository.
+The page that each fix applies to is in brackets. Source references are in the nginx repository. All of these are factual corrections, which [Decisions](#decisions) item 1 covers.
 
-Factual errors corrected against the source:
+- **[configuration files]**
+  - `nginx -T` shows the files on disk, not the loaded configuration.
+  - Reload errors appear either in the terminal or only in the error log.
+  - `add_header_inherit` exists (`ngx_http_headers_filter_module.c:107-155`).
+  - Wildcard includes are sorted by byte value.
+- **[web server]**
+  - `open_file_cache_errors` was described as suppressing "file not found" messages. It controls caching of lookup errors, and `log_not_found` is the right directive.
+  - The `sub_filter_once` description was reversed.
+  - The location search order now includes nested and predicate locations (1.31.5, `5f54125dd`).
+  - `break` in a `server` context still leads to a location search.
+  - `return` also redirects with 308.
+  - Fixed a typo URL, a garbled sentence about `$1` and a duplicate anchor.
+- **[reverse proxy]**
+  - Since 1.29.7 (`6bb27a631`), nginx proxies with HTTP/1.1 and sends no `Connection: close`. Keepalive is the default for upstream groups (`4fbe4b627`).
+  - A `proxy_pass` URI in a regex location is rejected by `nginx -t`.
+  - Empty client headers are passed, and `Host ""` is special since 1.31.4.
+  - The "too big header" fix failed the busy-buffers check.
+  - `proxy_bind` to loopback can't reach remote servers.
+  - Fixed the buffering description.
+- **[load balancing]**
+  - These are in NGINX Open Source, and several were labelled NGINX Plus only: Random (1.15.1), `sticky` (1.29.6), `least_time` (1.31.0), `resolve` (1.27.3) and `max_conns`.
+  - Weights apply to all methods.
+  - `ip_hash`, `hash` and `random` reject `backup`.
+  - Corrected when backup servers are used, the single-server rule, the retry conditions and the Exchange port (443).
+- **[content caching]**
+  - Responses aren't cached "indefinitely": without a validity time they aren't cached at all, and `inactive` (10 minutes) removes unused entries.
+  - Bypassed requests still store their responses.
+  - Cache purge is NGINX Plus only.
+  - The purge `curl` command used an en dash.
+  - Removed a duplicate `map`.
+  - nginx creates only the last directory of `proxy_cache_path`.
+- **[TLS]**
+  - TLSv1.2 and TLSv1.3 became the default in 1.27.3 (`476d6526b`), not 1.23.4.
+  - The `ssl` directive was removed in 1.25.1, not just deprecated.
+  - Removed a corrupted "Chrome 105" SNI entry.
+  - Updated the key-mismatch error text for OpenSSL 3.
+  - Examples lacked `ssl_certificate_key`.
+  - The 0.8.19 protocol defaults were wrong.
+  - Described the `ssl_ocsp` `on` and `leaf` modes.
+- **[rate limiting]**
+  - Without `burst`, excess requests are rejected at once; the page said they were delayed.
+  - A zone holds about 8,000 states per MB, not 16,000.
+  - The `$server_name` example limited nothing.
+  - `limit_rate` applies per request.
+  - Limits don't apply to `return`.
+  - `sync` is NGINX Plus only.
+- **[logging]**
+  - The syslog `severity=` default is `info`, not `error`, and it labels messages rather than filtering them.
+  - Upstream times print `-` when a time wasn't measured, and are separated by `, ` and ` : `, not semicolons.
+  - The syslog facility list was wrong.
+  - JSON error logs and `keyval` are NGINX Plus only.
+- **[basic authentication]**
+  - `allow 192.168.1.1/24` made nginx warn about meaningless address bits.
+  - The complete example used the NGINX Plus `api` directive.
+  - `conf/htpasswd` resolved to a file that no step creates.
+  - A missing password file gives 403, not 500.
+- **[runtime control]**
+  - Corrected the Control API endpoints and responses.
+  - Workers use `user` only when the master runs as root.
+  - `worker_processes auto` counts logical CPUs.
+  - Fixed when the cache processes run.
+  - Fixed the "NIGNX" typo.
+- **[static content]**
+  - A directory without an index file returns 403, not 404, and a directory URI without a trailing slash gets a 301.
+  - `tcp_nodelay` isn't keepalive-only, and the "200 ms" claim was wrong.
+  - `netstat -Lan` is FreeBSD syntax; the Linux equivalent is `ss -lnt`.
+  - The default backlog is 511.
+  - The `$geo` example had no `geo` block.
+- **[compression]**
+  - Corrected the `gzip_proxied` logic.
+  - Added `.xml` as `text/xml`.
+  - `gunzip` and `gzip_static` use the same client checks.
+  - `gunzip` doesn't act on files stored on disk.
 
-- **[web server]** `open_file_cache_errors` was described as suppressing "file not found" log messages. It actually controls caching of lookup errors (`ngx_open_file_cache.c:223`). The example now uses `log_not_found` (`ngx_http_core_module.c:631`).
-- **[web server]** The `sub_filter_once on`/`off` description was reversed (`ngx_http_sub_filter_module.c:476`).
-- **[web server]** The location search order now includes nested locations of the longest prefix, and predicate locations (new in 1.31.5, commit `5f54125dd`) (`ngx_http_core_find_location()`).
-- **[web server]** `break` in a `server` context still leads to a location search (`ngx_http_script.c:1183`). Server-level `rewrite` directives run again after internal redirects (`ngx_http_core_module.c:874`).
-- **[web server]** `return` also redirects with `308` (`ngx_http_core_module.c:1845-1849`), and has a one-parameter URL form.
-- **[web server]** The default `listen` port is 80 as root, otherwise 8000 (`ngx_http_core_module.c:3122`). The sub module isn't built by default in source builds (`auto/options:71`).
-- **[reverse proxy]** "Connection is set to close" was outdated. Since 1.29.7 (commit `6bb27a631`), nginx proxies with HTTP/1.1 and sends no `Connection` header. Upstream groups keep connections alive by default (commit `4fbe4b627`).
-- **[reverse proxy]** A `proxy_pass` with a URI in a regex location is rejected by `nginx -t`; it isn't "passed unchanged" (`ngx_http_proxy_module.c:4475`).
-- **[reverse proxy]** Empty client headers are passed. Only empty `proxy_set_header` values are dropped, and `Host` is an exception since 1.31.4 (commit `dea68dbf1`).
-- **[reverse proxy]** The "too big header" fix raised only `proxy_buffer_size` to `16k`, which fails the busy-buffers check. It now raises `proxy_buffers` as well.
-- **[reverse proxy]** The `proxy_bind 127.0.0.1` example couldn't reach a remote server.
-- **[reverse proxy]** The buffering description was wrong about what the first buffer holds and when temporary files are used.
-- **[configuration files]** `nginx -T` shows the configuration files on disk, not what the running master loaded. Reload errors appear either in the terminal or only in the error log.
-- **[configuration files]** `add_header_inherit` exists (`ngx_http_headers_filter_module.c:107-155`). Wildcard includes are sorted by byte value, not by locale.
+Fixed across the pages:
 
-Other defects fixed:
-
-- Examples that couldn't be pasted: a `...` placeholder, an undefined upstream `backend`, a stream server without `listen`, and the same server name used twice.
-- The `http:/example.com` typo.
-- A garbled sentence about `$1`.
-- A duplicate `rewrite` anchor.
+- Broken inbound anchors: 11 links from other pages pointed at anchors on these pages that didn't exist. These are now aliased with `<span id>`; for example `#session-persistence`, `#purging-content-from-the-cache` and `#dns`.
+- Examples that couldn't be pasted, because of `...` placeholders, undefined upstreams, missing `listen` or `server_name`, or names that don't resolve.
 - Links to the retired `www.nginx.com` admin guide.
-- A comment inside a block shown as literal command output.
 
 ## Examples not tested
 
-- All examples were tested with a gcc build of nginx 1.31.9 without the perl module. That build includes every other module enabled in the code report.
-- The tests ran as an unprivileged user. Ports below 1024 were moved to 18000 + port, and `/var/log`, `/var/run`, `/usr/share/nginx` and `/etc/nginx` were rewritten to a temporary prefix.
-- The `user nginx;` directive was only checked for syntax, because user switching needs root.
-- The `proxy_bind 192.0.2.x` and `proxy_pass http://example.com/...` examples pass `nginx -t`. They weren't run against real remote servers.
-- `sudo nginx -s reload`, `systemctl reload nginx` and `ps -ef | grep 'nginx: master'` weren't run against a system NGINX. This host runs production services.
-- None of the three pages uses NGINX Plus-only directives.
+- **Test conditions:**
+  - Examples were tested with gcc builds of nginx 1.31.9 without the perl module (`objs.doc`, and `objs.ctl` with the Control API).
+  - Tests ran as an unprivileged user. Ports below 1024 were moved to 18000 + port, and `/var/log`, `/var/run`, `/usr/share/nginx`, `/etc/nginx`, `/etc/ssl` and `/data` were mapped to a temporary prefix.
+  - Example host names that don't resolve, such as `backend1.example.com`, were mapped to 127.0.0.1.
+  - TLS examples used a throwaway CA and certificate.
+- **NGINX Plus only, not testable here:**
+  - [load balancing] `slow_start`, `queue`, `ntlm` (4 blocks), sticky `sync`;
+  - [caching] `proxy_cache_purge` and `purger` (4 blocks);
+  - [rate limiting] `limit_req_zone ... sync`;
+  - [logging] `error_log ... json`, `keyval_zone` and `keyval`.
+- **Not runnable here:**
+  - [TLS] the separate-IP example passes the syntax check, but needs `192.168.1.x` addresses on the host.
+  - [basic auth, TLS, runtime control] `user` switching needs root.
+  - `sudo nginx -s reload` and `systemctl` against a system NGINX weren't run, because this host runs production services. The same commands were run against a test instance.
 
 ## Facts left unverified
 
 These can't be checked against the open-source code:
 
-- **[configuration files]** NGINX Plus default paths: `/etc/nginx` on Linux, `/usr/local/etc/nginx` on FreeBSD. These are kept from the original page.
-- **[configuration files]** Packages from nginx.org and F5 include `include /etc/nginx/conf.d/*.conf;` in `http`, and Debian and Ubuntu packages use the `www-data` user. These are packaging facts.
-- **[configuration files]** The NGINX Plus API and key-value store statements are kept from the original page.
-- **[web server, reverse proxy]** Version notes name NGINX Open Source releases only: 1.29.7, 1.31.4 and 1.31.5, taken from `git tag --contains`. The matching NGINX Plus releases aren't given, because they can't be checked here.
+- **NGINX Plus behaviour and release names**, which are kept from the original pages: slow-start, queue, NTLM, active health checks, zone_sync, purge, JSON error logs, key-value store, zone-size figures, and the NGINX Plus release in which a feature first appeared.
+- **Packaging facts**: default paths and users of the nginx.org, Debian/Ubuntu and NGINX Plus packages, `conf.d` includes, Docker image log links, and the `logrotate` configuration.
+- **Operating-system facts**: Linux `somaxconn` defaults (128 before kernel 5.4, 4096 after; this host shows 4096), the FreeBSD sysctl names, `netstat -Lan` output, and the systemd journal.
+- **Figures and dates from the nginx.org reference**: 8,000 cache keys per MB, roughly 4,000 TLS sessions per MB, and versions older than the git history, for example 0.7.62 and 0.7.65.
+- **Browser behaviour**: SNI support of old browsers, and realm display.
 
 ## Build, lint and link results
 
 | Check | Baseline (`364cbc06`) | After |
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
-| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2421 errors (957 in `content/nginx`); no new errors |
-| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the three changed pages (they now report 0; the baseline versions reported 1) |
+| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2340 errors (876 in `content/nginx`); no new errors |
+| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 12 changed pages |
 
-Most of the 455 baseline link-check failures come from how the tool works with Hugo, rather than from broken links:
+The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
 
-- The tool doesn't resolve root-relative image paths.
-- It doesn't see anchors made with `<span id>`.
-- It checks example domains and login-only `account.f5.com` URLs.
+- The tool doesn't resolve root-relative image and file paths.
+- It doesn't see Hugo `{#id}` heading anchors.
+- It checks example domains and login-only URLs.
 
-`ref` shortcode links are checked by Hugo itself, and they pass.
+Hugo itself checks `ref` shortcode links, and they pass.
 
 ## Tools
 
-Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2.
+Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`.
 
 ## Decisions
 
-The repository owner approved all three decisions on 2026-11-16.
+The repository owner approved decisions 1–3 on 2026-11-16, for the pages that existed then. Pages 4–12 follow the same decisions.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.
 3. **Page structure.** The pages now carry template sections that weren't there before: Example, Verify, Troubleshooting and References.
+4. **New, needs sign-off: no diagram on the logging page.** Diagrams were added only where they explain a flow, hierarchy or state machine.
+5. **New, needs sign-off: version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.

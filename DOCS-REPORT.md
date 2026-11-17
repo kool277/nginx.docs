@@ -1,13 +1,13 @@
 # Documentation report: branch `claude/bugfixes-and-docs`
 
-This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done on 2026-11-14 and 2026-11-16. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
+This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done from 2026-11-14 to 2026-11-17. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
 
 ## Branch state
 
 | | |
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
-| Head | the commit that adds this version of the report (the last page commit is `f2b86498`) |
+| Head | the commit that adds this version of the report (the last page commit is `73753c47`) |
 | Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 7 behind. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed, and none of them touch the pages changed here. |
 
 ## Scope
@@ -50,15 +50,24 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 18 | `admin-guide/load-balancer/using-proxy-protocol.md` | `a4e64ef3` | A PROXY protocol header through NGINX, with Real IP |
 | 19 | `admin-guide/load-balancer/dynamic-configuration-api.md` | `f2b86498` | An API change through the shared memory zone and the state file |
 
-The whole `admin-guide/load-balancer/` section is now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
+| 20 | `admin-guide/security-controls/terminating-ssl-tcp.md` | `03f17b93` | A TLS connection through the stream proxy |
+| 21 | `admin-guide/security-controls/securing-http-traffic-upstream.md` | `524e4c25` | How NGINX opens and checks a TLS connection to an upstream server |
+| 22 | `admin-guide/security-controls/securing-tcp-traffic-upstream.md` | `cddcb8b5` | A TLS connection from NGINX to a TCP upstream |
+| 23 | `admin-guide/security-controls/controlling-access-proxied-tcp.md` | `bd295fca` | The order of the connection limit, the IP rules and the bandwidth limits |
+| 24 | `admin-guide/security-controls/controlling-access-by-geoip.md` | `f63d3a64` | A location lookup, from client address to decision |
+| 25 | `admin-guide/security-controls/configuring-subrequest-authentication.md` | `ebff1110` | The `auth_request` subrequest and its outcomes |
+| 26 | `admin-guide/security-controls/configuring-jwt-authentication.md` | `0659de83` | How NGINX Plus validates a JWT |
+| 27 | `admin-guide/security-controls/configuring-oidc.md` | `a21a88e8` | The OpenID Connect login flow (next to the existing image) |
+| 28 | `admin-guide/security-controls/denylisting-ip-addresses.md` | `73753c47` | A denylist lookup and its updates through the API |
+
+The whole `admin-guide/load-balancer/` and `admin-guide/security-controls/` sections are now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
 
 These pages keep every URL, file path and anchor. Headings keep their wording or custom IDs, so their anchors stay the same, and existing `<span id>` anchors stay.
 
 ## Pages not reached
 
-This work didn't reach 116 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
+This work didn't reach 107 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
 
-- the remaining security-controls pages: TCP termination, upstream TLS, access by GeoIP, subrequest authentication, JWT and OIDC
 - `admin-guide/monitoring/debugging.md` and `live-activity-monitoring.md`
 - `admin-guide/installing-nginx/*`
 - `admin-guide/dynamic-modules/*`
@@ -174,6 +183,44 @@ The page that each fix applies to is in brackets. Source references are in the n
   - `gunzip` and `gzip_static` use the same client checks.
   - `gunzip` doesn't act on files stored on disk.
 
+- **[TCP TLS termination]**
+  - `ssl_session_cache;` without a parameter fails `nginx -t`. The default cache is `none`, not the built-in cache.
+  - With session tickets, TLSv1.3 sessions aren't stored in the cache; since 1.23.2 the shared cache holds the ticket keys (`ngx_event_openssl.c:4445`).
+  - NGINX doesn't close the client connection. Ticket keys are shared between NGINX instances, not upstream servers, and both key files must exist.
+  - Only the default server of a port is checked for a certificate. Added SNI virtual servers (1.25.5), variable certificates with a `map` default, and TLSv1.3 cipher suites.
+- **[upstream HTTPS]**
+  - The complete example was missing a brace. `ssl_verify_client optional` doesn't require client certificates, and `ssl_client_certificate` is a CA file.
+  - `proxy_ssl_verify` is off by default, and the name checked defaults to the upstream group name with SNI off, so the example failed with `does not match`.
+  - A `Host` header that isn't exactly the SNI name gives `421` when the upstream port has several servers (`ngx_http_request.c:2490`).
+  - A server without a port in an upstream group uses port 80, even with `https`. `proxy_ssl_verify_depth 1` allows one intermediate certificate (tested with chains).
+- **[upstream TCP TLS]**
+  - The fragments contained `...`. The same `proxy_ssl` defaults as for HTTP.
+  - An upstream that rejects NGINX's client certificate closes the connection after the handshake, so NGINX logs nothing and doesn't retry.
+  - Without `zone`, round-robin order and saved TLS sessions are per worker process.
+- **[TCP access control]**
+  - `allow 192.168.1.1/24` makes `nginx -t` warn. The `limit_conn_zone` links pointed to the HTTP module, and the zone's purpose was wrong.
+  - `limit_conn` runs before `allow`/`deny`, and a client that matches no rule is allowed. The IPv6 rule needs an IPv6 `listen`.
+- **[GeoIP]**
+  - The "nearest server" example failed in both contexts: `proxy_pass http://` isn't valid in `stream`, and in `http` `proxy_pass` must be in a `location`. Its map sent clients to groups that didn't exist.
+  - The `geolite.maxmind.com` download URLs no longer respond; the databases need a MaxMind account. `mmdblookup` is in `mmdb-bin` on Ubuntu, and the syntax line used en dashes.
+  - Relative database paths are relative to the prefix. Only one `geoip2` block per file. Added deny-by-country examples.
+- **[subrequest authentication]**
+  - Any status other than 2xx, 401 and 403 gives `500`. The subrequest is a `GET` for `/auth` without a body, but with the original `Content-Length` header.
+  - The check runs in the access phase: `return` and `rewrite` run first, and a regex location can bypass a prefix location. The examples use `^~`.
+- **[JWT]** (NGINX Plus)
+  - `proxy_pass "https_//..."` fails `nginx -t`; the nested-JWT example had `upstream` outside `http` and `proxy_pass` in a `server` block.
+  - The claim maps used unanchored regular expressions with unescaped dots, so a token for `api1xexample.com.attacker.net` passed. The key location wasn't `internal`, and the key fetch didn't verify the IdP's certificate.
+  - The 401/403 example could never return `403`, because the scope check was in both `auth_jwt_require` lines. JWS public keys were combined with `auth_jwt_type encrypted`; the example now uses `nested`.
+  - OpenID Connect Core doesn't require checking `sub`. The example secret is shorter than RFC 7518 requires for HS256. Added a test token made with `openssl`, checked against the page's key.
+- **[OIDC]** (NGINX Plus)
+  - `userinfo_endpoint` and `end_session_endpoint` were described wrongly, and the discovery URL left out the issuer path. The `issuer` link pointed to `#client_secret`.
+  - The IdP setup didn't register the redirect URI, and registered the wrong logout URI. `session_sync_leeway` arrived after R34, according to the release notes, and the logout and UserInfo settings need R35.
+  - The workflow text didn't match the numbering of the existing image.
+  - The test application listened on all addresses, so clients could send their own identity headers to it.
+- **[denylisting]** (NGINX Plus)
+  - The API `curl` commands called `http://www.example.com/api` without credentials, but the configuration allows only `127.0.0.1` and needs a password for changes: every change got `403` or `401`.
+  - Three `<span>` anchors duplicated heading IDs. Added a lockout recovery, and a warning that a broad `set_real_ip_from` lets any client pass `allow 127.0.0.1`.
+
 Fixed across the pages:
 
 - Lost anchors: a check of every changed page found that the gRPC page had lost three generated heading anchors. They're aliased again in `28deafbd`. No other page lost an anchor.
@@ -197,6 +244,11 @@ Fixed across the pages:
   - [HTTP, TCP and UDP health checks] `slow_start`, `health_check`, `match`, `mandatory` and `persistent`, and the NTP and DNS `match` blocks;
   - [gRPC health checks] `health_check type=grpc`, `grpc_service` and `grpc_status`. The rest of the gRPC proxy was run with a test gRPC server;
   - [dynamic configuration API] `api write=on`, `state` and the API requests themselves. The access control around the API was run with open-source NGINX.
+  - [JWT] every `auth_jwt*` directive and the `$jwt_*` variables. The rest of each example passes `nginx -t`, and the claim maps were run with stand-in variables;
+  - [OIDC] `oidc_provider`, `auth_oidc` and the `$oidc_*` variables. The rest of the example, including the test application, was run;
+  - [denylisting] `keyval_zone`, `keyval`, `api` and the API requests. The access rules around the API were run with stand-ins.
+- **Third-party module, not runnable here:**
+  - [GeoIP] the `geoip2` blocks and `geoip2_proxy`. Building the third-party GeoIP2 module was blocked by this session's permission system, so its claims were checked by reading its source (version 3.4). The `map`, `upstream`, `proxy_pass` and `if` parts were run with built-in `geo` stand-ins.
 - **Not runnable here:**
   - [TLS] the separate-IP example passes the syntax check, but needs `192.168.1.x` addresses on the host.
   - [basic auth, TLS, runtime control] `user` switching needs root.
@@ -212,6 +264,8 @@ These can't be checked against the open-source code:
 - **Figures and dates from the nginx.org reference**: 8,000 cache keys per MB, roughly 4,000 TLS sessions per MB, and versions older than the git history, for example 0.7.62 and 0.7.65.
 - **Browser behaviour**: SNI support of old browsers, and realm display.
 - **NGINX Plus API and active health check details**: the default `interval`, `fails` and `passes`, the `nginx health check` UDP string, the NGINX Plus R23 gRPC support, the API version 9 endpoints, IDs of servers added with the API, and the state file directories.
+- **GeoIP**: MaxMind's database contents and record keys, the NGINX Plus module packages, and whether `libmaxminddb-devel` provides `mmdblookup` on RHEL and SLES.
+- **JWT, OIDC and denylisting**: all NGINX Plus behaviour on these pages, including the supported algorithms, key matching, the API version 6 paths, keyval matching, whether the Plus `api` handler applies inside `limit_except`, and the NGINX Plus release numbers.
 - **The NTP health check** matches the byte `\x24` anywhere in the response, because its regular expression isn't anchored. The page now says so. The NGINX Plus example itself was left as it is.
 
 ## Build, lint and link results
@@ -219,8 +273,8 @@ These can't be checked against the open-source code:
 | Check | Baseline (`364cbc06`) | After |
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
-| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2288 errors (824 in `content/nginx`); no new errors |
-| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 19 changed pages |
+| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2226 errors (762 in `content/nginx`); no new errors |
+| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 28 changed pages |
 
 The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
 
@@ -232,15 +286,18 @@ Hugo itself checks `ref` shortcode links, and they pass.
 
 ## Tools
 
-Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets.
+Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets. The security-controls pages used small Python TCP and HTTP servers, and certificate chains made with `openssl`.
+
+Not used: the third-party GeoIP2 module (`leev/ngx_http_geoip2_module` 3.4) was cloned to `deps/geoip2-src`, but building it was blocked by the session's permission system, and wasn't retried another way. `mmdblookup` and `geoipupdate` were unpacked from their Ubuntu packages to read their file lists and documentation, but not run.
 
 ## Decisions
 
-The repository owner approved all five decisions on 2026-11-16.
+The repository owner approved decisions 1 to 5 on 2026-11-16, and decision 6 on 2026-11-17. Decision 7 is new.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.
 3. **Page structure.** The pages now carry template sections that weren't there before: Example, Verify, Troubleshooting and References.
 4. **No diagram on the logging page.** Diagrams were added only where they explain a flow, hierarchy or state machine.
 5. **Version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.
-6. **New, not yet approved: one NGINX Plus-only example was changed.** NGINX Plus facts were otherwise left as they are. The DNS health check's `expect` regular expression could never match a real DNS response, which is a fact of the DNS wire format, not of NGINX Plus. This was checked by sending the same kind of query to a real resolver and matching both expressions against the response bytes. The example now matches `healthy\x04svcs`. The `match` block itself still couldn't be run.
+6. **One NGINX Plus-only example was changed.** NGINX Plus facts were otherwise left as they are. The DNS health check's `expect` regular expression could never match a real DNS response, which is a fact of the DNS wire format, not of NGINX Plus. This was checked by sending the same kind of query to a real resolver and matching both expressions against the response bytes. The example now matches `healthy\x04svcs`. The `match` block itself still couldn't be run.
+7. **New: some NGINX Plus-only examples were changed where open-source NGINX or a public standard proves them wrong.** As with decision 6, the NGINX Plus facts themselves were kept. The changes are: configuration structure that `nginx -t` rejects (JWT), unanchored regular expressions in `map` blocks and an unverified TLS key fetch (JWT), `curl` commands that the page's own `allow`, `deny` and `auth_basic` rules reject (denylisting), and descriptions of OpenID Connect metadata fields that contradict the OpenID specifications (OIDC). Each is listed in [Defects fixed](#defects-fixed).

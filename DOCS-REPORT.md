@@ -8,7 +8,7 @@ This report covers documentation work on the NGINX section of this repository (f
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
 | Head | the commit that adds this version of the report (the last page commit is `73753c47`) |
-| Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 7 behind. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed, and none of them touch the pages changed here. |
+| Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 12 behind on 2026-11-17. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed. One of them, `2f7284a5` ("remove stale EOL release-version callouts"), changes 7 pages that this branch also rewrote: `dynamic-configuration-api.md`, `grpc-health-check.md`, `http-load-balancer.md`, `using-proxy-protocol.md`, `denylisting-ip-addresses.md`, `securing-tcp-traffic-upstream.md` and `terminating-ssl-tcp.md`. It replaces NGINX Plus release callouts such as "R13 or later" with "a supported release", and turns `<span>` anchors into heading IDs. A later merge will have text conflicts on these pages; the anchors themselves are the same on both sides. |
 
 ## Scope
 

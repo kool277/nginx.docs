@@ -5,11 +5,20 @@ type:
 title: Single Sign-On with OpenID Connect and Identity Providers
 toc: true
 weight: 550
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
 f5-content-type: how-to
+f5-keywords: "OpenID Connect, OIDC, single sign-on, SSO, identity provider, IdP, oidc_provider, auth_oidc, relying party"
+f5-summary: >
+  This page explains how to protect applications behind NGINX Plus with single sign-on, using OpenID Connect and an identity provider.
+  Use it to add user authentication to applications that don't support it natively.
+  It uses the native OIDC module, available in NGINX Plus R34 and later.
+f5-audience: operator
 ---
 
+## Overview
+
 This guide explains how to enable single sign-on (SSO) for applications being proxied by F5 NGINX Plus using:
+
 - OpenID Connect as the authentication mechanism.
 - An external Identity Provider (IdP) such as AD FS, Auth0, Cognito, Entra ID, Keycloak, OneLogin, Okta, Ping Identity and others.
 - NGINX Plus as an OIDC client application that verifies user identity (Relying Party).
@@ -20,8 +29,7 @@ NGINX Plus consumes authorization and claims from OpenID Connect Identity Provid
 
 For the target client application, OIDC authentication can be enabled with great flexibility on different levels. It can be enabled globally, or more granular at a per-server or a per-location level. Additionally, OIDC supports auto discovery and retrieval of the OpenID provider configuration metadata while also allowing the definition of additional metadata if needed.
 
-
-## OpenID Connect Workflow and NGINX Plus {#oidc-workflow}
+## How OpenID Connect works with NGINX Plus {#oidc-workflow}
 
 1. A user accesses a protected resource.
 
@@ -31,38 +39,45 @@ For the target client application, OIDC authentication can be enabled with great
 
 4. The IdP redirects the user back to NGINX Plus with an authorization code.
 
-5. NGINX Plus retrieves an `id_token` and access token using the authorization code from the IdP.
+5. NGINX Plus exchanges the authorization code at the IdP for an `id_token` and an access token. With `userinfo on` (NGINX Plus R35 and later), it also retrieves profile data for the user from the `UserInfo` endpoint.
 
-6. NGINX Plus validates the `id_token` and retrieves profile data for the user using the `UserInfo` endpoint. The retrieved profile data is validated and the content of the `id_token` and the profile data is used for providing access control to the client application.
+6. NGINX Plus validates the `id_token` and the profile data, and creates a session for the user.
 
-7. Upon successful validation, the resource access request is sent to the client application along with the access token.
+7. NGINX Plus sends the user back to the requested resource, with a session cookie.
 
-8. The client application validates the access token and based on the token validation, the resource access request is allowed or denied.
+8. NGINX Plus passes the user's requests to the protected application. You can pass the user's claims, such as the name and email address, to the application in request headers.
 
 <span style="display: inline-block; margin-top: 20px; margin-bottom: 50px;">
-{{< img src="nginx/images/oidc.png">}}
+{{< img src="nginx/images/oidc.png" alt="The OpenID Connect flow between the user, NGINX Plus as the relying party, the identity provider, and the protected application, with the steps numbered 1 to 8 as in the list">}}
 </span>
 
+The same flow as a sequence diagram:
 
-## Tested Identity Providers {#deployment-guildes}
+```mermaid
+sequenceDiagram
+    participant U as User's browser
+    participant N as NGINX Plus (relying party)
+    participant I as Identity provider
+    participant A as Application
+    U->>N: 1. Request a protected resource
+    N-->>U: 2. Redirect to the identity provider
+    U->>I: 3. Log in
+    I-->>U: 4. Redirect back to NGINX Plus with an authorization code
+    U->>N: 4. Authorization code
+    N->>I: 5. Exchange the code for tokens, optionally get UserInfo
+    Note over N: 6. Validates the ID token and creates a session
+    N-->>U: 7. Redirect to the requested resource, with a session cookie
+    U->>N: 7. Request with the session cookie
+    N->>A: 8. Request, with the claims in headers if configured
+    A-->>N: Response
+    N-->>U: Response
+```
 
- NGINX Plus has tested support with the following Identity Providers:
+Text description: The user's browser requests a protected resource. NGINX Plus redirects the browser to the identity provider, where the user logs in. The identity provider redirects the browser back to NGINX Plus with an authorization code. NGINX Plus exchanges the code for an ID token and an access token, and can get the user's profile from the UserInfo endpoint. It validates the token, creates a session, and redirects the browser to the requested resource with a session cookie. NGINX Plus then passes the user's requests to the application, with the claims in headers if configured, and returns the responses.
 
-{{<table>}}
-| IdP Provider    | Resource                              |
-|-----------------|-------------------------------------------------------------------------------------------------------------|
-| Amazon Cognito  | [Deployment Guide for Amazon Cognito]({{< ref "nginx/deployment-guides/single-sign-on/cognito.md" >}}) |
-| Auth0           | [Deployment Guide for Auth0]({{< ref "nginx/deployment-guides/single-sign-on/auth0.md" >}}) |
-| Microsoft AD FS | [Deployment Guide for AD FS]({{< ref "nginx/deployment-guides/single-sign-on/active-directory-federation-services.md" >}}) |
-| Microsoft Entra / Azure ID| [Deployment Guide for Entra ID]({{< ref "nginx/deployment-guides/single-sign-on/entra-id.md" >}}) |
-| Keycloak        | [Deployment Guide for Keycloak]({{< ref "nginx/deployment-guides/single-sign-on/keycloak.md" >}}) |
-| OneLogin        | [Deployment Guide for OneLogin]({{< ref "nginx/deployment-guides/single-sign-on/onelogin.md" >}}) |
-| Okta            | [Deployment Guide for Okta]({{< ref "nginx/deployment-guides/single-sign-on/okta.md" >}}) |
-| Ping Identity   | [Deployment Guide for Ping Identity]({{< ref "nginx/deployment-guides/single-sign-on/ping-identity.md" >}}) |
-{{</table >}}
+## Before you begin {#prerequisites}
 
-
-## Prerequisites {#prerequisites}
+Before you begin, make sure you have:
 
 - An identity provider (IdP) set up on your network or in the cloud. You need admin access to the IdP.
 
@@ -71,6 +86,7 @@ For the target client application, OIDC authentication can be enabled with great
 
 - A domain name that points to your NGINX Plus instance (for example, `demo.example.com`).
 
+- A TLS certificate and key for that domain name. The examples use `/etc/ssl/certs/fullchain.pem` and `/etc/ssl/private/key.pem`; replace them with your files.
 
 ## Set up your identity provider (IdP) {#idp-setup}
 
@@ -83,24 +99,28 @@ The setup steps are similar for most identity providers, but some details may di
    - Give the app a name.
    - Add the users or groups who need access.
 
-3. Find the **Client ID** and **Client Secret** for your app.
+3. Add the redirect URI that the IdP sends users back to after login, for example `https://demo.example.com/oidc_callback`. The IdP accepts only redirect URIs that you register. The [deployment guides](#deployment-guildes) show where to set it for each IdP.
+
+4. Find the **Client ID** and **Client Secret** for your app.
    You'll need these later when you [set up NGINX Plus as the relying party](#setup-oidc-provider2).
 
-4. Find the **issuer** value.
+5. Find the **issuer** value.
 
-   You can find the issuer value in your IdP app settings or at the standard discovery URL:
+   You can find the issuer value in your IdP app settings or in the discovery document, at the issuer URL followed by `/.well-known/openid-configuration`, for example:
 
-   `https://your-idp-domain/.well-known/openid-configuration`
+   `https://your-idp-domain/idp/.well-known/openid-configuration`
 
    where:
 
-   - the `your-idp-domain` is your IdP's server address
+   - the `https://your-idp-domain/idp` is your IdP's issuer URL
 
-   - the `.well-known/openid-configuration` is the default address for IdPs for the `.well-known` document
+   - the `/.well-known/openid-configuration` is the standard path of the discovery document
 
-   - the `userinfo_endpoint` is URI that a user visits to start an RP‑initiated logout flow.
+   The metadata also contains other addresses of the IdP, for example:
 
-   - the `end_session_endpoint` is the URL where your IdP should redirect the user after a successful logout.
+   - the `userinfo_endpoint` is the URL where NGINX Plus can get the user's profile data (claims).
+
+   - the `end_session_endpoint` is the URL where NGINX Plus sends the user's browser to log out at the IdP, for an RP‑initiated logout.
 
    The IdP configuration metadata is returned in the JSON format, for example:
 
@@ -117,21 +137,21 @@ The setup steps are similar for most identity providers, but some details may di
    }
    ```
 
-  Copy the **issuer** value. You will need it later when [configuring NGINX Plus as the Relying Party](#setup-oidc-provider2).
+   Copy the **issuer** value. You will need it later when [configuring NGINX Plus as the Relying Party](#setup-oidc-provider2).
 
-5. Configure a logout URI - a URI that a user visits to initiate an RP‑initiated logout flow, for example, `https://demo.example.com/post_logout/`. (Optional, supported since [NGINX Plus R35]({{< ref "nginx/releases.md#r35" >}})).
-
+6. Optionally, for RP‑initiated logout (supported since [NGINX Plus R35]({{< ref "nginx/releases.md#r35" >}})), register the post-logout redirect URI, where the IdP sends the user after logout, for example `https://demo.example.com/post_logout/`. It must be the same as the `post_logout_uri` value in the NGINX Plus configuration.
 
 ## Configure the Relying Party (NGINX Plus) {#rp-setup}
 
-With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as the Rely Party (RP) client service that verifies user identity.
+With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as the Relying Party (RP) client service that verifies user identity.
 
-1.  Ensure that you are using the latest version of NGINX Plus by running the `nginx -v` command in a terminal:
+1.  Check that you use NGINX Plus R34 or later, or R35 or later for RP‑initiated logout, by running the `nginx -v` command in a terminal:
 
     ```shell
     nginx -v
     ```
-    The output should match NGINX Plus Release 35:
+
+    For example, the output for NGINX Plus Release 35 is:
 
     ```none
     nginx version: nginx/1.29.0 (nginx-plus-r35)
@@ -141,7 +161,7 @@ With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
 3.  In your preferred text editor, open the NGINX configuration file (`/etc/nginx/nginx.conf` for Linux or `/usr/local/etc/nginx/nginx.conf` for FreeBSD).
 
-4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, make sure your public DNS resolver is specified with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive: By default, NGINX Plus re‑resolves DNS records at the frequency specified by time‑to‑live (TTL) in the record, but you can override the TTL value with the `valid` parameter:
+4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, make sure your DNS resolver is specified with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive: By default, NGINX Plus re‑resolves DNS records at the frequency specified by time‑to‑live (TTL) in the record, but you can override the TTL value with the `valid` parameter:
 
     ```nginx
     http {
@@ -174,13 +194,13 @@ With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
     - Your **Client Secret** obtained from your IdP with the [`client_secret`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
 
-    - The **Issuer** URL obtained from your IdP with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
+    - The **Issuer** URL obtained from your IdP with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#issuer) directive
 
      By default, NGINX Plus creates the metadata URL by appending the `/.well-known/openid-configuration` part to the Issuer URL. If your Issuer is different, you can explicitly specify the metadata document with the [`config_url`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#config_url) directive.
 
     - A valid system CA bundle with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#ssl_trusted_certificate) so that NGINX Plus could validate the IdP TLS certificates.
 
-    - If OIDC sessions are synchronized between NGINX Plus cluster nodes, you can use the [`session_sync_leeway`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#session_sync_leeway) directive to fix synchronization delays. When a request contains a session cookie but the corresponding session has not yet appeared in the local key-value zone, NGINX Plus waits for the specified period of time between `0` and `5s` - use the smallest value suitable for your environment.
+    - Optionally, in NGINX Plus [PLS.37.2.0.1 CR]({{< ref "nginx/releases.md#pls.37.2.0" >}}) and later: if OIDC sessions are synchronized between NGINX Plus cluster nodes, you can use the [`session_sync_leeway`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#session_sync_leeway) directive to fix synchronization delays. When a request contains a session cookie but the corresponding session has not yet appeared in the local key-value zone, NGINX Plus waits for the specified period of time between `0` and `5s` - use the smallest value suitable for your environment.
 
     ```nginx
     http {
@@ -193,8 +213,8 @@ With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
             ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
 
-            # Allow time for sessions to synchronize between cluster nodes
-            session_sync_leeway 1s;
+            # Only for clusters, PLS.37.2.0.1 CR and later:
+            # session_sync_leeway 1s;
         }
 
         # ...
@@ -251,7 +271,6 @@ With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
     - Any other OIDC claim using the [`$oidc_claim_ `](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#var_oidc_claim_) variable
 
-
     ```nginx
     # ...
     location / {
@@ -265,28 +284,35 @@ With your IdP configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     }
     # ...
     ```
+
     <span id="oidc_app"></span>
 10. Create a simple test application referenced by the `proxy_pass` directive which returns the authenticated user's full name and email upon successful authentication:
 
     ```nginx
     # ...
     server {
-        listen 8080;
+        listen 127.0.0.1:8080;
 
         location / {
-            return 200 "Hello, $http_name!\nEmail: $http_email\nIdP sub sub: $http_sub\n";
+            return 200 "Hello, $http_name!\nEmail: $http_email\nIdP sub: $http_sub\n";
             default_type text/plain;
         }
     }
     ```
-11. Save the NGINX configuration file and reload the configuration:
-    ```nginx
-    nginx -s reload
+
+    The application listens only on `127.0.0.1`. If clients could connect to it directly, they could send their own `name`, `email`, and `sub` headers, and the application would trust them.
+
+11. Save the NGINX configuration file, then test and reload the configuration:
+
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
     ```
 
-### Complete Example {#example}
+## Example {#example}
 
-This configuration example summarizes the steps outlined above. It includes only essential settings such as specifying the DNS resolver, defining the OIDC provider, configuring SSL, and proxying requests to an internal server.
+This configuration example summarizes the steps outlined above. It includes only essential settings such as specifying the DNS resolver, defining the OIDC provider, configuring SSL, and proxying requests to an internal server. The logout and UserInfo settings need NGINX Plus R35 or later; on R34, remove them.
+
+The example is the `http` block of **nginx.conf**. A complete **nginx.conf** also needs an `events` block, and usually the other settings of your existing file.
 
 ```nginx
 http {
@@ -304,15 +330,15 @@ http {
         client_id <CLIENT_ID>;
         client_secret <CLIENT_SECRET>;
 
-        # Allow time for sessions to synchronize between cluster nodes
-        session_sync_leeway 1s;
+        # Only for clusters, PLS.37.2.0.1 CR and later:
+        # session_sync_leeway 1s;
 
-        # RP‑initiated logout
+        # RP‑initiated logout, R35 and later
         logout_uri        /logout;
         post_logout_uri   https://demo.example.com/post_logout/;
         logout_token_hint on;
 
-        # Fetch userinfo claims
+        # Fetch userinfo claims, R35 and later
         userinfo on;
 
         # If the .well-known endpoint cannot be derived automatically,
@@ -339,15 +365,15 @@ http {
             proxy_pass http://127.0.0.1:8080;
         }
 
-            location /post_logout/ {
-                return 200 "You have been logged out.\n";
-                default_type text/plain;
-            }
+        location /post_logout/ {
+            return 200 "You have been logged out.\n";
+            default_type text/plain;
+        }
     }
 
     server {
         # simple test oidc-protected application
-        listen 8080;
+        listen 127.0.0.1:8080;
 
         location / {
             return 200 "Hello, $http_name!\nEmail: $http_email\nIdP sub: $http_sub\n";
@@ -359,31 +385,83 @@ http {
 
 Replace `<IDP_SERVER>` with the address of your identity provider server.
 
-### Testing {#testing}
+## Verify the configuration {#testing}
 
-1. Open https://demo.example.com/ in a browser. You should be redirected to your IdP's login page.
+1. Open `https://demo.example.com/` in a browser. You should be redirected to your IdP's login page.
 
-2. Enter valid IdP credentials for a user assigned to the `nginx-demo-app` client.
-Upon successful sign-in, the IdP redirects you back to NGINX Plus, and you will see the proxied application content (for example, “Hello, Jane Doe!”).
+2. Enter valid IdP credentials for a user assigned to the application that you created in your IdP.
+   Upon successful sign-in, the IdP redirects you back to NGINX Plus, and you will see the proxied application content, for example:
 
+    ```none
+    Hello, Jane Doe!
+    Email: jane.doe@example.com
+    IdP sub: 00u1a2b3c4d5e6f7g8h9
+    ```
+
+3. With NGINX Plus R35 or later and the logout settings from the [Example](#example), open `https://demo.example.com/logout`. NGINX Plus logs you out at the IdP, and the browser shows `You have been logged out.`
+
+## Troubleshooting
+
+### NGINX doesn't start: "unknown directive oidc_provider"
+
+**Symptom**: `nginx -t` fails with `unknown directive "oidc_provider"`.
+
+**Cause**: The NGINX binary doesn't have the OIDC module. NGINX Open Source doesn't include it, and NGINX Plus includes it in R34 and later.
+
+**Fix**: Check the version with `nginx -v`, and upgrade to NGINX Plus R34 or later.
+
+### The application shows empty claims
+
+**Symptom**: The application shows `Hello, !` or an empty email address.
+
+**Cause**: The ID token doesn't contain the `name` or `email` claim. Which claims an IdP puts in the ID token depends on the IdP and on the application's settings there.
+
+**Fix**: Check the claims that your IdP issues for the application. Many IdPs include `name` and `email` only for the `profile` and `email` scopes; see the [scope](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#scope) directive. In NGINX Plus R35 and later, to also get the claims from the UserInfo endpoint, add `userinfo on;` to the `oidc_provider` block, as in the [Example](#example).
+
+### Users get the application without logging in
+
+**Symptom**: Requests reach the application without a login.
+
+**Cause**: The requests don't go through a location with `auth_oidc`. For example, clients connect to the application's port directly, or another `location` that matches the request has no `auth_oidc` directive.
+
+**Fix**: Make the application listen only on `127.0.0.1` or on a private network, and put `auth_oidc` in the `server` block, or in every `location` that leads to the application.
+
+## Tested identity providers {#deployment-guildes}
+
+NGINX Plus has tested support with the following Identity Providers:
+
+{{<table>}}
+
+| IdP Provider    | Resource                              |
+|-----------------|-------------------------------------------------------------------------------------------------------------|
+| Amazon Cognito  | [Deployment Guide for Amazon Cognito]({{< ref "nginx/deployment-guides/single-sign-on/cognito.md" >}}) |
+| Auth0           | [Deployment Guide for Auth0]({{< ref "nginx/deployment-guides/single-sign-on/auth0.md" >}}) |
+| Microsoft AD FS | [Deployment Guide for AD FS]({{< ref "nginx/deployment-guides/single-sign-on/active-directory-federation-services.md" >}}) |
+| Microsoft Entra / Azure ID| [Deployment Guide for Entra ID]({{< ref "nginx/deployment-guides/single-sign-on/entra-id.md" >}}) |
+| Keycloak        | [Deployment Guide for Keycloak]({{< ref "nginx/deployment-guides/single-sign-on/keycloak.md" >}}) |
+| OneLogin        | [Deployment Guide for OneLogin]({{< ref "nginx/deployment-guides/single-sign-on/onelogin.md" >}}) |
+| Okta            | [Deployment Guide for Okta]({{< ref "nginx/deployment-guides/single-sign-on/okta.md" >}}) |
+| Ping Identity   | [Deployment Guide for Ping Identity]({{< ref "nginx/deployment-guides/single-sign-on/ping-identity.md" >}}) |
+
+{{</table >}}
 
 ## Glossary {#glossary}
 
-
 {{<table>}}
+
 | Term                    | Description                                        |
 |-------------------------|----------------------------------------------------|
 | Identity Provider (IdP) | A service that authenticates users and verifies their identity for client applications. |
 | Protected Resource      | A resource that is hosted by the resource server and requires an access token to be accessed. |
 | Relying Party (RP)      | A client service required to verify user identity. |
-| JSON Web Token (JWT)    | An open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object. This information can be verified and trusted because it is digitally signed. |
+| JSON Web Token (JWT)    | An open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object. A JWT can be digitally signed, so that the information can be verified and trusted. An OIDC ID token must be signed. |
 | ID Token                | Specific to OIDC, the primary use of the token in JWT format is to provide information about the authentication operation's outcome. |
-| Access Token            | Defined in OAuth2, this (optional) short lifetime token provides access to specific user resources as defined in the scope values in the request to the authorization server (can be a JSON token as well). |
+| Access Token            | Defined in OAuth2, this short lifetime token provides access to specific user resources as defined in the scope values in the request to the authorization server (can be a JSON token as well). |
 | Refresh Token           | Coming from OAuth2 specs, the token is usually long-lived and may be used to obtain new access tokens. |
+
 {{</table >}}
 
-
-## See Also {#see-also}
+## References {#see-also}
 
 - [Simplifying OIDC and SSO with the New NGINX Plus R34 OIDC Module blog post](https://community.f5.com/kb/technicalarticles/simplifying-oidc-and-sso-with-the-new-nginx-plus-r34-oidc-module/340552)
 

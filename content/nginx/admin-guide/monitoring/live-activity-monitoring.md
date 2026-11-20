@@ -21,16 +21,14 @@ f5-audience: operator
 
 F5 NGINX Plus has two tools for real-time monitoring:
 
-- **The dashboard**, available since NGINX Plus [Release 9]({{< ref "nginx/releases.md#r9" >}}). It's a web page that shows the main load and performance metrics of your servers, upstream groups, caches, and more.
-- **The NGINX Plus REST API**, available since NGINX Plus [Release 14]({{< ref "nginx/releases.md#r14" >}}). It returns the same statistics in JSON, so that you can feed them to other monitoring tools or your own dashboard. It can also reset statistics and change upstream servers and key-value stores without a reload. The dashboard gets its data from the API.
-
-Before NGINX Plus R14, the [`status`](https://nginx.org/en/docs/http/ngx_http_status_module.html#status) and [`upstream_conf`](https://nginx.org/en/docs/http/ngx_http_upstream_conf_module.html) modules provided the statistics and upstream management. The [`api`](https://nginx.org/en/docs/http/ngx_http_api_module.html) module replaced them, and they were removed in R16.
+- **The dashboard.** It's a web page that shows the main load and performance metrics of your servers, upstream groups, caches, and more.
+- **The NGINX Plus REST API.** It returns the same statistics in JSON, so that you can feed them to other monitoring tools or your own dashboard. It can also reset statistics and change upstream servers and key-value stores without a reload. The dashboard gets its data from the API.
 
 [![The NGINX Plus dashboard overview, with requests, connections, server zones, upstreams, and caches](/nginx/images/nginx-plus-dashboard-r35-overview.png)](https://demo.nginx.com/dashboard.html "Live status metrics from NGINX Plus")
 
 ## Before you begin {#prereq}
 
-- NGINX Plus R14 or later. The examples on this page use API version `10`, which needs NGINX Plus PLS.37.1.0.1 or later. For an earlier release, replace `10` in the URLs with the API version of your release from the [OpenAPI versions](#yaml-version) table.
+- A [supported release of NGINX Plus]({{< ref "/nginx/releases.md" >}}). The examples on this page use API version `10`. If your release has an earlier API version, replace `10` in the URLs with the version from the [OpenAPI versions](#yaml-version) table.
 - `sudo` access to the NGINX Plus configuration.
 - To make changes through the API or the dashboard, decide which clients may do it. Write access to the API can remove servers from your upstream groups.
 
@@ -40,7 +38,7 @@ Before NGINX Plus R14, the [`status`](https://nginx.org/en/docs/http/ngx_http_st
 
 NGINX Plus collects statistics only for the objects that have a shared memory zone. Worker processes share their counters in that zone. Add a zone to each object that you want to monitor:
 
-- **Virtual servers and locations.** Add the [`status_zone`](https://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directive to [HTTP]({{< ref "nginx/admin-guide/load-balancer/http-load-balancer.md" >}}) and [TCP/UDP]({{< ref "nginx/admin-guide/load-balancer/tcp-udp-load-balancer.md" >}}) `server` blocks. Several `server` blocks can share one zone name, and their counters add up. Since [R19]({{< ref "nginx/releases.md#r19" >}}), you can also add `status_zone` to `location` blocks. The dashboard then shows servers and locations separately:
+- **Virtual servers and locations.** Add the [`status_zone`](https://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directive to [HTTP]({{< ref "nginx/admin-guide/load-balancer/http-load-balancer.md" >}}) and [TCP/UDP]({{< ref "nginx/admin-guide/load-balancer/tcp-udp-load-balancer.md" >}}) `server` blocks. Several `server` blocks can share one zone name, and their counters add up. You can also add `status_zone` to `location` blocks. The dashboard then shows servers and locations separately:
 
     ```nginx
     server {
@@ -412,7 +410,7 @@ You can open the YAML file in Swagger UI or in another tool that supports OpenAP
 
 {{< call-out class="warning" >}}Swagger UI and the OpenAPI YAML files are for documentation and exploring the API only. For security reasons, don't use them in a production environment.{{< /call-out >}}
 
-Up to NGINX Plus [Release 25]({{< ref "nginx/releases.md#r25" >}}), the NGINX Plus packages included Swagger UI. Since [Release 26]({{< ref "nginx/releases.md#r26" >}}), F5 publishes the YAML files separately, as listed in the next section, and you install Swagger UI yourself.
+F5 publishes the YAML files separately, as listed in the next section. You install Swagger UI yourself.
 
 ### OpenAPI versions {#yaml-version}
 
@@ -455,8 +453,6 @@ This table matches each OpenAPI YAML file and API version to the [NGINX Plus rel
     }
     ```
 
-    In NGINX Plus Release 25 and earlier, Swagger UI is installed in the default root directory, for example `/usr/share/nginx/html`.
-
 5. Allow access only from a local network, with the [`allow`](https://nginx.org/en/docs/http/ngx_http_access_module.html#allow) and [`deny`](https://nginx.org/en/docs/http/ngx_http_access_module.html#deny) directives:
 
     ```nginx
@@ -486,7 +482,7 @@ This table matches each OpenAPI YAML file and API version to the [NGINX Plus rel
 
 ### Block access to Swagger UI {#swagger_disable}
 
-In NGINX Plus Release 25 and earlier, the NGINX Plus package installs Swagger UI by default. For [security reasons](https://support.f5.com/csp/article/K73710094), you might want to block access to it. One way is to [return](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#return) the `404` status code for the `/swagger-ui` location:
+If you've set up Swagger UI, you might want to block access to it later, for [security reasons](https://support.f5.com/csp/article/K73710094). One way is to [return](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#return) the `404` status code for the `/swagger-ui` location:
 
 ```nginx
 location /swagger-ui {

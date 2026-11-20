@@ -8,7 +8,7 @@ This report covers documentation work on the NGINX section of this repository (f
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
 | Head | the commit that adds this version of the report (the last page commit is `73753c47`) |
-| Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 12 behind on 2026-11-17. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed. One of them, `2f7284a5` ("remove stale EOL release-version callouts"), changes 7 pages that this branch also rewrote: `dynamic-configuration-api.md`, `grpc-health-check.md`, `http-load-balancer.md`, `using-proxy-protocol.md`, `denylisting-ip-addresses.md`, `securing-tcp-traffic-upstream.md` and `terminating-ssl-tcp.md`. It replaces NGINX Plus release callouts such as "R13 or later" with "a supported release", and turns `<span>` anchors into heading IDs. A later merge will have text conflicts on these pages; the anchors themselves are the same on both sides. |
+| Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 25 behind on 2026-11-20. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed. One of them, `2f7284a5` ("remove stale EOL release-version callouts"), changes 8 pages that this branch also rewrote: `live-activity-monitoring.md`, `dynamic-configuration-api.md`, `grpc-health-check.md`, `http-load-balancer.md`, `using-proxy-protocol.md`, `denylisting-ip-addresses.md`, `securing-tcp-traffic-upstream.md` and `terminating-ssl-tcp.md`. It replaces NGINX Plus release callouts such as "R13 or later" with "a supported release", and turns `<span>` anchors into heading IDs. A later merge will have text conflicts on these pages; the anchors themselves are the same on both sides. On `live-activity-monitoring.md`, this branch makes the same removal of release callouts (`3` commits after the rewrite), so the conflict there is in wording only. |
 
 ## Scope
 
@@ -59,6 +59,8 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 26 | `admin-guide/security-controls/configuring-jwt-authentication.md` | `0659de83` | How NGINX Plus validates a JWT |
 | 27 | `admin-guide/security-controls/configuring-oidc.md` | `a21a88e8` | The OpenID Connect login flow (next to the existing image) |
 | 28 | `admin-guide/security-controls/denylisting-ip-addresses.md` | `73753c47` | A denylist lookup and its updates through the API |
+| 29 | `admin-guide/monitoring/debugging.md` | `b24e322d` | None. The page is a set of separate procedures with no flow that a diagram explains better than text. |
+| 30 | `admin-guide/monitoring/live-activity-monitoring.md` | `2cdc5798` | None. The page already has screenshots of each dashboard tab. |
 
 The whole `admin-guide/load-balancer/` and `admin-guide/security-controls/` sections are now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
 
@@ -66,9 +68,8 @@ These pages keep every URL, file path and anchor. Headings keep their wording or
 
 ## Pages not reached
 
-This work didn't reach 107 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
+This work didn't reach 105 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
 
-- `admin-guide/monitoring/debugging.md` and `live-activity-monitoring.md`
 - `admin-guide/installing-nginx/*`
 - `admin-guide/dynamic-modules/*`
 - `deployment-guides/*`
@@ -221,6 +222,21 @@ The page that each fix applies to is in brackets. Source references are in the n
   - The API `curl` commands called `http://www.example.com/api` without credentials, but the configuration allows only `127.0.0.1` and needs a password for changes: every change got `403` or `401`.
   - Three `<span>` anchors duplicated heading IDs. Added a lockout recovery, and a warning that a broad `set_real_ip_from` lets any client pass `allow 127.0.0.1`.
 
+- **[debugging]**
+  - Worker processes set their own core file limit, soft and hard, before they switch user (`ngx_process_cycle.c:821-830`, `867`). They also allow core dumps after the switch on Linux (`prctl(PR_SET_DUMPABLE)`, `:904-910`). So the `prlimit`, `ulimit` and `exec su` steps and `fs.suid_dumpable` aren't needed. Checked live: a worker's limit was 524288000/524288000, while the master's stayed 0. `sysctl -p` was dropped, and the old distribution list was replaced by an explanation of `core_pattern`.
+  - The memory log buffer belongs to each worker. It's cyclic, starts with a `MEMLOG` line, and is filled with spaces (`ngx_log.c:609-624`, `ngx_log_memory_writer`). The page now says which worker to read.
+  - `configure` keeps only the last `--with-cc-opt` (`auto/options:382`), so `-O0` must go into an existing value. It adds `-g` and `-O` only without a `CFLAGS` environment variable (`auto/cc/conf:39`).
+  - Readers of the NGINX Plus debug binary must run `nginx-debug -t`, `-V` and `ps -C nginx-debug`, because the standard binary rejects `error_log memory:` (`ngx_log.c:640`).
+  - A per-server debug log misses the start of each request when the server isn't the default one for its `listen` address (`ngx_http_request.c:554`, `2551`).
+  - Added the Control API way to get the loaded configuration (`GET /1/control/config`, 1.31.5). The GDB dump needs debug support or the Control API (`ngx_conf_file.c:222-228`) and debugging symbols.
+  - Fixed the GDB scripts marked as `nginx` code, the `error_log` in a `shell` block, the `nginx.conf.txt` typo and the FreeBSD configuration path. Both GDB scripts were run against NGINX started under GDB.
+- **[live monitoring]** (NGINX Plus)
+  - Corrected on the evidence of the public NGINX Plus demo (R37.3.0, 2026-11-19), see [Decisions](#decisions) item 8: the top-level endpoint list was invalid JSON, with a missing comma, a duplicate `workers` and no `license`, and it now matches the v10 YAML too. The `/nginx` sample output. The demo now redirects HTTP to HTTPS.
+  - The `curl -X POST` body had a backslash at each line end inside single quotes. Those backslashes are sent literally, so the JSON was invalid and the request failed with `415` (checked with a JSON parser and the v10 YAML). The write examples also lacked the credentials that the page's own configuration requires, so they got `401`.
+  - The text said API version 9 while the URLs used 10. The examples need PLS.37.1.0.1 or later. The v10 row of the versions table linked a missing anchor and called that release LTS, but `releases.md` calls it CR.
+  - The dashboard and Swagger UI expect the API at `/api`. Swagger UI must be pointed at the YAML file, and inline scripts are blocked by the page's CSP header.
+  - Fixed the "Non synced data threshold" label, the Caches text ("upstream group"), the alt text of the Resolvers image, the broken `#the-swagger-ui`, `uwsgi_cache_path` and `ngx_mgmt_module` links, and the `usr/share` path. Kept the 6 anchors that other pages link to, including the generated `#gathering-data-to-appear-in-statistics`.
+
 Fixed across the pages:
 
 - Lost anchors: a check of every changed page found that the gRPC page had lost three generated heading anchors. They're aliased again in `28deafbd`. No other page lost an anchor.
@@ -231,7 +247,7 @@ Fixed across the pages:
 ## Examples not tested
 
 - **Test conditions:**
-  - Examples were tested with gcc builds of nginx 1.31.9 without the perl module (`objs.doc`, and `objs.ctl` with the Control API).
+  - Examples were tested with gcc builds of nginx 1.31.9 without the perl module (`objs.doc`, and `objs.ctl` with the Control API; from page 29 on, `objs.ctl` only).
   - Tests ran as an unprivileged user. Ports below 1024 were moved to 18000 + port, and `/var/log`, `/var/run`, `/usr/share/nginx`, `/etc/nginx`, `/etc/ssl` and `/data` were mapped to a temporary prefix.
   - Example host names that don't resolve, such as `backend1.example.com`, were mapped to 127.0.0.1.
   - TLS examples used a throwaway CA and certificate.
@@ -247,6 +263,8 @@ Fixed across the pages:
   - [JWT] every `auth_jwt*` directive and the `$jwt_*` variables. The rest of each example passes `nginx -t`, and the claim maps were run with stand-in variables;
   - [OIDC] `oidc_provider`, `auth_oidc` and the `$oidc_*` variables. The rest of the example, including the test application, was run;
   - [denylisting] `keyval_zone`, `keyval`, `api` and the API requests. The access rules around the API were run with stand-ins.
+  - [live monitoring] `status_zone`, `zone` statistics, `health_check`, `resolver ... status_zone=`, `api` and the dashboard. With these directives stubbed out, every block passes `nginx -t`, and the Example runs with open-source NGINX. The API responses were checked against the public demo and the v10 YAML.
+  - [debugging] the `nginx-debug` binary of NGINX Plus.
 - **Third-party module, not runnable here:**
   - [GeoIP] the `geoip2` blocks and `geoip2_proxy`. Building the third-party GeoIP2 module was blocked by this session's permission system, so its claims were checked by reading its source (version 3.4). The `map`, `upstream`, `proxy_pass` and `if` parts were run with built-in `geo` stand-ins.
 - **Not runnable here:**
@@ -267,13 +285,15 @@ These can't be checked against the open-source code:
 - **GeoIP**: MaxMind's database contents and record keys, the NGINX Plus module packages, and whether `libmaxminddb-devel` provides `mmdblookup` on RHEL and SLES.
 - **JWT, OIDC and denylisting**: all NGINX Plus behaviour on these pages, including the supported algorithms, key matching, the API version 6 paths, keyval matching, whether the Plus `api` handler applies inside `limit_except`, and the NGINX Plus release numbers.
 - **The NTP health check** matches the byte `\x24` anywhere in the response, because its regular expression isn't anchored. The page now says so. The NGINX Plus example itself was left as it is.
+- **Debugging**: the FreeBSD `sysctl` names, the kernel's `core_pattern` rules (core(5)), whether a memory log has less performance impact than a file, and NGINX Plus Release 8 as the first with `nginx-debug`.
+- **Live monitoring**: the NGINX Plus dashboard behaviour, option defaults and tab contents, which statistics can be reset, and the release history of the API. The PLS37.0.0 row of the versions table names `response_time_hist`, but it links the v9 YAML, which doesn't have it; only v10 does. That row was left as is.
 
 ## Build, lint and link results
 
 | Check | Baseline (`364cbc06`) | After |
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
-| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2226 errors (762 in `content/nginx`); no new errors |
+| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2186 errors (722 in `content/nginx`); no new errors |
 | `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 28 changed pages |
 
 The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
@@ -292,7 +312,7 @@ Not used: the third-party GeoIP2 module (`leev/ngx_http_geoip2_module` 3.4) was 
 
 ## Decisions
 
-The repository owner approved decisions 1 to 5 on 2026-11-16, and decision 6 on 2026-11-17. Decision 7 is new.
+The repository owner approved decisions 1 to 5 on 2026-11-16, and decision 6 on 2026-11-17. Decisions 7 and 8 await approval.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.
@@ -301,3 +321,4 @@ The repository owner approved decisions 1 to 5 on 2026-11-16, and decision 6 on 
 5. **Version notes name NGINX Open Source releases only,** taken from `git tag --contains`. Matching NGINX Plus releases aren't given, because they can't be checked here.
 6. **One NGINX Plus-only example was changed.** NGINX Plus facts were otherwise left as they are. The DNS health check's `expect` regular expression could never match a real DNS response, which is a fact of the DNS wire format, not of NGINX Plus. This was checked by sending the same kind of query to a real resolver and matching both expressions against the response bytes. The example now matches `healthy\x04svcs`. The `match` block itself still couldn't be run.
 7. **New: some NGINX Plus-only examples were changed where open-source NGINX or a public standard proves them wrong.** As with decision 6, the NGINX Plus facts themselves were kept. The changes are: configuration structure that `nginx -t` rejects (JWT), unanchored regular expressions in `map` blocks and an unverified TLS key fetch (JWT), `curl` commands that the page's own `allow`, `deny` and `auth_basic` rules reject (denylisting), and descriptions of OpenID Connect metadata fields that contradict the OpenID specifications (OIDC). Each is listed in [Defects fixed](#defects-fixed).
+8. **New: observations of the public NGINX Plus demo as evidence.** On the live monitoring page, the sample outputs and the top-level endpoint list were replaced with what `https://demo.nginx.com/api/10/` returned on 2026-11-19 (NGINX Plus R37.3.0, GET requests only). The demo is a running NGINX Plus maintained by F5, and its output agrees with the v10 YAML in this repository. No other NGINX Plus behaviour was changed on this basis.

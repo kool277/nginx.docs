@@ -1,6 +1,5 @@
 ---
 title: Deploy unprivileged NGINX Plus on Kubernetes and OpenShift
-canonical: TODO
 description: "Run F5 NGINX Plus as an unprivileged, non-root pod on Kubernetes or OpenShift, and optionally connect it to NGINX Instance Manager or NGINX One Console."
 toc: true
 weight: 650
@@ -56,11 +55,13 @@ To get an image, pull a prebuilt image from the F5 private registry, or build a 
 The F5 private registry, `private-registry.nginx.com`, provides unprivileged images that run as the `nginx` user (UID `101`, GID `101`):
 
 {{<table>}}
+
 | Image | Contents |
 |-------|----------|
 | `nginx-plus/rootless-base` | NGINX Plus |
 | `nginx-plus/rootless-agent` | NGINX Plus with NGINX Agent version 2 |
 | `nginx-plus/rootless-agentv3` | NGINX Plus with NGINX Agent version 3 |
+
 {{</table >}}
 
 1. Pull one of the images and push it to your private registry. Follow the steps in [Use official NGINX Plus Docker images]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-docker.md#nginx_plus_official_images" >}}).
@@ -103,7 +104,7 @@ To build a custom image, use the NGINX [Docker image builder](https://github.com
 
    - `-u` builds an unprivileged image.
    - `-i <UID>:<GID>` sets the UID and GID of the `nginx` user. The default is `101:101`.
-   - `-a <AGENT_VERSION>` adds NGINX Agent version 2 or 3. Omit this option to build without NGINX Agent.
+   - `-a <AGENT_VERSION>` adds NGINX Agent version 2 or 3. The script requires this option. NGINX Agent runs only if the container sets `NGINX_AGENT_ENABLED` to `true`.
    - `-w` adds F5 WAF for NGINX.
 
 1. Push the image to your private registry:
@@ -245,7 +246,7 @@ The following manifest deploys an unprivileged NGINX Plus pod. It contains a Con
    - `<MY_DOCKER_REGISTRY>`: the path to your private registry, or `private-registry.nginx.com` to pull from the F5 private registry
    - `<VERSION_TAG>`: the image tag, for example, `r36-debian`
 
-   If you built a custom image, replace the full `image` value with the name of your image. If you don't use an image pull Secret, remove the `imagePullSecrets` section.
+   If you built a custom image, replace the full `image` value with the name of your image. Also rename the `NGINX_LICENSE_JWT` variable to `NGINX_LICENSE`, because the builder's startup script reads only that name. Without it, NGINX Plus has no license, although the pod shows `Running`. If you don't use an image pull Secret, remove the `imagePullSecrets` section.
 
 1. Apply the manifest:
 
@@ -294,7 +295,7 @@ To manage the pod from NGINX Instance Manager or NGINX One Console, use an image
 The control plane pushes NGINX configuration to the pod, so change the manifest first:
 
 - Remove the `nginx-conf` volume and its `volumeMounts` entry from the Deployment. NGINX Agent can't update a read-only ConfigMap mount.
-- Publish configurations that listen on ports above `1024`.
+- Publish configurations that listen on port `1024` or higher.
 
 1. If you connect to NGINX One Console, store the data plane key in a Secret:
 
@@ -371,6 +372,7 @@ The control plane pushes NGINX configuration to the pod, so change the manifest 
 1. If you built a custom image with the Docker image builder, use the variables in the following table instead. The builder's startup script reads these names.
 
    {{<table>}}
+
    | Variable | Description |
    |----------|-------------|
    | `NGINX_LICENSE` | The contents of your JWT license. Use it instead of `NGINX_LICENSE_JWT`. |
@@ -383,7 +385,11 @@ The control plane pushes NGINX configuration to the pod, so change the manifest 
    | `NGINX_AGENT_INSTANCE_GROUP` | The instance group or config sync group to join. |
    | `NGINX_AGENT_TAGS` | A comma-separated list of tags. |
    | `NGINX_AGENT_ALLOWED_DIRECTORIES` | A comma-separated list of directories that NGINX Agent can read and write, for example, `/etc/nginx`. |
+   | `NAP_WAF` | Set to `true` to start F5 WAF for NGINX in an image that you built with `-w`. |
+
    {{</table >}}
+
+   {{< call-out class="caution" >}} For NGINX Agent version 3, the builder's startup script, `container/start.sh`, always passes `--command-tls-skip-verify`. NGINX Agent then doesn't verify the server's certificate, whatever `NGINX_AGENT_TLS_SKIP_VERIFY` says. Check the script before you use such an image in production. {{< /call-out >}}
 
 1. Apply the updated manifest:
 
@@ -411,6 +417,8 @@ Choose one of the following approaches.
 
 If you use a custom image built with the Docker image builder, let OpenShift assign the UID. The image's directories are writable by group `0`, which is the group of the pod's process.
 
+{{< call-out class="caution" >}} Under an assigned UID, the builder's startup script can't start NGINX Agent or F5 WAF for NGINX. It starts them correctly only when `whoami` returns `nginx`, and an assigned UID has no user name. To use NGINX Agent or F5 WAF for NGINX, [run under a fixed UID](#run-under-a-fixed-uid). {{< /call-out >}}
+
 1. Create the project:
 
    ```shell
@@ -434,7 +442,7 @@ If you use a custom image built with the Docker image builder, let OpenShift ass
 1. Check the SCC and the UID that OpenShift assigned:
 
    ```shell
-   oc get pod <POD_NAME> -n <NAMESPACE> -o jsonpath='{.metadata.annotations.openshift.io/scc}'
+   oc get pod <POD_NAME> -n <NAMESPACE> -o jsonpath='{.metadata.annotations.openshift\.io/scc}'
    oc exec <POD_NAME> -n <NAMESPACE> -- id
    ```
 
@@ -485,7 +493,7 @@ Replace `<NAMESPACE>` with the name of the project. The second command shows the
 
 **Cause**: An unprivileged process can't listen on ports below `1024`.
 
-**Fix**: Configure NGINX to listen on a port above `1024`, for example, `8080`. Use the same port for `containerPort` and the Service `targetPort`.
+**Fix**: Set NGINX to listen on port `1024` or higher, for example, `8080`. Use the same port for `containerPort` and the Service `targetPort`.
 
 ### OpenShift rejects the pod
 
@@ -493,7 +501,7 @@ Replace `<NAMESPACE>` with the name of the project. The second command shows the
 
 **Cause**: The `runAsUser` value is outside the UID range that the SCC allows.
 
-**Fix**: Delete `runAsUser`, or grant the `nonroot-v2` SCC to the pod's service account. See [Run under a fixed UID](#deploy-openshift).
+**Fix**: Delete `runAsUser`, or grant the `nonroot-v2` SCC to the pod's service account. See [Run under a fixed UID](#run-under-a-fixed-uid).
 
 ### NGINX can't write to a file or directory
 

@@ -1,49 +1,64 @@
 ---
 title: Installing NGINX Plus LTS
-description: Install F5 NGINX Plus LTS with step-by-step instructions for
-  the base package on all supported distributions.
+description: Install an F5 NGINX Plus Long-Term Support (LTS) release by pinning the NGINX Plus repository to the current LTS or to the LTS track.
 toc: true
 weight: 120
-nd-content-type: how-to
+f5-content-type: installation-guide
 f5-product: F5 NGINX Plus
+f5-keywords: "nginx plus lts, long-term support, pin repository, lts track, nginx-plus package, license.jwt"
+f5-summary: >
+  This guide shows how to install an F5 NGINX Plus Long-Term Support (LTS) release, which gets only security fixes for up to three years.
+  You point the NGINX Plus repository to the current LTS, or to the LTS track that moves to each new LTS, instead of the default Continuous Releases.
+  It covers each supported operating system.
+f5-audience: operator
 ---
 
-Since May 13, 2026, NGINX Plus is published in two release types: Long-Term Support (LTS) and Continuous Release (CR).
+## Overview
 
-The NGINX Plus LTS release model is designed for mission-critical production environments. Each LTS release is supported for three years and receives security fixes and CVE mitigations without introducing new features. New features are delivered in CRs during the same annual LTS cycle.
+An NGINX Plus Long-Term Support (LTS) release gets security fixes and CVE mitigations for up to three years, but no new features. To install one, you point the NGINX Plus repository to an LTS URL instead of the default URL, which gives you Continuous Releases (CR). When you finish this guide, an NGINX Plus LTS release runs with its license.
 
-- **Cadence**: one LTS per year
-- **Patching model**: security/CVE fixes only, no feature changes
-- **Support window**: up to 3 years for each LTS release
-- **Concurrency**: up to 3 LTS versions supported at the same time
-- **Version format**: an LTS release has `0` as the second numeric component, for example: `PLS.37.0.0.1`. LTS updates increment the third component, for example: `PLS.37.0.1.1`.
+---
 
-NGINX Plus CRs are published several times within an annual LTS cycle. Each CR contains the latest features and performance improvements. The CR cycle ends when a new LTS is released.
+<span id="prereq"></span>
 
-
-## Repository configuration options {#repo-options}
-
-By default, NGINX Plus repositories are configured to receive [Continuous Releases]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}). To use LTS, update your repository configuration to point to the LTS package URL, replacing the default URL. You can choose one of the options during installation:
-
-- **Pin to current LTS only**: receive only security updates for this LTS, no CRs, no upgrade to next LTS; supported up to three years. Follow the steps for your operating system in this guide.
-- **Pin to LTS track**: upgrade to the newest LTS when it is released annually, no CRs. Follow the steps for your operating system in this guide.
-- **Default**: receive Continuous Releases within the current LTS release, upgrade to each new LTS when it is released annually and then receive its CRs. See [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
-
-## Prerequisites {#prereq}
+## Before you begin
 
 Before you begin, make sure you have:
 
-- [MyF5 Customer Portal](https://account.f5.com/myf5) access, credentials are provided in the email from F5, Inc.
-- An active NGINX Plus subscription. Details can be verified on the [MyF5 Customer Portal](https://account.f5.com/myf5).
-- A [supported operating system and architecture]({{< ref "nginx/technical-specs.md" >}}).
-- Administrative privileges: `root` access or `sudo`, or see [Unprivileged installation]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#unpriv_install" >}}).
-- Internet access, or see [Offline installation]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#offline_install" >}}).
+- **MyF5 access**: You need credentials for the [MyF5 Customer Portal](https://account.f5.com/myf5). They're in the email from F5, Inc.
+- **A subscription**: You need an active NGINX Plus subscription. You can check it in the [MyF5 Customer Portal](https://account.f5.com/myf5).
+- **A supported operating system**: Check your operating system and architecture in the [Technical Specifications]({{< ref "nginx/technical-specs.md" >}}).
+- **Root privileges**: The commands use `sudo`. Without root access, see [Install without root privileges]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#unpriv_install" >}}). Its script installs Continuous Releases by default. To use the LTS repository, set `REPOPREFIX=https://pkgs.nginx.com/plus/LTS` before you run the script.
+- **Internet access**: The server must reach `pkgs.nginx.com` and `cs.nginx.com` over HTTPS. Without internet access, see [Install without internet access]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#offline_install" >}}).
 
-## Preparation steps for all operating systems {#common-steps}
+If you already have NGINX Plus installed, back up its configuration and log files first. For details, see [Upgrading NGINX Plus]({{< ref "nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}}).
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+---
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+## Choose an LTS option {#repo-options}
+
+Since May 13, 2026, NGINX Plus is published in two release types: Long-Term Support (LTS) and Continuous Release (CR). An LTS release:
+
+- **Cadence**: Comes out once a year.
+- **Patching model**: Gets security and CVE fixes only, with no feature changes.
+- **Support window**: Is supported for up to three years.
+- **Concurrency**: Is one of up to three LTS versions that are supported at the same time.
+- **Version format**: Has `0` as the second number, for example `PLS.37.0.0.1`. LTS updates increase the third number, for example `PLS.37.0.1.1`.
+
+CRs come out several times during an annual LTS cycle, with the latest features and performance improvements. The CR cycle ends when a new LTS comes out.
+
+By default, the NGINX Plus repositories give you [Continuous Releases]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}). For LTS, you replace the repository URL with one of these, in the steps for your operating system:
+
+- **Pin to the current LTS only**: Get only security updates for this LTS, with no CRs and no move to the next LTS. This is supported for up to three years. The URL contains the release, for example `R37.0`.
+- **Pin to the LTS track**: Move to the newest LTS every year, with no CRs. The URL contains `LTS`.
+
+To get CRs instead, follow [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+
+---
+
+## Get the subscription files {#common-steps}
+
+On every operating system, first get the files of your subscription and put the certificate and key in place:
 
 1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
 
@@ -51,377 +66,276 @@ Before you begin, make sure you have:
 
 1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
 
-1. Follow the installation instructions for your operating system: [Amazon Linux 2023](#install_amazon2023), [Amazon Linux 2](#install_amazon2), [RHEL-based](#install_rhel), [Debian](#install_debian), [Ubuntu](#install_debian_ubuntu), [FreeBSD](#install_freebsd), [SLES](#install_suse), [Alpine](#install_alpine).
+Keep the JWT file. You copy it to NGINX Plus after you install the package.
 
+---
 
-## Amazon Linux 2023 LTS packages {#install_amazon2023}
+## Install NGINX Plus LTS {#install}
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+Follow the steps for your operating system, and then [start NGINX Plus](#start).
 
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
+### Amazon Linux 2023 {#install_amazon2023}
 
-1. Add the NGINX Plus repository to your Amazon Linux 2023 instance. Download the [plus-amazonlinux2023.repo](https://cs.nginx.com/static/files/plus-amazonlinux2023.repo) file to **/etc/yum.repos.d**:
+1. Install the `ca-certificates` dependency:
 
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-amazonlinux2023.repo
-   ```
+    ```shell
+    sudo dnf install ca-certificates
+    ```
 
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/yum.repos.d/plus-amazonlinux2023.repo` file and update the `baseurl` to the [appropriate value](#repo-options) for your target version.
+1. Add the NGINX Plus repository. Download the [plus-amazonlinux2023.repo](https://cs.nginx.com/static/files/plus-amazonlinux2023.repo) file to `/etc/yum.repos.d`:
 
-   - Pin to current LTS version:
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-amazonlinux2023.repo
+    ```
 
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/R37.0/amzn/2023/$basearch
-     ```
-   - Pin to LTS track:
+1. Edit `/etc/yum.repos.d/plus-amazonlinux2023.repo`, and change the `baseurl` line for your [LTS option](#repo-options):
 
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/LTS/amzn/2023/$basearch
-     ```
+    - To pin to the current LTS:
+
+        ```none
+        baseurl=https://pkgs.nginx.com/plus/R37.0/amzn/2023/$basearch
+        ```
+
+    - To pin to the LTS track:
+
+        ```none
+        baseurl=https://pkgs.nginx.com/plus/LTS/amzn/2023/$basearch
+        ```
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+### Amazon Linux 2 {#install_amazon2}
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+1. Install the `ca-certificates` dependency:
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+    ```shell
+    sudo yum install ca-certificates
+    ```
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Add the NGINX Plus repository. Download the [nginx-plus-amazon2.repo](https://cs.nginx.com/static/files/nginx-plus-amazon2.repo) file to `/etc/yum.repos.d`:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/nginx-plus-amazon2.repo
+    ```
 
+1. Edit `/etc/yum.repos.d/nginx-plus-amazon2.repo`, and change the `baseurl` line for your [LTS option](#repo-options):
 
-## Amazon Linux 2 LTS packages {#install_amazon2}
+    - To pin to the current LTS:
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+        ```none
+        baseurl=https://pkgs.nginx.com/plus/R37.0/amzn2/$releasever/$basearch
+        ```
 
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-yum.md" >}}
+    - To pin to the LTS track:
 
-1. Add the NGINX Plus repository to your Amazon Linux 2 instance. Download the [nginx-plus-amazon2.repo](https://cs.nginx.com/static/files/nginx-plus-amazon2.repo) file to **/etc/yum.repos.d**:
-
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/nginx-plus-amazon2.repo
-   ```
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/yum.repos.d/nginx-plus-amazon2` file and update the `baseurl` to the [appropriate value](#repo-options) for your target version.
-
-   - Pin to current LTS version:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/R37.0/amzn2/$releasever/$basearch
-     ```
-   - Pin to LTS track:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/LTS/amzn2/$releasever/$basearch
-     ```
+        ```none
+        baseurl=https://pkgs.nginx.com/plus/LTS/amzn2/$releasever/$basearch
+        ```
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-yum.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+### RHEL and derivatives {#install_rhel}
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+These steps apply to Red Hat Enterprise Linux, Oracle Linux, AlmaLinux, and Rocky Linux, versions 8.1 and later, 9.7 and later, and 10 and later.
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+1. Install the `ca-certificates` dependency:
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+    ```shell
+    sudo dnf install ca-certificates
+    ```
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+1. Add the NGINX Plus repository. Download the repository file for the major version of your operating system to `/etc/yum.repos.d`:
 
+    - For version 8, the [plus-8.repo](https://cs.nginx.com/static/files/plus-8.repo) file:
 
-## RHEL-based systems LTS packages {#install_rhel}
+        ```shell
+        sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-8.repo
+        ```
 
-Supported RHEL-based operating systems include Red Hat Enterprise Linux, Oracle Linux, AlmaLinux, and Rocky Linux for versions 8.1+, 9.7+, and 10+.
+    - For version 9, the [plus-9.repo](https://cs.nginx.com/static/files/plus-9.repo) file:
 
-1. Make sure you meet the [prerequisites](#prereq) and have completed the [common steps for all operating systems](#common-steps).
+        ```shell
+        sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-9.repo
+        ```
 
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
+    - For version 10, the [plus-10.repo](https://cs.nginx.com/static/files/plus-10.repo) file:
 
-1. Add the NGINX Plus repository by downloading **nginx-plus-<VERSION>.repo** file that matches your OS major version to **/etc/yum.repos.d**.
+        ```shell
+        sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-10.repo
+        ```
 
-   - For **RHEL-based 8.1+**, download the [plus-8.repo](https://cs.nginx.com/static/files/plus-8.repo) file:
+1. Edit the repository file that you downloaded, and change the `baseurl` line for your [LTS option](#repo-options):
 
-     ```shell
-     sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-8.repo
-     ```
+    {{< table >}}
 
-   - For **RHEL-based 9.7+**, download the [plus-9.repo](https://cs.nginx.com/static/files/plus-9.repo) file:
+    | Version | Pin to the current LTS | Pin to the LTS track |
+    |---|---|---|
+    | 8 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/8/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/8/$basearch/` |
+    | 9 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/9/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/9/$basearch/` |
+    | 10 | `baseurl=https://pkgs.nginx.com/plus/R37.0/rhel/10/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/rhel/10/$basearch/` |
 
-     ```shell
-     sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-9.repo
-     ```
+    {{< /table >}}
 
-   - For **RHEL-based 10+**, download the [plus-10.repo](https://cs.nginx.com/static/files/plus-10.repo) file:
+1. Refresh the repository information:
 
-     ```shell
-     sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-10.repo
-     ```
-
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/yum.repos.d/plus-<VERSION>.repo` file and update the `baseurl` to the [appropriate value](#repo-options) for your target version.
-   <br/>
-   <br/>
-   For **RHEL-based 8.1+**
-
-   - Pin to current LTS version:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/R37.0/centos/8/$basearch/
-     ```
-   - Pin to LTS track:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/LTS/centos/8/$basearch/
-     ```
-
-   For **RHEL-based 9.7+**
-
-   - Pin to current LTS version:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/R37.0/centos/9/$basearch/
-     ```
-   - Pin to LTS track:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/LTS/centos/9/$basearch/
-     ```
-     
-   For **RHEL-based 10+**
-
-   - Pin to current LTS version:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/R37.0/centos/10/$basearch/
-     ```
-   - Pin to LTS track:
-
-     ```none
-     baseurl=https://pkgs.nginx.com/plus/LTS/centos/10/$basearch/
-     ```
-
-   - Save the changes and exit.
-
-   - Update the repository information:
-
-     ```shell
-     sudo dnf update
-     ```
+    ```shell
+    sudo dnf makecache
+    ```
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/enable-nginx-service-at-boot.md" >}}
+### Debian {#install_debian}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+1. Install the prerequisites:
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+    ```shell
+    sudo apt update
+    sudo apt install apt-transport-https lsb-release ca-certificates wget gnupg2 debian-archive-keyring
+    ```
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+1. Download the NGINX signing key and save it in the format that `apt` reads:
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+    ```shell
+    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
+        | gpg --dearmor \
+        | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+    ```
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+1. Check the keys in the downloaded file:
 
+    ```shell
+    gpg --show-keys /usr/share/keyrings/nginx-archive-keyring.gpg
+    ```
 
-## Debian LTS packages {#install_debian}
+    The output lists three keys. Their fingerprints must be `8540A6F18833A80E9C1653A42FD21310B49F6B46`, `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, and `9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3`. If they don't match, delete the file and stop.
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+1. Add the NGINX Plus repository for your [LTS option](#repo-options).
 
-1. Install the prerequisites packages:
+    - To pin to the current LTS:
 
-   ```shell
-   sudo apt update && \
-   sudo apt install apt-transport-https \
-                    lsb-release \
-                    ca-certificates \
-                    wget \
-                    gnupg2 \
-                    debian-archive-keyring
-   ```
+        ```shell
+        printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+        https://pkgs.nginx.com/plus/R37.0/debian `lsb_release -cs` nginx-plus\n" \
+            | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+        ```
 
-1. Download and add NGINX signing key:
+    - To pin to the LTS track:
 
-   ```shell
-   wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-       | gpg --dearmor \
-       | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+        ```shell
+        printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+        https://pkgs.nginx.com/plus/LTS/debian `lsb_release -cs` nginx-plus\n" \
+            | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+        ```
 
-   ```
-1. Add the NGINX Plus repository:
+1. Download the `apt` configuration for the repository to `/etc/apt/apt.conf.d`. It tells `apt` to use your certificate and key for `pkgs.nginx.com`:
 
-   ```shell
-   printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-   https://pkgs.nginx.com/plus/debian `lsb_release -cs` nginx-plus\n" \
-   | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-   ```
+    ```shell
+    sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
+    ```
 
-1. Download the **nginx-plus** apt configuration to **/etc/apt/apt.conf.d**:
+1. Install the `nginx-plus` package. It upgrades an older NGINX Plus package, but it keeps a newer Continuous Release. To replace one, see [Switch from a Continuous Release](#switch-from-cr).
 
-   ```shell
-   sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
-   ```
-
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/apt/sources.list.d/nginx-plus.list` file and update the URL to the [appropriate value](#repo-options) for your target version.
-
-   - Pin to current LTS version:
-
-     ```none
-     https://pkgs.nginx.com/plus/R37.0/debian
-     ```
-   - Pin to LTS track:
-
-     ```none
-     https://pkgs.nginx.com/plus/LTS/debian
-     ```
-
-1. Update the repository information:
-
-   ```shell
-   sudo apt update
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   sudo apt install -y nginx-plus
-   ```
+    ```shell
+    sudo apt update
+    sudo apt install -y nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+### Ubuntu {#install_debian_ubuntu}
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+1. Install the prerequisites:
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+    ```shell
+    sudo apt update
+    sudo apt install apt-transport-https lsb-release ca-certificates wget gnupg2 ubuntu-keyring
+    ```
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Download the NGINX signing key and save it in the format that `apt` reads:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
+        | gpg --dearmor \
+        | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+    ```
 
+1. Check the keys in the downloaded file:
 
-## Ubuntu LTS packages {#install_debian_ubuntu}
+    ```shell
+    gpg --show-keys /usr/share/keyrings/nginx-archive-keyring.gpg
+    ```
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+    The output lists three keys. Their fingerprints must be `8540A6F18833A80E9C1653A42FD21310B49F6B46`, `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, and `9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3`. If they don't match, delete the file and stop.
 
-1. Install the prerequisites packages:
+1. Add the NGINX Plus repository for your [LTS option](#repo-options).
 
-   ```shell
-   sudo apt update && \
-   sudo apt install apt-transport-https \
-                    lsb-release \
-                    ca-certificates \
-                    wget \
-                    gnupg2 \
-                    ubuntu-keyring
-   ```
+    - To pin to the current LTS:
 
-1. Download and add NGINX signing key:
+        ```shell
+        printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+        https://pkgs.nginx.com/plus/R37.0/ubuntu `lsb_release -cs` nginx-plus\n" \
+            | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+        ```
 
-   ```shell
-   wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-   | gpg --dearmor \
-   | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-   ```
-1. Add the NGINX Plus repository:
+    - To pin to the LTS track:
 
-   ```shell
-   printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-   https://pkgs.nginx.com/plus/ubuntu `lsb_release -cs` nginx-plus\n" \
-   | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-   ```
+        ```shell
+        printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+        https://pkgs.nginx.com/plus/LTS/ubuntu `lsb_release -cs` nginx-plus\n" \
+            | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+        ```
 
-1. Download the **nginx-plus** apt configuration to **/etc/apt/apt.conf.d**:
+1. Download the `apt` configuration for the repository to `/etc/apt/apt.conf.d`. It tells `apt` to use your certificate and key for `pkgs.nginx.com`:
 
-   ```shell
-   sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
-   ```
+    ```shell
+    sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
+    ```
 
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/apt/sources.list.d/nginx-plus.list` file and update the URL to the [appropriate value](#repo-options) for your target version.
+1. Install the `nginx-plus` package. It upgrades an older NGINX Plus package, but it keeps a newer Continuous Release. To replace one, see [Switch from a Continuous Release](#switch-from-cr).
 
-   - Pin to current LTS version:
-
-     ```none
-     https://pkgs.nginx.com/plus/R37.0/ubuntu
-     ```
-   - Pin to LTS track:
-
-     ```none
-     https://pkgs.nginx.com/plus/LTS/ubuntu
-     ```
-
-1. Update the repository information:
-
-   ```shell
-   sudo apt update
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   sudo apt install -y nginx-plus
-   ```
+    ```shell
+    sudo apt update
+    sudo apt install -y nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+### FreeBSD {#install_freebsd}
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+1. Install the `ca_root_nss` package:
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+    ```shell
+    sudo pkg update
+    sudo pkg install ca_root_nss
+    ```
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Download the [nginx-plus.conf](https://cs.nginx.com/static/files/nginx-plus.conf) repository file to `/etc/pkg/`:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo fetch -o /etc/pkg/nginx-plus.conf https://cs.nginx.com/static/files/nginx-plus.conf
+    ```
 
+1. Edit `/etc/pkg/nginx-plus.conf`, and change the `URL` line for your [LTS option](#repo-options):
 
-## FreeBSD LTS packages {#install_freebsd}
+    - To pin to the current LTS:
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+        ```none
+        URL: pkg+https://pkgs.nginx.com/plus/R37.0/freebsd/${ABI}/latest
+        ```
 
-1. Install the prerequisite **ca_root_nss** package:
+    - To pin to the LTS track:
 
-   ```shell
-   sudo pkg update && \
-   sudo pkg install ca_root_nss
-   ```
+        ```none
+        URL: pkg+https://pkgs.nginx.com/plus/LTS/freebsd/${ABI}/latest
+        ```
 
-1. Copy the [nginx-plus.conf](https://cs.nginx.com/static/files/nginx-plus.conf) file to the **/etc/pkg/** directory:
-
-   ```shell
-   sudo fetch -o /etc/pkg/nginx-plus.conf http://cs.nginx.com/static/files/nginx-plus.conf
-   ```
-
-1. Add the following lines to the **/usr/local/etc/pkg.conf** file:
+1. Add these lines to the `/usr/local/etc/pkg.conf` file:
 
     ```none
     PKG_ENV: { SSL_NO_VERIFY_PEER: "1",
@@ -429,180 +343,239 @@ Supported RHEL-based operating systems include Red Hat Enterprise Linux, Oracle 
     SSL_CLIENT_KEY_FILE: "/etc/ssl/nginx/nginx-repo.key" }
     ```
 
-1. **Modify your NGINX Plus repository configuration to pin to the desired LTS track**. To change your update channel, edit the `/etc/pkg/nginx-plus.conf` file and update the `URL` to the [appropriate value](#repo-options) for your target version.
+1. Install the `nginx-plus` package. It upgrades an older NGINX Plus package, but it keeps a newer Continuous Release. To replace one, see [Switch from a Continuous Release](#switch-from-cr).
 
-   - Pin to current LTS version:
+    ```shell
+    sudo pkg install nginx-plus
+    ```
 
-     ```none
-     URL: pkg+https://pkgs.nginx.com/plus/R37.0/freebsd/${ABI}/latest
-     ```
-   - Pin to LTS track:
+1. Copy the downloaded JWT file to the `/usr/local/etc/nginx` directory, and name it `license.jwt`:
 
-     ```none
-     URL: pkg+https://pkgs.nginx.com/plus/LTS/freebsd/${ABI}/latest
-     ```
+    ```shell
+    sudo cp <DOWNLOADED_FILE_NAME>.jwt /usr/local/etc/nginx/license.jwt
+    ```
 
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced. Back up your NGINX Plus configuration and log files if you have an older NGINX Plus package installed. For more information, see [Upgrading NGINX Plus](#upgrade).
+    Replace `<DOWNLOADED_FILE_NAME>` with the name of the downloaded file without the `.jwt` extension.
 
-   ```shell
-   sudo pkg install nginx-plus
-   ```
+On FreeBSD, the configuration file is `/usr/local/etc/nginx/nginx.conf`.
 
-1. Copy the downloaded JWT file to the **/usr/local/etc/nginx** directory and make sure it is named **license.jwt**:
+### SLES {#install_suse}
 
-   ```shell
-   sudo cp license.jwt /usr/local/etc/nginx
-   ```
+1. Combine the certificate and the key into one file:
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+    ```shell
+    sudo sh -c 'cat /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key > /etc/ssl/nginx/nginx-repo-bundle.crt'
+    ```
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+1. Install the `ca-certificates` dependency:
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+    ```shell
+    sudo zypper refresh
+    sudo zypper install ca-certificates
+    ```
 
-1. Make sure license reporting to F5 licensing endpoint is configured. By default, no configuration is required. However, it becomes necessary when NGINX Plus is installed in a disconnected environment, uses NGINX Instance Manager for usage reporting, or uses a custom path for the license file. Configuration can be done in the [`mgmt {}`](https://nginx.org/en/docs/ngx_mgmt_module.html) block of the NGINX Plus configuration file (`/usr/local/etc/nginx/nginx.conf`). For more information, see [About Subscription Licenses](https://docs.nginx.com/solutions/about-subscription-licenses/).
+1. Add the NGINX Plus repository for your SLES version and [LTS option](#repo-options). Replace `15` with `16` for SLES 16.
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    - To pin to the current LTS:
 
+        ```shell
+        sudo zypper addrepo -G -t yum -c \
+            "https://pkgs.nginx.com/plus/R37.0/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
+            nginx-plus
+        ```
 
-## SUSE Linux Enterprise LTS packages {#install_suse}
+    - To pin to the LTS track:
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+        ```shell
+        sudo zypper addrepo -G -t yum -c \
+            "https://pkgs.nginx.com/plus/LTS/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
+            nginx-plus
+        ```
 
-1. Create a file bundle of the certificate and key:
+1. Install the `nginx-plus` package. It upgrades an older NGINX Plus package, but it keeps a newer Continuous Release. To replace one, see [Switch from a Continuous Release](#switch-from-cr).
 
-   ```shell
-   cat /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key > /etc/ssl/nginx/nginx-repo-bundle.crt
-   ```
-
-1. Install the required **ca-certificates** dependency:
-
-   ```shell
-   zypper refresh
-   zypper install ca-certificates
-   ```
-
-1. Add the **nginx-plus** repo.
-
-   For **SLES 15**, pinned to current LTS version:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/R37.0/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-   For **SLES 15**, pinned to LTS track:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/LTS/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-   For **SLES 16**, pinned to current LTS version:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/R37.0/sles/16?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-   For **SLES 16**, pinned to LTS track:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/LTS/sles/16?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   zypper install nginx-plus
-   ```
+    ```shell
+    sudo zypper install nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+### Alpine Linux {#install_alpine}
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+1. Copy the certificate and the key to the locations that `apk` uses. These files must contain only this key and certificate, because Alpine Linux doesn't support separate client certificates for different repositories.
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+    ```shell
+    sudo cp /etc/ssl/nginx/nginx-repo.key /etc/apk/cert.key
+    sudo cp /etc/ssl/nginx/nginx-repo.crt /etc/apk/cert.pem
+    ```
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Download the NGINX signing public key to the `/etc/apk/keys` directory:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
+    ```
 
+    To check the key, install OpenSSL with `sudo apk add openssl`, and run `openssl rsa -pubin -in /etc/apk/keys/nginx_signing.rsa.pub -text -noout`. The modulus must start with `00:fe:14:f6:0a:1a:b8:86:19` and end with `f4:22:d7:f2:5f:ab:6d`. If it doesn't, delete the file and stop.
 
-## Alpine LTS packages {#install_alpine}
+1. Add the NGINX Plus repository for your [LTS option](#repo-options) to the `/etc/apk/repositories` file.
 
-1. Make sure you have met all [prerequisites](#prereq) and completed the [common steps for all operating systems](#common-steps).
+    - To pin to the current LTS:
 
-1. Upload **nginx-repo.key** to **/etc/apk/cert.key** and **nginx-repo.crt** to **/etc/apk/cert.pem**. Ensure these files contain only the specific key and certificate — Alpine Linux doesn't support mixing client certificates for multiple repositories.
+        ```shell
+        printf "https://pkgs.nginx.com/plus/R37.0/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
+            | sudo tee -a /etc/apk/repositories
+        ```
 
-1. Put the NGINX signing public key in the **/etc/apk/keys** directory:
+    - To pin to the LTS track:
 
-   ```shell
-   sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
-   ```
+        ```shell
+        printf "https://pkgs.nginx.com/plus/LTS/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
+            | sudo tee -a /etc/apk/repositories
+        ```
 
-1. Add the NGINX repository to the **/etc/apk/repositories** file.
+1. Remove all community-supported NGINX packages. This also removes all their modules.
 
-   - Pin to current LTS version:
-
-     ```shell
-     printf "https://pkgs.nginx.com/plus/R37.0/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
-     | sudo tee -a /etc/apk/repositories
-     ```
-   - Pin to LTS track:
-
-     ```shell
-     printf "https://pkgs.nginx.com/plus/LTS/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
-     | sudo tee -a /etc/apk/repositories
-     ```
-
-1. Remove all community-supported NGINX packages. Note that this will also remove all NGINX modules:
-
-   ```shell
-   sudo apk del -r nginx
-   ```
+    ```shell
+    sudo apk del -r nginx
+    ```
 
 1. Install the NGINX Plus package:
 
-   ```shell
-   sudo apk add nginx-plus
-   ```
+    ```shell
+    sudo apk add nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. Check the `nginx` version to verify that NGINX Plus LTS is installed correctly:
+---
 
-   ```shell
-   nginx -v
-   ```
-   The command output should indicate an LTS release: the second numeric component of the Plus release version should be `0`:
+## Switch from a Continuous Release {#switch-from-cr}
 
-   ```none
-   nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
-   ```
+If a Continuous Release is installed, the package manager keeps it, because it's newer than the LTS release. To switch, change the repository as described in [Install NGINX Plus LTS](#install), and then downgrade the packages. If you installed module packages, add them to the same command.
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+- Amazon Linux 2023, and RHEL and its derivatives:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo dnf downgrade nginx-plus
+    ```
 
+- Amazon Linux 2:
 
-## Upgrade NGINX Plus {#upgrade}
+    ```shell
+    sudo yum downgrade nginx-plus
+    ```
 
-For general upgrade instructions, see [Upgrading NGNIX Plus]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}}).
+- Debian and Ubuntu: List the available versions, and then install the LTS version. Replace `<VERSION>` with a version from the list.
 
+    ```shell
+    apt list -a nginx-plus
+    sudo apt install --allow-downgrades nginx-plus=<VERSION>
+    ```
+
+- SLES: List the available versions, and then install the LTS version. Replace `<VERSION>` with a version from the list.
+
+    ```shell
+    zypper search -s nginx-plus
+    sudo zypper install --oldpackage nginx-plus=<VERSION>
+    ```
+
+- Alpine Linux: This command replaces each package with the version in your repositories. It also removes the version constraints in `/etc/apk/world`.
+
+    ```shell
+    sudo apk upgrade --available
+    ```
+
+- FreeBSD: Before you confirm, check that the list of changes shows the downgrade of `nginx-plus`.
+
+    ```shell
+    sudo pkg upgrade nginx-plus
+    ```
+
+Check the result with `nginx -v`, and then restart NGINX Plus as described in [Start NGINX Plus](#start).
+
+---
+
+## Start NGINX Plus {#start}
+
+Start NGINX Plus, or restart it if it's already running, and set it to start when the system starts:
+
+- **Linux with systemd**, which includes Amazon Linux, RHEL and its derivatives, Debian, Ubuntu, and SLES:
+
+    ```shell
+    sudo systemctl restart nginx
+    sudo systemctl enable nginx
+    ```
+
+- **Alpine Linux and FreeBSD**: Use your system's service manager. To start NGINX Plus once from the command line, run `sudo nginx`.
+
+Then [set up usage reporting](#usage-reporting).
+
+---
+
+## Set up usage reporting {#usage-reporting}
+
+1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}} On FreeBSD, the configuration file is `/usr/local/etc/nginx/nginx.conf`.
+
+1. If you use [NGINX Instance Manager]({{< ref "/nim/" >}}), install NGINX Agent and turn it on. For details, see [Installation from NGINX Plus repository]({{< ref "/agent/installation-upgrade/installation-plus.md" >}}).
+
+1. If you changed `nginx.conf`, reload NGINX Plus:
+
+    ```shell
+    sudo nginx -s reload
+    ```
+
+---
+
+## Verify the installation {#verify}
+
+1. Check the version:
+
+    ```shell
+    nginx -v
+    ```
+
+    For an LTS release, the second number of the NGINX Plus release is `0`, for example:
+
+    ```none
+    nginx version: nginx/1.29.8 (nginx-plus-r37.0.6)
+    ```
+
+1. Test the configuration:
+
+    ```shell
+    sudo nginx -t
+    ```
+
+    The output ends with `test is successful`.
+
+---
+
+## Troubleshooting
+
+### nginx -v shows a Continuous Release
+
+**Symptom**: The second number of the NGINX Plus release isn't `0`, for example `nginx-plus-r37.2.0`.
+
+**Cause**: The repository still points to the default URL, which gives you Continuous Releases. Or a Continuous Release was installed before you changed the repository, and the package manager kept it.
+
+**Fix**: Check that the repository URL contains `R37.0` or `LTS`, as in the steps for your operating system. Then downgrade the packages, as described in [Switch from a Continuous Release](#switch-from-cr).
+
+---
+
+### The package manager can't get packages from pkgs.nginx.com
+
+**Symptom**: Updating the package list shows errors for `pkgs.nginx.com`, and installing `nginx-plus` then fails. For example, `apt` says `Unable to locate package nginx-plus`.
+
+**Cause**: The package manager can't present the certificate and key of your subscription. For the meaning of the error messages, see [Troubleshooting]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#the-package-manager-cant-get-packages-from-pkgsnginxcom" >}}) in the installation guide for Continuous Releases.
+
+**Fix**: Check that `/etc/ssl/nginx/nginx-repo.crt` and `/etc/ssl/nginx/nginx-repo.key` exist and that the package manager can read them. On Debian and Ubuntu, `apt` reads them as the `_apt` user, and needs `/etc/apt/apt.conf.d/90pkgs-nginx`. On RHEL-based systems, check the `sslclientcert` and `sslclientkey` lines in the `.repo` file.
+
+---
+
+## References {#upgrade}
+
+- [Upgrading NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}})
+- [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}), for Continuous Releases, dynamic modules, and installations without root privileges or internet access
+- [NGINX Plus Technical Specifications]({{< ref "nginx/technical-specs.md" >}})
+- [NGINX Plus Releases]({{< ref "nginx/releases.md" >}})
+- [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md" >}})

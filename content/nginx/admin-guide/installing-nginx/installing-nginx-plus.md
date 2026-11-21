@@ -1,403 +1,310 @@
 ---
 title: Installing NGINX Plus
-description: Install F5 NGINX Plus with step-by-step instructions for
-  the base package and dynamic modules on all supported distributions.
+description: Install F5 NGINX Plus and its dynamic modules from the NGINX Plus repository, with or without root access or an internet connection.
 toc: true
 weight: 100
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: installation-guide
+f5-product: F5 NGINX Plus
+f5-keywords: "install nginx plus, nginx-plus package, subscription certificate, license.jwt, continuous release, LTS, dynamic modules, unprivileged installation, offline installation"
+f5-summary: >
+  This guide shows how to install F5 NGINX Plus from the NGINX Plus repository with the certificate, key, and license file of your subscription.
+  It covers each supported operating system, dynamic modules, installation without root access, and installation without internet access.
+  It installs Continuous Releases; to install Long-Term Support releases instead, follow the LTS guide.
+f5-audience: operator
 ---
 
-This guide provides step-by-step instructions for installing NGINX Plus from an official repository on different operating systems. It also covers installing and enabling dynamic modules, as well as enabling NGINX Plus in rootless or offline environments.
+## Overview
 
-## Release types and versioning
+You install F5 NGINX Plus from the NGINX Plus repository with your package manager. The repository accepts only clients with the certificate and key of an NGINX Plus subscription. NGINX Plus also needs the license file of that subscription. When you finish this guide, NGINX Plus runs with its license, and you can add dynamic modules.
 
-Since May 13, 2026, NGINX Plus is published in two release types:
+---
 
-- [Long-Term Support (LTS)](#lts) — stability and security-focused
-- [Continuous Release (CR)](#cr) — feature and performance-focused
-
-### Long-Term Support (LTS) {#lts}
-
-The NGINX Plus LTS release model is intended for mission-critical production environments. During an LTS lifecycle, F5 delivers security fixes and CVE mitigations without introducing new features. New features are delivered in Continuous Releases (CR) during the same annual cycle.
-
-- **Cadence**: annual (one LTS per year)
-- **Patching model**: security/CVE fixes only (no feature changes within the LTS line)
-- **Support window**: up to 3 years
-- **Concurrency**: up to 3 LTS versions supported at the same time
-- **Version format**: an LTS release has `0` as the second numeric component, for example: `PLS.37.0.0.1`. LTS updates increment the third component, for example: `PLS.37.0.1.1`.
-
-{{< call-out class="note" title="Important" >}} To use the LTS release, update your repository configuration to point to the LTS package URL, replacing the default URL. See [Installing NGINX Plus LTS](). {{< /call-out >}}
-
-### Continuous Release (CR) {#cr}
-
-NGINX Plus Continuous Releases (CR) are published several times within an annual [LTS](#lts) cycle. Each CR contains the latest features and performance improvements. The CR cycle ends when a new LTS is released.
-
-- **Cadence**: every 2–6 months
-- **Patching model**: CRs are never patched; fixes, including CVEs, are delivered as the next CR
-- **Support window**: latest CR only; when a new CR is released, the previous CR immediately reaches End of Support
-- **Version format**: CRs increment the second numeric component, for example: `PLS.37.1.0.0`, `PLS.37.2.0.0`
-
-
-### Repository configuration options
-
-By default, NGINX Plus repositories are configured to receive Continuous Releases. To use LTS, update your repository configuration to point to the LTS package URL, replacing the default URL. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}).
-
-Available repository configuration options:
-
-- **Default**: receive Continuous Releases within the current LTS release, upgrade to each new LTS when it is released annually and then receive its CRs. Follow the steps for your operating system in this guide.
-- **Pin to current LTS only**: receive only security updates for this LTS, no CRs, no upgrade to next LTS; supported up to three years. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}).
-- **Pin to LTS track**: upgrade to the newest LTS when it is released annually, no CRs. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}).
-
-## Prerequisites {#prereq}
+## Before you begin
 
 Before you begin, make sure you have:
 
-- [MyF5 Customer Portal](https://account.f5.com/myf5) access, credentials are provided in the email from F5, Inc.
-- An active paid or trial NGINX Plus subscription. Details can be verified on the [MyF5 Customer Portal](https://account.f5.com/myf5).
-- A [supported operating system and architecture]({{< ref "nginx/technical-specs.md" >}}).
-- Administrative privileges: `root` access or `sudo`, or see [Unprivileged installation](#unpriv_install).
-- Internet access, or see [Offline installation](#offline_install).
+- **MyF5 access**: You need credentials for the [MyF5 Customer Portal](https://account.f5.com/myf5). They're in the email from F5, Inc.
+- **A subscription**: You need an active paid or trial NGINX Plus subscription. You can check it in the [MyF5 Customer Portal](https://account.f5.com/myf5).
+- **A supported operating system**: Check your operating system and architecture in the [Technical Specifications]({{< ref "nginx/technical-specs.md" >}}).
+- **Root privileges**: The commands use `sudo`. Without root access, follow [Install without root privileges](#unpriv_install).
+- **Internet access**: The server must reach `pkgs.nginx.com` and `cs.nginx.com` over HTTPS. Without internet access, follow [Install without internet access](#offline_install).
 
+If you already have NGINX Plus installed, back up its configuration and log files first. For details, see [Upgrading NGINX Plus]({{< ref "nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}}).
 
-## Amazon Linux 2023 CR packages {#install_amazon2023}
+---
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+## Choose a release type
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+Since May 13, 2026, NGINX Plus is published in two release types:
+
+- [Long-Term Support (LTS)](#lts): focused on stability and security.
+- [Continuous Release (CR)](#cr): focused on features and performance.
+
+### Long-Term Support (LTS) {#lts}
+
+The NGINX Plus LTS release model is meant for mission-critical production environments. During an LTS lifecycle, F5 delivers security fixes and CVE mitigations, but no new features. New features come in Continuous Releases during the same annual cycle.
+
+- **Cadence**: One LTS release a year.
+- **Patching model**: Security and CVE fixes only. An LTS line gets no feature changes.
+- **Support window**: Up to three years.
+- **Concurrency**: Up to three LTS versions are supported at the same time.
+- **Version format**: An LTS release has `0` as the second number, for example `PLS.37.0.0.1`. LTS updates increase the third number, for example `PLS.37.0.1.1`.
+
+### Continuous Release (CR) {#cr}
+
+NGINX Plus Continuous Releases come out several times during an annual [LTS](#lts) cycle. Each CR has the latest features and performance improvements. The CR cycle ends when a new LTS comes out.
+
+- **Cadence**: Every two to six months.
+- **Patching model**: CRs are never patched. Fixes, including CVE fixes, come in the next CR.
+- **Support window**: Only the latest CR is supported. When a new CR comes out, the previous CR reaches End of Support immediately.
+- **Version format**: CRs increase the second number, for example `PLS.37.1.0.0` and `PLS.37.2.0.0`.
+
+### Repository options
+
+By default, the NGINX Plus repositories give you Continuous Releases, and this guide sets them up that way. To get LTS releases, you replace the repository URL with an LTS URL. You have three options:
+
+- **Default**: Get the Continuous Releases of the current LTS cycle. When a new LTS comes out every year, move to it, and then get its CRs. Follow the steps in this guide.
+- **Pin to the current LTS only**: Get only security updates for this LTS, with no CRs and no move to the next LTS. This is supported for up to three years. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}).
+- **Pin to the LTS track**: Move to the newest LTS every year, with no CRs. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}).
+
+---
+
+## Get the subscription files {#subscription-files}
+
+On every operating system, first get the files of your subscription and put the certificate and key in place:
 
 1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
 
 1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
 
-1. Add the NGINX Plus repository to your Amazon Linux 2023 instance. Download the [plus-amazonlinux2023.repo](https://cs.nginx.com/static/files/plus-amazonlinux2023.repo) file to **/etc/yum.repos.d**:
+Keep the JWT file. You copy it to NGINX Plus after you install the package.
 
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-amazonlinux2023.repo
-   ```
+---
+
+## Install NGINX Plus {#install}
+
+Follow the steps for your operating system, and then [start NGINX Plus](#start).
+
+### Amazon Linux 2023 {#install_amazon2023}
+
+1. Install the `ca-certificates` dependency:
+
+    ```shell
+    sudo dnf install ca-certificates
+    ```
+
+1. Add the NGINX Plus repository. Download the [plus-amazonlinux2023.repo](https://cs.nginx.com/static/files/plus-amazonlinux2023.repo) file to `/etc/yum.repos.d`:
+
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-amazonlinux2023.repo
+    ```
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+### Amazon Linux 2 {#install_amazon2}
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Install the `ca-certificates` dependency:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo yum install ca-certificates
+    ```
 
+1. Add the NGINX Plus repository. Download the [nginx-plus-amazon2.repo](https://cs.nginx.com/static/files/nginx-plus-amazon2.repo) file to `/etc/yum.repos.d`:
 
-## Amazon Linux 2 CR packages {#install_amazon2}
-
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
-
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-yum.md" >}}
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Add the NGINX Plus repository to your Amazon Linux 2 instance. Download the [nginx-plus-amazon2.repo](https://cs.nginx.com/static/files/nginx-plus-amazon2.repo) file to **/etc/yum.repos.d**:
-
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/nginx-plus-amazon2.repo
-   ```
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/nginx-plus-amazon2.repo
+    ```
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-yum.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+### RHEL 8 and derivatives {#install_rhel8}
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+These steps apply to RHEL 8.1 and later, Oracle Linux 8.1 and later, AlmaLinux 8, and Rocky Linux 8.
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+1. Install the `ca-certificates` dependency:
 
+    ```shell
+    sudo dnf install ca-certificates
+    ```
 
-## RHEL-based 8.1+ CR packages {#install_rhel8}
+1. Add the NGINX Plus repository. Download the [plus-8.repo](https://cs.nginx.com/static/files/plus-8.repo) file to `/etc/yum.repos.d`:
 
-Supported RHEL-based systems include RHEL 8.1+, Oracle Linux 8.1+, AlmaLinux 8, and Rocky Linux 8. 
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-8.repo
+    ```
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
-
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Add the NGINX Plus repository by downloading the [nginx-plus-8.repo](https://cs.nginx.com/static/files/plus-8.repo) file to **/etc/yum.repos.d**:
-
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-8.repo
-   ```
-
-   {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-rhel8-R32.md" >}}{{< /call-out >}}
-
-   {{< /details >}}
+    {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}To pin NGINX Plus to a release, for example R33, edit `/etc/yum.repos.d/plus-8.repo` and add the release after `/plus/` in the base URL: `baseurl=https://pkgs.nginx.com/plus/R33/centos/8/$basearch/`. Then refresh the repository information with `sudo dnf makecache`.{{< /call-out >}}{{< /details >}}
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/enable-nginx-service-at-boot.md" >}}
+### RHEL 9 and derivatives {#install_rhel}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+These steps apply to RHEL 9.0 and later, Oracle Linux 9, AlmaLinux 9, and Rocky Linux 9.
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Install the `ca-certificates` dependency:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo dnf install ca-certificates
+    ```
 
+1. Add the NGINX Plus repository. Download the [plus-9.repo](https://cs.nginx.com/static/files/plus-9.repo) file to `/etc/yum.repos.d`:
 
-## RHEL-based 9.0+ CR packages {#install_rhel}
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-9.repo
+    ```
 
-Supported RHEL-based systems include RHEL 9.0+, Oracle Linux 9, AlmaLinux 9, Rocky Linux 9.
-
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
-
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Add the NGINX Plus repository by downloading the [plus-9.repo](https://cs.nginx.com/static/files/plus-9.repo) file to **/etc/yum.repos.d**:
-
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-9.repo
-   ```
-
-   {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-rhel9-R32.md" >}}{{< /call-out >}}{{< /details >}}
+    {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}To pin NGINX Plus to a release, for example R33, edit `/etc/yum.repos.d/plus-9.repo` and add the release after `/plus/` in the base URL: `baseurl=https://pkgs.nginx.com/plus/R33/centos/9/$basearch/`. Then refresh the repository information with `sudo dnf makecache`.{{< /call-out >}}{{< /details >}}
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/enable-nginx-service-at-boot.md" >}}
+### RHEL 10 and derivatives {#install_rhel10}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+These steps apply to RHEL 10.0 and later, Oracle Linux 10.0 and later, AlmaLinux 10.0 and later, and Rocky Linux 10.0 and later.
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Install the `ca-certificates` dependency:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo dnf install ca-certificates
+    ```
 
+1. Add the NGINX Plus repository. Download the [plus-10.repo](https://cs.nginx.com/static/files/plus-10.repo) file to `/etc/yum.repos.d`:
 
-## RHEL-based 10.0+ CR packages {#install_rhel10}
+    ```shell
+    sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-10.repo
+    ```
 
-Supported RHEL-based systems include RHEL 10.0+, Oracle Linux 10.0+, AlmaLinux 10.0+, Rocky Linux 10.0+.
-
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
-
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/install-ca-certificates-dependency-dnf.md" >}}
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Add the NGINX Plus repository by downloading the [plus-10.repo](https://cs.nginx.com/static/files/plus-10.repo) file to **/etc/yum.repos.d**:
-
-   ```shell
-   sudo wget -P /etc/yum.repos.d https://cs.nginx.com/static/files/plus-10.repo
-   ```
-
-   {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-rhel9-R32.md" >}}{{< /call-out >}}{{< /details >}}
+    {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}To pin NGINX Plus to a release, for example R37, edit `/etc/yum.repos.d/plus-10.repo` and add the release after `/plus/` in the base URL: `baseurl=https://pkgs.nginx.com/plus/R37/rhel/10/$basearch/`. Then refresh the repository information with `sudo dnf makecache`.{{< /call-out >}}{{< /details >}}
 
 1. {{< include "nginx-plus/install/install-nginx-plus-package-dnf.md" >}}
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/enable-nginx-service-at-boot.md" >}}
+### Debian {#install_debian}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+1. Install the prerequisites:
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+    ```shell
+    sudo apt update
+    sudo apt install apt-transport-https lsb-release ca-certificates wget gnupg2 debian-archive-keyring
+    ```
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+1. Download the NGINX signing key and save it in the format that `apt` reads:
 
+    ```shell
+    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
+        | gpg --dearmor \
+        | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+    ```
 
-## Debian CR packages {#install_debian}
+1. Check the keys in the downloaded file:
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+    ```shell
+    gpg --show-keys /usr/share/keyrings/nginx-archive-keyring.gpg
+    ```
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+    The output lists three keys. Their fingerprints must be `8540A6F18833A80E9C1653A42FD21310B49F6B46`, `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, and `9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3`. If they don't match, delete the file and stop.
 
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Install the prerequisites packages:
-
-   ```shell
-   sudo apt update && \
-   sudo apt install apt-transport-https \
-                    lsb-release \
-                    ca-certificates \
-                    wget \
-                    gnupg2 \
-                    debian-archive-keyring
-   ```
-
-1. Download and add NGINX signing key:
-
-   ```shell
-   wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-       | gpg --dearmor \
-       | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-
-   ```
 1. Add the NGINX Plus repository:
 
-   ```shell
-   printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-   https://pkgs.nginx.com/plus/debian `lsb_release -cs` nginx-plus\n" \
-   | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-   ```
+    ```shell
+    printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+    https://pkgs.nginx.com/plus/debian `lsb_release -cs` nginx-plus\n" \
+        | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+    ```
 
-1. Download the **nginx-plus** apt configuration to **/etc/apt/apt.conf.d**:
+1. Download the `apt` configuration for the repository to `/etc/apt/apt.conf.d`. It tells `apt` to use your certificate and key for `pkgs.nginx.com`:
 
-   ```shell
-   sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
-   ```
+    ```shell
+    sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
+    ```
 
-   {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-debian-ubuntu-R32.md" >}}{{< /call-out >}}{{< /details >}}
+    {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-debian-ubuntu-R32.md" >}}{{< /call-out >}}{{< /details >}}
 
-1. Update the repository information:
+1. Install the `nginx-plus` package. It replaces any older NGINX Plus package.
 
-   ```shell
-   sudo apt update
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   sudo apt install -y nginx-plus
-   ```
+    ```shell
+    sudo apt update
+    sudo apt install -y nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+### Ubuntu {#install_debian_ubuntu}
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Install the prerequisites:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo apt update
+    sudo apt install apt-transport-https lsb-release ca-certificates wget gnupg2 ubuntu-keyring
+    ```
 
+1. Download the NGINX signing key and save it in the format that `apt` reads:
 
-## Ubuntu CR packages {#install_debian_ubuntu}
+    ```shell
+    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
+        | gpg --dearmor \
+        | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+    ```
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+1. Check the keys in the downloaded file:
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+    ```shell
+    gpg --show-keys /usr/share/keyrings/nginx-archive-keyring.gpg
+    ```
 
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
+    The output lists three keys. Their fingerprints must be `8540A6F18833A80E9C1653A42FD21310B49F6B46`, `573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62`, and `9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3`. If they don't match, delete the file and stop.
 
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Install the prerequisites packages:
-
-   ```shell
-   sudo apt update && \
-   sudo apt install apt-transport-https \
-                    lsb-release \
-                    ca-certificates \
-                    wget \
-                    gnupg2 \
-                    ubuntu-keyring
-   ```
-
-1. Download and add NGINX signing key:
-
-   ```shell
-   wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-   | gpg --dearmor \
-   | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-   ```
 1. Add the NGINX Plus repository:
 
-   ```shell
-   printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-   https://pkgs.nginx.com/plus/ubuntu `lsb_release -cs` nginx-plus\n" \
-   | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-   ```
+    ```shell
+    printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+    https://pkgs.nginx.com/plus/ubuntu `lsb_release -cs` nginx-plus\n" \
+        | sudo tee /etc/apt/sources.list.d/nginx-plus.list
+    ```
 
-1. Download the **nginx-plus** apt configuration to **/etc/apt/apt.conf.d**:
+1. Download the `apt` configuration for the repository to `/etc/apt/apt.conf.d`. It tells `apt` to use your certificate and key for `pkgs.nginx.com`:
 
-   ```shell
-   sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
-   ```
+    ```shell
+    sudo wget -P /etc/apt/apt.conf.d https://cs.nginx.com/static/files/90pkgs-nginx
+    ```
 
-   {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-debian-ubuntu-R32.md" >}}{{< /call-out >}}{{< /details >}}
+    {{< details summary="Pin NGINX Plus to a specific version" >}}{{< call-out class="note">}}{{< include "nginx-plus/install/pin-to-version/pin-debian-ubuntu-R32.md" >}}{{< /call-out >}}{{< /details >}}
 
-1. Update the repository information:
+1. Install the `nginx-plus` package. It replaces any older NGINX Plus package.
 
-   ```shell
-   sudo apt update
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   sudo apt install -y nginx-plus
-   ```
+    ```shell
+    sudo apt update
+    sudo apt install -y nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+### FreeBSD {#install_freebsd}
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Install the `ca_root_nss` package:
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo pkg update
+    sudo pkg install ca_root_nss
+    ```
 
+1. Download the [nginx-plus.conf](https://cs.nginx.com/static/files/nginx-plus.conf) repository file to `/etc/pkg/`:
 
-## FreeBSD CR packages {#install_freebsd}
+    ```shell
+    sudo fetch -o /etc/pkg/nginx-plus.conf https://cs.nginx.com/static/files/nginx-plus.conf
+    ```
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
-
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
-
-1. Install the prerequisite **ca_root_nss** package:
-
-   ```shell
-   sudo pkg update
-   sudo pkg install ca_root_nss
-   ```
-
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
-
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
-
-1. Copy the [nginx-plus.conf](https://cs.nginx.com/static/files/nginx-plus.conf) file to the **/etc/pkg/** directory:
-
-   ```shell
-   sudo fetch -o /etc/pkg/nginx-plus.conf http://cs.nginx.com/static/files/nginx-plus.conf
-   ```
-
-1. Add the following lines to the **/usr/local/etc/pkg.conf** file:
+1. Add these lines to the `/usr/local/etc/pkg.conf` file:
 
     ```none
     PKG_ENV: { SSL_NO_VERIFY_PEER: "1",
@@ -405,631 +312,648 @@ Supported RHEL-based systems include RHEL 10.0+, Oracle Linux 10.0+, AlmaLinux 1
     SSL_CLIENT_KEY_FILE: "/etc/ssl/nginx/nginx-repo.key" }
     ```
 
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced. Back up your NGINX Plus configuration and log files if you have an older NGINX Plus package installed. For more information, see [Upgrading NGINX Plus](#upgrade).
+1. Install the `nginx-plus` package. It replaces any older NGINX Plus package.
 
-   ```shell
-   sudo pkg install nginx-plus
-   ```
+    ```shell
+    sudo pkg install nginx-plus
+    ```
 
-1. Copy the downloaded JWT file to the **/usr/local/etc/nginx** directory and make sure it is named **license.jwt**:
+1. Copy the downloaded JWT file to the `/usr/local/etc/nginx` directory, and name it `license.jwt`:
 
-   ```shell
-   sudo cp license.jwt /usr/local/etc/nginx
-   ```
+    ```shell
+    sudo cp <DOWNLOADED_FILE_NAME>.jwt /usr/local/etc/nginx/license.jwt
+    ```
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+    Replace `<DOWNLOADED_FILE_NAME>` with the name of the downloaded file without the `.jwt` extension.
 
-1. Make sure license reporting to F5 licensing endpoint is configured. By default, no configuration is required. However, it becomes necessary when NGINX Plus is installed in a disconnected environment, uses NGINX Instance Manager for usage reporting, or uses a custom path for the license file. Configuration can be done in the [`mgmt {}`](https://nginx.org/en/docs/ngx_mgmt_module.html) block of the NGINX Plus configuration file (`/usr/local/etc/nginx/nginx.conf`). For more information, see [About Subscription Licenses](https://docs.nginx.com/solutions/about-subscription-licenses/).
+On FreeBSD, the configuration file is `/usr/local/etc/nginx/nginx.conf`.
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+### SLES {#install_suse}
 
+1. Combine the certificate and the key into one file:
 
-## SLES CR packages {#install_suse}
+    ```shell
+    sudo sh -c 'cat /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key > /etc/ssl/nginx/nginx-repo-bundle.crt'
+    ```
 
-NGINX Plus can be installed on SUSE Linux Enterprise Server.
+1. Install the `ca-certificates` dependency:
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+    ```shell
+    sudo zypper refresh
+    sudo zypper install ca-certificates
+    ```
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+1. Add the NGINX Plus repository.
 
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
+    For SLES 15:
 
-1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
+    ```shell
+    sudo zypper addrepo -G -t yum -c \
+        "https://pkgs.nginx.com/plus/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
+        nginx-plus
+    ```
 
-1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
+    For SLES 16:
 
-1. Create a file bundle of the certificate and key:
+    ```shell
+    sudo zypper addrepo -G -t yum -c \
+        "https://pkgs.nginx.com/plus/sles/16?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
+        nginx-plus
+    ```
 
-   ```shell
-   cat /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key > /etc/ssl/nginx/nginx-repo-bundle.crt
-   ```
+1. Install the `nginx-plus` package. It replaces any older NGINX Plus package.
 
-1. Install the required **ca-certificates** dependency:
-
-   ```shell
-   zypper refresh
-   zypper install ca-certificates
-   ```
-
-1. Add the **nginx-plus** repo.
-
-   For **SLES 15**:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/sles/15?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-   For **SLES 16**:
-
-   ```shell
-   zypper addrepo -G -t yum -c \
-   "https://pkgs.nginx.com/plus/sles/16?ssl_clientcert=/etc/ssl/nginx/nginx-repo-bundle.crt&ssl_verify=peer" \
-   nginx-plus
-   ```
-
-1. Install the **nginx-plus** package. Any older NGINX Plus package is automatically replaced.
-
-   ```shell
-   zypper install nginx-plus
-   ```
+    ```shell
+    sudo zypper install nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+### Alpine Linux {#install_alpine}
 
-1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
+1. Copy the certificate and the key to the locations that `apk` uses. These files must contain only this key and certificate, because Alpine Linux doesn't support separate client certificates for different repositories.
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+    ```shell
+    sudo cp /etc/ssl/nginx/nginx-repo.key /etc/apk/cert.key
+    sudo cp /etc/ssl/nginx/nginx-repo.crt /etc/apk/cert.pem
+    ```
 
+1. Download the NGINX signing public key to the `/etc/apk/keys` directory:
 
-## Alpine CR packages {#install_alpine}
+    ```shell
+    sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
+    ```
 
-1. {{< include "nginx-plus/install/check-tech-specs.md" >}}
+    To check the key, install OpenSSL with `sudo apk add openssl`, and run `openssl rsa -pubin -in /etc/apk/keys/nginx_signing.rsa.pub -text -noout`. The modulus must start with `00:fe:14:f6:0a:1a:b8:86:19` and end with `f4:22:d7:f2:5f:ab:6d`. If it doesn't, delete the file and stop.
 
-1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
+1. Add the NGINX Plus repository to the `/etc/apk/repositories` file:
 
-1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
+    ```shell
+    printf "https://pkgs.nginx.com/plus/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
+        | sudo tee -a /etc/apk/repositories
+    ```
 
-1. Upload **nginx-repo.key** to **/etc/apk/cert.key** and **nginx-repo.crt** to **/etc/apk/cert.pem**. Ensure these files contain only the specific key and certificate — Alpine Linux doesn't support mixing client certificates for multiple repositories.
+1. Remove all community-supported NGINX packages. This also removes all their modules.
 
-1. Put the NGINX signing public key in the **/etc/apk/keys** directory:
-
-   ```shell
-   sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
-   ```
-
-1. Add the NGINX repository to the **/etc/apk/repositories** file:
-
-   ```shell
-   printf "https://pkgs.nginx.com/plus/alpine/v`egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release`/main\n" \
-   | sudo tee -a /etc/apk/repositories
-   ```
-
-1. Remove all community-supported NGINX packages. Note that this will also remove all NGINX modules:
-
-   ```shell
-   sudo apk del -r nginx
-   ```
+    ```shell
+    sudo apk del -r nginx
+    ```
 
 1. Install the NGINX Plus package:
 
-   ```shell
-   sudo apk add nginx-plus
-   ```
+    ```shell
+    sudo apk add nginx-plus
+    ```
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
-1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
+---
+
+## Start NGINX Plus {#start}
+
+Start NGINX Plus, or restart it if it's already running, and set it to start when the system starts:
+
+- **Linux with systemd**, which includes Amazon Linux, RHEL and its derivatives, Debian, Ubuntu, and SLES:
+
+    ```shell
+    sudo systemctl restart nginx
+    sudo systemctl enable nginx
+    ```
+
+- **Alpine Linux and FreeBSD**: Use your system's service manager. To start NGINX Plus once from the command line, run `sudo nginx`.
+
+Then [set up usage reporting](#usage-reporting).
+
+---
+
+## Set up usage reporting {#usage-reporting}
 
 1. {{< include "nginx-plus/install/configure-usage-reporting.md" >}}
 
-1. {{< include "nginx-plus/install/install-nginx-agent-for-nim.md" >}}
+1. If you use [NGINX Instance Manager]({{< ref "/nim/" >}}), install NGINX Agent and turn it on. For details, see [Installation from NGINX Plus repository]({{< ref "/agent/installation-upgrade/installation-plus.md" >}}).
 
+1. If you changed `nginx.conf`, reload NGINX Plus:
 
-## Dynamic modules {#install_modules}
+    ```shell
+    sudo nginx -s reload
+    ```
 
-NGINX Plus functionality can be extended with dynamically loadable modules. They can be added or updated independently of the core binary, enabling powerful capabilities such as advanced security, traffic shaping, telemetry, embedded scripting, geolocation, and many more.
+Then [verify the installation](#verify).
 
-Dynamic modules are shared object files (`.so`) that can be loaded at runtime using the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive in the NGINX configuration.
+---
+
+## Install dynamic modules {#install_modules}
+
+Dynamic modules add features to NGINX Plus, such as advanced security, traffic shaping, telemetry, embedded scripting, and geolocation. You can add or update them independently of the `nginx-plus` package.
+
+A dynamic module is a shared object file (`.so`) that NGINX Plus loads at startup with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive.
 
 ### Types of dynamic modules
 
 {{< table >}}
 
-| Type                    | Description        | Distribution Method   | F5 NGINX Support|
-|-------------------------|--------------------|-----------------------|-----------------|
-| [NGINX-authored](#nginx-authored-dynamic-modules) | Developed and distributed by NGINX | Packaged binaries from `nginx-plus` official repo | Full support |
-| [NGINX-certified Community](#nginx-certified-community-dynamic-modules) | Tested and distributed by NGINX | Packaged binaries from `nginx-plus` official repo | Installation and basic configuration support |
-| [NGINX Certified Partner](#nginx-certified-partner-dynamic-modules) | Partner-built modules verified through [NGINX’s certification](https://www.f5.com/go/partner/nginx-certified-module-program-documentation) | Provided by partners | Provided by partners |
-| [Community](#community-dynamic-modules) | Developed and distributed by third‑party contributors | [Self-compiled](#install_modules_oss) | No support|
+| Type | Description | Distribution method | F5 NGINX support |
+|---|---|---|---|
+| [NGINX-authored](#nginx-authored-dynamic-modules) | Developed and distributed by NGINX | Packaged binaries from the NGINX Plus repository | Full support |
+| [NGINX-certified community](#nginx-certified-community-dynamic-modules) | Tested and distributed by NGINX | Packaged binaries from the NGINX Plus repository | Installation and basic configuration support |
+| [NGINX Certified Partner](#nginx-certified-partner-dynamic-modules) | Built by partners and verified through [NGINX's certification](https://www.f5.com/go/partner/nginx-certified-module-program-documentation) | Provided by partners | Provided by partners |
+| [Community](#community-dynamic-modules) | Developed and distributed by third-party contributors | [Compiled by you](#install_modules_oss) | No support |
 
 {{< /table >}}
 
 ### NGINX-authored dynamic modules
 
-NGINX-authored dynamic modules are developed and officially maintained by the F5 NGINX team. These modules are available as packaged binaries for various operating systems and can be installed [from the `nginx-plus` repository](#install-from-official-repository).
+The F5 NGINX team develops and maintains these modules. They come as packages for several operating systems in the [NGINX Plus repository](#install-module-packages).
 
 {{< table >}}
 
-| Name                            | Description                       | Package name       |
-|---------------------------------|-----------------------------------|--------------------|
-| [ACME](https://github.com/nginx/nginx-acme) | Automatic certificate management ([ACMEv2](https://www.rfc-editor.org/rfc/rfc8555.html)) protocol support. | [`nginx-plus-module-acme`]({{< ref "nginx/admin-guide/dynamic-modules/acme.md" >}}) |
-| [GeoIP](https://nginx.org/en/docs/http/ngx_http_geoip_module.html) | Enables IP-based geolocation using the precompiled MaxMind databases. | [`nginx-plus-module-geoip`]({{< ref "nginx/admin-guide/dynamic-modules/geoip.md" >}}) |
-| [Image-Filter](https://nginx.org/en/docs/http/ngx_http_image_filter_module.html) | Adds on-the-fly support for JPEG, GIF, PNG, and WebP image resizing and cropping. | [`nginx-plus-module-image-filter`]({{< ref "nginx/admin-guide/dynamic-modules/image-filter.md" >}})                   |
-| [njs Scripting Language](https://nginx.org/en/docs/njs/) | Adds JavaScript-like scripting for advanced server-side logic in NGINX configuration file. | [`nginx-plus-module-njs`]({{< ref "nginx/admin-guide/dynamic-modules/nginscript.md" >}}) |
-| [OpenTelemetry](https://github.com/nginxinc/nginx-otel) | Adds distributed tracing support via OpenTelemetry. | [`nginx-plus-module-otel`]({{< ref "nginx/admin-guide/dynamic-modules/opentelemetry.md" >}}) |
-| [Perl](https://nginx.org/en/docs/http/ngx_http_perl_module.html)| Integrates Perl scripting for advanced customization. | [`nginx-plus-module-perl`]({{< ref "nginx/admin-guide/dynamic-modules/perl.md" >}}) |
+| Name | Description | Package name |
+|---|---|---|
+| [ACME](https://github.com/nginx/nginx-acme) | Adds the automatic certificate management ([ACMEv2](https://www.rfc-editor.org/rfc/rfc8555.html)) protocol. | [`nginx-plus-module-acme`]({{< ref "nginx/admin-guide/dynamic-modules/acme.md" >}}) |
+| [GeoIP](https://nginx.org/en/docs/http/ngx_http_geoip_module.html) | Adds IP-based geolocation with the precompiled MaxMind databases. | [`nginx-plus-module-geoip`]({{< ref "nginx/admin-guide/dynamic-modules/geoip.md" >}}) |
+| [Image-Filter](https://nginx.org/en/docs/http/ngx_http_image_filter_module.html) | Resizes and crops JPEG, GIF, PNG, and WebP images on the fly. | [`nginx-plus-module-image-filter`]({{< ref "nginx/admin-guide/dynamic-modules/image-filter.md" >}}) |
+| [njs Scripting Language](https://nginx.org/en/docs/njs/) | Adds JavaScript-like scripting for advanced server-side logic in the NGINX configuration. | [`nginx-plus-module-njs`]({{< ref "nginx/admin-guide/dynamic-modules/nginscript.md" >}}) |
+| [OpenTelemetry](https://github.com/nginxinc/nginx-otel) | Adds distributed tracing with OpenTelemetry. | [`nginx-plus-module-otel`]({{< ref "nginx/admin-guide/dynamic-modules/opentelemetry.md" >}}) |
+| [Perl](https://nginx.org/en/docs/http/ngx_http_perl_module.html) | Adds Perl scripting for advanced customization. | [`nginx-plus-module-perl`]({{< ref "nginx/admin-guide/dynamic-modules/perl.md" >}}) |
 | [XSLT](https://nginx.org/en/docs/http/ngx_http_xslt_module.html) | Applies XSLT transformations to XML responses. | [`nginx-plus-module-xslt`]({{< ref "nginx/admin-guide/dynamic-modules/xslt.md" >}}) |
 
 {{< /table >}}
 
 ### NGINX-certified community dynamic modules
 
-NGINX-certified community dynamic modules are popular third‑party modules distributed by F5 NGINX, with installation and basic configuration support provided. They are also distributed as precompiled packages for various operating systems and can be installed [from the `nginx-plus` repository](#install-from-official-repository).
+These are popular third-party modules that F5 NGINX distributes, with support for installation and basic configuration. They also come as packages in the [NGINX Plus repository](#install-module-packages).
 
 {{< table >}}
 
-| Name                            | Description                       | Package name     |
-|---------------------------------|-----------------------------------|--------------------|
-| [Brotli](https://github.com/google/ngx_brotli) | Brotli compression support with modules for dynamic compression and for serving pre-compressed `.br` files. | [`nginx-plus-module-brotli`]({{< ref "nginx/admin-guide/dynamic-modules/brotli.md" >}}) |
-| [Encrypted-Session](https://github.com/openresty/encrypted-session-nginx-module) | AES-256 based encryption/decryption of NGINX variables. | [`nginx-plus-module-encrypted-session`]({{< ref "nginx/admin-guide/dynamic-modules/encrypted-session.md" >}}) |
-| [FIPS Status Check](https://github.com/ogarrett/nginx-fips-check-module) | Verifies if OpenSSL is operating in FIPS mode. | [`nginx-plus-module-fips-check`]({{< ref "nginx/admin-guide/dynamic-modules/fips.md" >}})|
-| [GeoIP2](https://github.com/leev/ngx_http_geoip2_module)  | Uses MaxMind GeoIP2 for enhanced geolocation. | [`nginx-plus-module-geoip2`]({{< ref "nginx/admin-guide/dynamic-modules/geoip2.md" >}})|
-| [Headers-More](https://github.com/openresty/headers-more-nginx-module) | Extends the NGINX [Headers](https://nginx.org/en/docs/http/ngx_http_headers_module.html) module to modify request and response headers. | [`nginx-plus-module-headers-more`]({{< ref "nginx/admin-guide/dynamic-modules/headers-more.md" >}}) |
-| [HTTP Substitutions Filter](https://github.com/yaoweibin/ngx_http_substitutions_filter_module) | Enables regex and string-based substitutions in response bodies. | [`nginx-plus-module-subs-filter`]({{< ref "nginx/admin-guide/dynamic-modules/http-substitutions-filter.md" >}}) |
-| [Lua](https://github.com/openresty/lua-nginx-module) | Embeds Lua programming language. | [`nginx-plus-module-lua`]({{< ref "nginx/admin-guide/dynamic-modules/lua.md" >}})|
+| Name | Description | Package name |
+|---|---|---|
+| [Brotli](https://github.com/google/ngx_brotli) | Adds Brotli compression, with modules for dynamic compression and for serving precompressed `.br` files. | [`nginx-plus-module-brotli`]({{< ref "nginx/admin-guide/dynamic-modules/brotli.md" >}}) |
+| [Encrypted-Session](https://github.com/openresty/encrypted-session-nginx-module) | Encrypts and decrypts NGINX variables with AES-256. | [`nginx-plus-module-encrypted-session`]({{< ref "nginx/admin-guide/dynamic-modules/encrypted-session.md" >}}) |
+| [FIPS Status Check](https://github.com/ogarrett/nginx-fips-check-module) | Checks whether OpenSSL runs in FIPS mode. | [`nginx-plus-module-fips-check`]({{< ref "nginx/admin-guide/dynamic-modules/fips.md" >}}) |
+| [GeoIP2](https://github.com/leev/ngx_http_geoip2_module) | Adds geolocation with MaxMind GeoIP2 databases. | [`nginx-plus-module-geoip2`]({{< ref "nginx/admin-guide/dynamic-modules/geoip2.md" >}}) |
+| [Headers-More](https://github.com/openresty/headers-more-nginx-module) | Extends the NGINX [Headers](https://nginx.org/en/docs/http/ngx_http_headers_module.html) module to change request and response headers. | [`nginx-plus-module-headers-more`]({{< ref "nginx/admin-guide/dynamic-modules/headers-more.md" >}}) |
+| [HTTP Substitutions Filter](https://github.com/yaoweibin/ngx_http_substitutions_filter_module) | Replaces strings and regular expression matches in response bodies. | [`nginx-plus-module-subs-filter`]({{< ref "nginx/admin-guide/dynamic-modules/http-substitutions-filter.md" >}}) |
+| [Lua](https://github.com/openresty/lua-nginx-module) | Embeds the Lua programming language. | [`nginx-plus-module-lua`]({{< ref "nginx/admin-guide/dynamic-modules/lua.md" >}}) |
 | [NGINX Developer Kit](https://github.com/vision5/ngx_devel_kit) | Provides helper macros for module development. | [`nginx-plus-module-ndk`]({{< ref "nginx/admin-guide/dynamic-modules/ndk.md" >}}) |
-| [Phusion Passenger](https://www.phusionpassenger.com/library/install/nginx/) | Application server for Node.js, Python, Ruby. | [`nginx-plus-module-passenger`]({{< ref "nginx/admin-guide/dynamic-modules/passenger-open-source.md" >}}) |
-| [Prometheus-njs](https://github.com/nginx/nginx-prometheus-exporter) | Converts [NGINX Plus metrics](https://demo.nginx.com/swagger-ui/) into Prometheus format. | [`nginx-plus-module-prometheus`]({{< ref "nginx/admin-guide/dynamic-modules/prometheus-njs.md" >}}) |
-| [RTMP](https://github.com/arut/nginx-rtmp-module) | Adds streaming capabilities (RTMP, HLS, MPEG-DASH, FFmpeg support).| [`nginx-plus-module-rtmp`]({{< ref "nginx/admin-guide/dynamic-modules/rtmp.md" >}}) |
-| [Set-Misc](https://github.com/openresty/set-misc-nginx-module) | Adds `set_*` directives for scripting (extend NGINX [Rewrite](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html) module). | [`nginx-plus-module-set-misc`]({{< ref "nginx/admin-guide/dynamic-modules/set-misc.md" >}}) |
-| [SPNEGO for Kerberos](https://github.com/stnoonan/spnego-http-auth-nginx-module) | Adds support for [GSS‑API based](https://www.rfc-editor.org/rfc/rfc2743) SPNEGO/Kerberos authentication. | [`nginx-plus-module-auth-spnego`]({{< ref "nginx/admin-guide/dynamic-modules/spnego.md" >}}) |
+| [Phusion Passenger](https://www.phusionpassenger.com/library/install/nginx/) | An application server for Node.js, Python, and Ruby. | [`nginx-plus-module-passenger`]({{< ref "nginx/admin-guide/dynamic-modules/passenger-open-source.md" >}}) |
+| [Prometheus-njs](https://github.com/nginx/nginx-prometheus-exporter) | Converts [NGINX Plus metrics](https://demo.nginx.com/swagger-ui/) into the Prometheus format. | [`nginx-plus-module-prometheus`]({{< ref "nginx/admin-guide/dynamic-modules/prometheus-njs.md" >}}) |
+| [RTMP](https://github.com/arut/nginx-rtmp-module) | Adds streaming: RTMP, HLS, and MPEG-DASH, with FFmpeg support. | [`nginx-plus-module-rtmp`]({{< ref "nginx/admin-guide/dynamic-modules/rtmp.md" >}}) |
+| [Set-Misc](https://github.com/openresty/set-misc-nginx-module) | Adds `set_*` directives for scripting, which extend the NGINX [Rewrite](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html) module. | [`nginx-plus-module-set-misc`]({{< ref "nginx/admin-guide/dynamic-modules/set-misc.md" >}}) |
+| [SPNEGO for Kerberos](https://github.com/stnoonan/spnego-http-auth-nginx-module) | Adds [GSS-API based](https://www.rfc-editor.org/rfc/rfc2743) SPNEGO and Kerberos authentication. | [`nginx-plus-module-auth-spnego`]({{< ref "nginx/admin-guide/dynamic-modules/spnego.md" >}}) |
 
 {{< /table >}}
 
-### Dynamic module package installation
+### Install module packages {#install-module-packages}
 
-[NGINX‑authored](#nginx-authored-dynamic-modules) and [NGINX‑certified community](#nginx-certified-community-dynamic-modules) dynamic modules can be installed as packaged binaries directly from the official `nginx-plus` repository.
+You can install [NGINX-authored](#nginx-authored-dynamic-modules) and [NGINX-certified community](#nginx-certified-community-dynamic-modules) modules as packages from the NGINX Plus repository. In the commands, replace `<MODULE_NAME>` with the package name, for example `nginx-plus-module-njs`.
 
-To install a binary package, run the command in a terminal that corresponds to your operating system, replacing `<MODULE_NAME>` with the actual binary package name, for example, `nginx-plus-module-njs`.
+- **RHEL and derivatives, Amazon Linux, CentOS, and Oracle Linux**. The `.so` files go to `/usr/lib64/nginx/modules/`.
 
-- For RHEL, Amazon Linux 2, CentOS, Oracle Linux:
+    ```shell
+    sudo dnf install <MODULE_NAME>
+    ```
 
-  ```shell
-  sudo yum update && \
-  sudo yum install <MODULE_NAME>
-  ```
+    On Amazon Linux 2, use `yum` instead of `dnf`.
 
-  The resulting  `.so` file will be installed to: `/usr/lib64/nginx/modules/`
+- **Debian and Ubuntu**. The `.so` files go to `/usr/lib/nginx/modules/`.
 
-- For Amazon Linux 2023,  AlmaLinux and Rocky Linux:
+    ```shell
+    sudo apt update
+    sudo apt install <MODULE_NAME>
+    ```
 
-  ```shell
-  sudo dnf update && \
-  sudo dnf install <MODULE_NAME>
-  ```
+- **FreeBSD**. The `.so` files go to `/usr/local/etc/nginx/modules/`.
 
-  The resulting  `.so` file will be installed to: `/usr/lib64/nginx/modules/`
+    ```shell
+    sudo pkg update
+    sudo pkg install <MODULE_NAME>
+    ```
 
-- For Debian and Ubuntu:
+- **SUSE Linux Enterprise**. The `.so` files go to `/usr/lib64/nginx/modules/`.
 
-  ```shell
-  sudo apt update && \
-  sudo apt install <MODULE_NAME>
-  ```
+    ```shell
+    sudo zypper refresh
+    sudo zypper install <MODULE_NAME>
+    ```
 
-  The resulting  `.so` file will be installed to: `/usr/lib/nginx/modules`
+- **Alpine Linux**. The `.so` files go to `/usr/lib/nginx/modules/`.
 
-- For FreeBSD:
+    ```shell
+    sudo apk update
+    sudo apk add <MODULE_NAME>
+    ```
 
-  ```shell
-  sudo pkg update && \
-  sudo pkg install <MODULE_NAME>
-  ```
+Some modules aren't available on every operating system because of platform limits. For details, see [Dynamic modules]({{< ref "nginx/technical-specs.md#dynamic-modules" >}}) in the [NGINX Plus Technical Specifications]({{< ref "nginx/technical-specs.md" >}}). For a description and the installation steps of each module, see [Dynamic Modules]({{< ref "nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}).
 
-  The resulting  `.so` file will be installed to: `/usr/local/etc/nginx/modules`
+After you install a module, [load it](#enable_dynamic) and set it up as its documentation describes.
 
-- For SUSE Linux Enterprise:
+### Load dynamic modules {#enable_dynamic}
 
-  ```shell
-  sudo zypper refresh && \
-  sudo zypper install <MODULE_NAME>
-  ```
+1. Open the NGINX Plus configuration file: `/etc/nginx/nginx.conf` on Linux, or `/usr/local/etc/nginx/nginx.conf` on FreeBSD.
 
-  The resulting  `.so` file will be installed to: `/usr/lib64/nginx/modules/`
+1. At the top of the file, before the `events`, `http`, and `stream` blocks, add a [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive for each module. After `events`, `nginx -t` reports that `load_module` is `specified too late`. A relative path starts in the NGINX Plus prefix directory. On Linux, `modules/` means `/etc/nginx/modules/`, which leads to the module files of your operating system.
 
-- For Alpine Linux:
+    ```nginx
+    load_module modules/<MODULE_NAME_1>.so;
+    load_module modules/<MODULE_NAME_2>.so;
 
-  ```shell
-  sudo apk update && \
-  sudo apk add <MODULE_NAME>
-  ```
+    events {
+        # ...
+    }
 
-  The resulting  `.so` file will be installed to: `/usr/lib/nginx/modules`
+    http {
+        # ...
+    }
 
-For detailed description and installation steps for each dynamic module, see [NGINX Plus Dynamic Modules]({{< ref "nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}).
+    stream {
+        # ...
+    }
+    ```
 
-Some modules may not be available on specific operating systems due to platform-level limitations. For detailed modules compatibility, see the [Dynamic Modules]({{< ref "nginx/technical-specs.md#dynamic-modules" >}}) section of the [NGINX Plus Technical Specifications]({{< ref "nginx/technical-specs.md" >}}).
+    Replace `<MODULE_NAME_1>` and `<MODULE_NAME_2>` with the file names of the modules, without the `.so` extension.
 
-After installing the module, you will need to:
+1. Save the file.
 
-- enable it with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive
-- configure it according to the module's documentation
+1. Test the configuration:
 
-### Enabling dynamic modules {#enable_dynamic}
+    ```shell
+    sudo nginx -t
+    ```
 
-To enable a dynamic module:
+1. Reload the configuration:
 
-1. In a text editor, open the NGINX Plus configuration file:
-   - `/etc/nginx/nginx.conf` for Linux
-   - `/usr/local/etc/nginx/nginx.conf` for FreeBSD
+    ```shell
+    sudo nginx -s reload
+    ```
 
-1. On the top-level (or the “`main`” context, before any `http` or `stream` blocks), specify the path to the `.so` file with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive. By default, the files are expected to be in the `/modules` directory. The path to the directory depends on your operating system:
-
-   - `/usr/lib64/nginx/modules/` for most Linux operating systems
-   - `/usr/lib/nginx/modules` for Debian, Ubuntu, Alpine
-   - `/usr/local/etc/nginx/modules` for FreeBSD
-
-   If there are several dynamic modules, specify each module with a separate `load_module` directive:
-
-   ```nginx
-   load_module modules/<MODULE_NAME_1>.so;
-   load_module modules/<MODULE_NAME_2>.so;
-
-   http {
-       #...
-   }
-
-   stream {
-       #...
-   }
-   ```
-
-   Replace `<MODULE_NAME_1>` with the name of the first dynamic module and `<MODULE_NAME_2>` with the name of the second dynamic module.
-
-1. Save the changes.
-
-1. Check the new configuration for syntactic validity:
-
-   ```shell
-   nginx -t
-   ```
-
-1. Reload the NGINX Plus configuration:
-
-   ```shell
-   nginx -s reload
-   ```
-
-   After installing the module, you will need to configure the module in the NGINX Plus configuration file. Follow the usage and setup instructions provided in the module’s official documentation.
+Then set up each module in the NGINX Plus configuration, as its documentation describes.
 
 ### NGINX Certified Partner dynamic modules
 
-NGINX Certified Partner dynamic modules are partner-built extensions that enhance NGINX Plus with advanced features such as security, identity and access management, device detection, application delivery, and many more. These modules are verified through [NGINX’s certification process](https://www.f5.com/go/partner/nginx-certified-module-program-documentation). Installation packages, documentation, and support are provided directly by the partners.
+These modules are extensions that partners build for NGINX Plus, for example for security, identity and access management, device detection, and application delivery. They're verified through [NGINX's certification process](https://www.f5.com/go/partner/nginx-certified-module-program-documentation). The partners provide the packages, the documentation, and the support.
 
 {{< table >}}
 
-| Name                            | Description                       | Commercial Support |
-|---------------------------------|-----------------------------------|--------------------|
-| [CQ botDefence](https://www.cequence.ai/contact-us/) | Simplify traffic analysis to prevent fraud and theft that may result from automated bot attacks against your public-facing web, mobile, and API-based applications. | [Support](https://www.cequence.ai/demo/) provided by [Cequence](https://www.cequence.ai) |
-| [Curity Identity Server](https://developer.curity.io/) | Powerful OAuth and OpenID Connect server, used for logging in and securing millions of users, access to API and mobile apps over APIs and microservices. | [Support](https://curity.io/support/professional-services/) and docs [[1]](https://curity.io/resources/learn/nginx-phantom-token-module/), [[2]](https://curity.io/resources/learn/nginx-oauth-proxy/) provided by [Curity](https://curity.io/support/professional-services/) |
-| [DeviceAtlas](https://deviceatlas.com/deviceatlas-nginx-module) | Detect what devices users are using, including smartphones, laptops, and weareable devices, and use this data to deliver customized experiences. | [Support](https://deviceatlas.com/resources/support) and [docs](https://docs.deviceatlas.com/apis/enterprise/c/3.1.3/README.Nginx.html) provided by [DeviceAtlas](https://deviceatlas.com/resources/support) |
-| [ForgeRock Policy Agent](https://backstage.forgerock.com/downloads/browse/am/featured/web-agents) | In conjunction with ForgeRock Access Management, allows you to authenticate your application and API access. | [Support](https://support.pingidentity.com/s/) and [docs](https://backstage.forgerock.com/docs/openam-web-policy-agents/2023.9/installation-guide/install-nginx.html) provided by [PingIdentity](https://www.pingidentity.com) |
-| [HUMAN Security for F5 NGINX](https://docs.humansecurity.com/home) | Provides the required enforcement layer to protect websites and apps from modern automated security threats. | Support provided by [HUMAN Security](https://docs.humansecurity.com/home) |
-| IDFConnect SSO/Rest | Integrates your web access management platform's full capabilities with NIGNX Plus. | Support and docs provided by IDFConnect |
-| [OPSWAT](https://www.f5.com/go/product/nginx-modules) | Scalable solutions to protect your networks and applications from malware and unknown (zero-day) malicious file content. | [Support](https://www.opswat.com/support) and [docs](https://www.opswat.com/docs/mdicap/integrations/nginx-integration-module) provided by [OPSWAT](https://www.opswat.com/) |
-| [Passenger Enterprise](https://www.phusionpassenger.com/features) | An application server with support for Meteor, Node.js, Python, and Ruby apps. | [Support](https://www.phusionpassenger.com/support) and [docs](https://www.phusionpassenger.com/docs/advanced_guides/install_and_upgrade/nginx/install_as_nginx_module.html) provided by [Phusion](https://www.phusionpassenger.com/) |
-| [Ping Access](https://support.pingidentity.com/s/marketplace-integration/a7i1W0000004ICRQA2/pingaccess-agent-for-nginx-plus) | Centralized management of access security with advanced contextual policies to secure your mobile and web properties in any domain. | [Support](https://support.pingidentity.com/s/) and [docs](https://docs.pingidentity.com/pingaccess/latest/agents_and_integrations/pa_agent_for_nginx.html) provided by [PingIdentity](https://www.pingidentity.com) |
-| [PingIntelligence](https://hub.pingidentity.com/datasheets/3742-pingintelligence-apis) | A complete solution to secure an organization's API across on-premises, public and private clouds, and hybrid IT environments. | [Support](https://support.pingidentity.com/s/) and [docs](https://docs.pingidentity.com/pingintelligence/5.1/pingintelligence_integrations/pingintelligence_nginx_plus_integration.html) provided by [PingIdentity](https://www.pingidentity.com) |
-| [Seer Box by Plurbius One](https://seerbox.it/en/) | Cloud-native web application security manager which provides thorough monitoring and protection capabilities. | Support provided by [Seer Box](https://support.seerbox.it/) |
-| [Signal Sciences](https://docs.fastly.com/en/ngwaf/about-the-nginx-module) | Intelligently detects malicious requests and blocks them without false positives, while the patented fail-open architecture allows legitimate requests through. | [Support](https://support.fastly.com/s/) and [docs](https://docs.fastly.com/en/ngwaf/installing-the-nginx-dynamic-module) provided by [Fastly](https://www.fastly.com/)|
-| [Wallarm](https://www.wallarm.com/company) | The Wallarm WAF provides enterprise-grade protection against advanced Layer 7 application attacks. | [Support](https://www.wallarm.com/support) and [docs](https://docs.wallarm.com/installation/nginx-native-node-internals/#nginx-node) provided by [Wallarm](https://wallarm.com/) |
-| [WURFL InFuse](https://www.scientiamobile.com/secondary-products/wurfl-infuze-module-for-nginx-plus/) | Give developers the most advanced, accurate, and high-performance device detection in the industry. | [Support](https://www.scientiamobile.com/support/) and [docs](https://docs.scientiamobile.com/documentation/infuze/infuze-nginx-plus-module-user-guide) provided by [Scientiamobile](https://www.scientiamobile.com/) |
-| [51Degrees Device Detection](https://github.com/51Degrees/device-detection-nginx) | Improve speed of response and accuracy, delivering an optimal user experience and high-fidelity analysis. | [Support](https://51degrees.com/pricing/index) and [docs](https://github.com/51Degrees/device-detection-nginx/blob/main/README.md) provided by [51Degrees](https://51degrees.com/about-us) |
+| Name | Description | Commercial support |
+|---|---|---|
+| [CQ botDefence](https://www.cequence.ai/contact-us/) | Analyzes traffic to prevent fraud and theft from automated bot attacks on your public web, mobile, and API-based applications. | [Support](https://www.cequence.ai/demo/) provided by [Cequence](https://www.cequence.ai) |
+| [Curity Identity Server](https://developer.curity.io/) | An OAuth and OpenID Connect server for user logins and for securing access to APIs, mobile apps, and microservices. | [Support](https://curity.io/support/professional-services/) and docs [[1]](https://curity.io/resources/learn/nginx-phantom-token-module/), [[2]](https://curity.io/resources/learn/nginx-oauth-proxy/) provided by [Curity](https://curity.io/support/professional-services/) |
+| [DeviceAtlas](https://deviceatlas.com/deviceatlas-nginx-module) | Detects the devices that users have, such as smartphones, laptops, and wearable devices, to deliver customized experiences. | [Support](https://deviceatlas.com/resources/support) and [docs](https://docs.deviceatlas.com/apis/enterprise/c/3.1.3/README.Nginx.html) provided by [DeviceAtlas](https://deviceatlas.com/resources/support) |
+| [ForgeRock Policy Agent](https://backstage.forgerock.com/downloads/browse/am/featured/web-agents) | Works with ForgeRock Access Management to authenticate access to your applications and APIs. | [Support](https://support.pingidentity.com/s/) and [docs](https://backstage.forgerock.com/docs/openam-web-policy-agents/2023.9/installation-guide/install-nginx.html) provided by [PingIdentity](https://www.pingidentity.com) |
+| [HUMAN Security for F5 NGINX](https://docs.humansecurity.com/home) | Provides an enforcement layer that protects websites and apps from automated security threats. | Support provided by [HUMAN Security](https://docs.humansecurity.com/home) |
+| IDFConnect SSO/Rest | Integrates all features of your web access management platform with NGINX Plus. | Support and docs provided by IDFConnect |
+| [OPSWAT](https://www.f5.com/go/product/nginx-modules) | Protects your networks and applications from malware and unknown (zero-day) malicious file content. | [Support](https://www.opswat.com/support) and [docs](https://www.opswat.com/docs/mdicap/integrations/nginx-integration-module) provided by [OPSWAT](https://www.opswat.com/) |
+| [Passenger Enterprise](https://www.phusionpassenger.com/features) | An application server for Meteor, Node.js, Python, and Ruby apps. | [Support](https://www.phusionpassenger.com/support) and [docs](https://www.phusionpassenger.com/docs/advanced_guides/install_and_upgrade/nginx/install_as_nginx_module.html) provided by [Phusion](https://www.phusionpassenger.com/) |
+| [Ping Access](https://support.pingidentity.com/s/marketplace-integration/a7i1W0000004ICRQA2/pingaccess-agent-for-nginx-plus) | Manages access security centrally, with contextual policies for your mobile and web properties in any domain. | [Support](https://support.pingidentity.com/s/) and [docs](https://docs.pingidentity.com/pingaccess/latest/agents_and_integrations/pa_agent_for_nginx.html) provided by [PingIdentity](https://www.pingidentity.com) |
+| [PingIntelligence](https://hub.pingidentity.com/datasheets/3742-pingintelligence-apis) | Secures the APIs of an organization across on-premises, public cloud, private cloud, and hybrid environments. | [Support](https://support.pingidentity.com/s/) and [docs](https://docs.pingidentity.com/pingintelligence/5.1/pingintelligence_integrations/pingintelligence_nginx_plus_integration.html) provided by [PingIdentity](https://www.pingidentity.com) |
+| [Seer Box by Plurbius One](https://seerbox.it/en/) | A cloud-native web application security manager for monitoring and protection. | Support provided by [Seer Box](https://support.seerbox.it/) |
+| [Signal Sciences](https://docs.fastly.com/en/ngwaf/about-the-nginx-module) | Detects and blocks malicious requests. Its fail-open design passes legitimate requests through. | [Support](https://support.fastly.com/s/) and [docs](https://docs.fastly.com/en/ngwaf/installing-the-nginx-dynamic-module) provided by [Fastly](https://www.fastly.com/) |
+| [Wallarm](https://www.wallarm.com/company) | A WAF that protects against advanced Layer 7 application attacks. | [Support](https://www.wallarm.com/support) and [docs](https://docs.wallarm.com/installation/nginx-native-node-internals/#nginx-node) provided by [Wallarm](https://wallarm.com/) |
+| [WURFL InFuse](https://www.scientiamobile.com/secondary-products/wurfl-infuze-module-for-nginx-plus/) | Detects devices with high accuracy and performance. | [Support](https://www.scientiamobile.com/support/) and [docs](https://docs.scientiamobile.com/documentation/infuze/infuze-nginx-plus-module-user-guide) provided by [Scientiamobile](https://www.scientiamobile.com/) |
+| [51Degrees Device Detection](https://github.com/51Degrees/device-detection-nginx) | Detects devices quickly and accurately, for a better user experience and detailed analysis. | [Support](https://51degrees.com/pricing/index) and [docs](https://github.com/51Degrees/device-detection-nginx/blob/main/README.md) provided by [51Degrees](https://51degrees.com/about-us) |
 
 {{< /table >}}
 
-The complete list of Certified Partner Modules can be found on the [F5.com Dynamic Modules](https://www.f5.com/go/product/nginx-modules?filter=module-author%3Anginx-certified-partner) page.
+For the complete list of Certified Partner modules, see the [F5.com Dynamic Modules](https://www.f5.com/go/product/nginx-modules?filter=module-author%3Anginx-certified-partner) page.
 
 ### Community dynamic modules
 
-Community dynamic modules are open source extensions developed and distributed by third‑party contributors of the NGINX community.
+Third-party contributors of the NGINX community develop and distribute these open source modules.
 
-These modules are not available in the official NGINX repository. To use them, you must download the source code from the module's repository and [compile it against the NGINX Open Source version](#install_modules_oss) that matches your NGINX Plus version.
+They aren't in the NGINX Plus repository. To use one, download its source code and [compile it with the NGINX Open Source version](#install_modules_oss) that matches your NGINX Plus version. For lists of community modules, see community resources such as the [Awesome NGINX GitHub project](https://github.com/agile6v/awesome-nginx#third-party-modules).
 
-The lists of community modules can be found across different community-driven resources, for example, [Awesome NGINX GitHub project](https://github.com/agile6v/awesome-nginx#third-party-modules).
+### Compile a community dynamic module {#install_modules_oss}
 
-### Installing a community dynamic module {#install_modules_oss}
+A community dynamic module works with NGINX Plus only if you compile it with the matching version of NGINX Open Source.
 
-For a community dynamic module to work with NGINX Plus, it must be compiled alongside the corresponding version of NGINX Open Source.
+1. Find the NGINX Open Source version of your NGINX Plus:
 
-1. Find out the NGINX Open Source version that matches your NGINX Plus version. In a terminal, run the command:
+    ```shell
+    nginx -v
+    ```
 
-   ```shell
-   nginx -v
-   ```
+    The output shows the NGINX Open Source version first, for example:
 
-   Expected output of the command:
+    ```none
+    nginx version: nginx/1.31.6 (nginx-plus-r37.2.0)
+    ```
 
-   ```shell
-   nginx version: nginx/1.31.6 (nginx-plus-r37.2.0)
-   ```
+1. Prepare a build environment. Compile modules on a separate system, not on the production server. This keeps the risk and complexity away from production. The build environment needs:
 
-1. Prepare the build environment.
+    - The same operating system as the production environment.
+    - A C compiler and `make`.
+    - The development files of the PCRE2 and zlib libraries.
 
-   We strongly recommend compiling dynamic modules on a separate system, referred to as the “build environment”. This approach minimizes the risk and complexity for the system where NGINX Plus will be upgraded, referred to as the “production environment”. The build environment should meet the following requirements:
+    To install them:
 
-   - The same operating system as the production environment
-   - The same NGINX version as the production environment
-   - Compiler and `make` utilities
-   - [PCRE](http://pcre.org/) library (development files)
-   - [Zlib](http://www.zlib.net/) compression libraries (development files)
+    - Debian and Ubuntu:
 
-   To verify that the required prerequisites are installed in your build environment, run the following commands:
+        ```shell
+        sudo apt update
+        sudo apt install gcc make libpcre2-dev zlib1g-dev
+        ```
 
-   - For Debian and Ubuntu:
+    - RHEL and derivatives:
 
-     ```shell
-     sudo apt update && \
-     sudo apt install gcc make libpcre3-dev zlib1g-dev
-     ```
+        ```shell
+        sudo dnf install gcc make pcre2-devel zlib-devel
+        ```
 
-   - For CentOS, Oracle Linux, and RHEL:
+1. Get the NGINX Open Source source code of that version. To find the version for your NGINX Plus release, see [NGINX Plus Releases]({{< ref "nginx/releases.md" >}}). For example, for 1.31.6:
 
-     ```shell
-     sudo yum update && \
-     sudo yum install gcc make pcre-devel zlib-devel
-     ```
+    ```shell
+    wget -qO - https://nginx.org/download/nginx-1.31.6.tar.gz | tar zxf -
+    ```
 
-1. Obtain NGINX Open Source.
+1. Get the source code of the module, in any directory of the build environment. For example, the [NGINX "Hello World" module](https://github.com/perusio/nginx-hello-world-module.git/):
 
-   - Identify the NGINX Open Source version that corresponds to your version of NGINX Plus. See [NGINX Plus Releases]({{< ref "nginx/releases.md" >}}).
+    ```shell
+    git clone https://github.com/perusio/nginx-hello-world-module.git
+    ```
 
-   - Download the sources for the appropriate NGINX Open Source mainline version, in this case 1.31.6:
+1. Compile the module. The `--with-compat` option makes the module binary compatible with NGINX Plus, and `make modules` builds only the modules:
 
-     ```shell
-     wget -qO - https://nginx.org/download/nginx-1.31.6.tar.gz | tar zxfv -
-     ```
+    ```shell
+    cd nginx-1.31.6/
+    ./configure --with-compat --add-dynamic-module=<MODULE_SOURCES>
+    make modules
+    ```
 
-1. Obtain the source for the dynamic module.
+    Replace `<MODULE_SOURCES>` with the path of the module's source code directory, for example `../nginx-hello-world-module`. The build puts the `.so` file in the `objs` directory:
 
-   The source code for the dynamic module can be placed in any directory in the build environment. As an example, here we're copying the [NGINX “Hello World” module](https://github.com/perusio/nginx-hello-world-module.git/) from GitHub:
+    ```shell
+    ls objs/*.so
+    ```
 
-   ```shell
-   git clone https://github.com/perusio/nginx-hello-world-module.git
-   ```
+    ```none
+    objs/ngx_http_hello_world_module.so
+    ```
 
-1. Compile the dynamic module.
+1. Copy the module file and add the NGINX Open Source version to the name. This helps when you keep several versions of a module on the production server.
 
-   First, establish binary compatibility by running the `configure` script with the `‑‑with‑compat` option. Then compile the module with `make modules`.
+    ```shell
+    cp objs/ngx_http_hello_world_module.so ./ngx_http_hello_world_module_1.31.6.so
+    ```
 
-   ```shell
-   cd nginx-1.31.6/ && \
-   ./configure --with-compat --add-dynamic-module=../<MODULE_SOURCES> && \
-   make modules
-   ```
+1. Transfer the `.so` file to the production server.
 
-   Replace `<MODULE_SOURCES>` with the path to the dynamic module sources.
+1. On the production server, copy the file to the modules directory. On Linux, `/etc/nginx/modules/` leads to it; on FreeBSD, it's `/usr/local/etc/nginx/modules/`.
 
-   The **.so** file generated by the build process is placed in the **objs** subdirectory:
+    ```shell
+    sudo cp ngx_http_hello_world_module_1.31.6.so /etc/nginx/modules/
+    ```
 
-   ```shell
-   ls objs/*.so
-   ```
+Then [load the module](#enable_dynamic) in the NGINX Plus configuration.
 
-   Expected command output:
+---
 
-   ```shell
-   objs/ngx_http_hello_world_module.so
-   ```
+## Install without root privileges {#unpriv_install}
 
-1. Make a copy of the module file and include the NGINX Open Source version in the filename. This makes it simpler to manage multiple versions of a dynamic module in the production environment.
+<span id="nginx-plus-unprivileged-installation"></span>
 
-   ```shell
-   cp objs/ngx_http_hello_world_module.so ./ngx_http_hello_world_module_1.31.6.so
-   ```
+In some environments, the root account isn't available for security reasons. Without root privileges, you can't use a package manager to install NGINX Plus on Linux.
 
-1. Transfer the resulting `.so` file from your build environment to the production environment.
+Instead, a script can install NGINX Plus for a user without root privileges. The script:
 
-1. In your production environment, copy the resulting `.so` file to the dynamic modules directory. The path to the directory depends on your operating system:
+- Downloads the NGINX Plus packages.
+- Extracts the packages into a directory that you choose.
+- Changes the paths in the NGINX Plus configuration to that directory.
+- Backs up the configuration directory.
+- Upgrades an existing unprivileged installation, if you ask it to.
 
-   - `/usr/lib64/nginx/modules/` for most Linux operating systems
-   - `/usr/lib/nginx/modules` for Debian, Ubuntu, Alpine
-   - `/usr/local/etc/nginx/modules` for FreeBSD
+An unprivileged installation has these limits:
 
-   ```shell
-   sudo cp ngx_http_hello_world_module_1.31.6.so /usr/local/nginx/modules/ngx_http_hello_world_module_1.31.6.so
-   ```
+- NGINX Plus needs root privileges to listen on ports below `1024`.
+- The script doesn't replace your operating system's package manager, and it installs only NGINX Plus and its modules. Support doesn't cover changes to the script for other software.
+- NGINX Plus doesn't start automatically. For each unprivileged installation on the host, add your own init script or `systemd` unit file.
+- The script doesn't install the dependencies and libraries that NGINX Plus and its modules need. Check and install them yourself.
 
-After installing the module, you need to enable it in the NGINX Plus configuration file. For more information, see [Enabling Dynamic Modules](#enable_dynamic).
+The script runs on these operating systems:
 
-## NGINX Plus unprivileged installation {#unpriv_install}
-
-In some environments, access to the root account is restricted for security reasons. On Linux systems, this limitation prevents the use of package managers to install NGINX Plus without root privileges.
-
-As a workaround, in such environments NGINX Plus can be installed with a special script that modifies NGINX Plus configuration file to allow it to run from a non-root user. This script performs the following actions:
-
-- Downloads the NGINX Plus packages
-
-- Extracts the content of the archives into a user-defined directory of the packages
-
-- Updates the paths in the NGINX configuration file to use relative paths in the specified directory
-
-- Makes a backup copy of the configuration directory
-
-- Provides an option to upgrade an existing unprivileged installation of NGINX Plus
-
-Comparing to a standard installation of NGINX Plus, an unprivileged installation has certain limitations and restrictions:
-
-- Root privileges are still required in order to listen on ports below `1024`.
-
-- The script is not intended to replace your operating system's package manager and does not allow for the installation of any software other than NGINX Plus and its modules. Modifications to the script for other installations are not covered by the support program.
-
-- NGINX Plus will not start automatically, so, you must add a custom `init` script or a `systemd` unit file for each unprivileged installation on the host.
-
-- all dependencies and libraries required by the NGINX Plus binary and its modules are not installed automatically and should be checked and installed manually.
-
-The script can be run on the following operating systems:
-
-- RedHat, CentOS
+- Red Hat Enterprise Linux and CentOS
 - Amazon Linux 2023
-- Debian, Ubuntu
+- Debian and Ubuntu
 - Alpine Linux
-- AlmaLinux, Rocky Linux
+- AlmaLinux and Rocky Linux
 
-Before starting the unprivileged installation, make sure you have all the prerequisites listed in the [Prerequisites](#prereq) section (excluding `root` privileges). For RPM-based distributions, verify that you have [`rpm2cpio`](https://man7.org/linux/man-pages/man8/rpm2cpio.8.html) installed.
+Before you start, make sure that you meet the [prerequisites](#before-you-begin), except for root privileges. The script also needs:
 
-To perform an unprivileged installation of NGINX Plus:
+- `wget`, but not the BusyBox version that Alpine Linux has by default. On Alpine Linux, install the `wget` package.
+- On RPM-based distributions, [`rpm2cpio`](https://man7.org/linux/man-pages/man8/rpm2cpio.8.html) and `cpio`.
+
+To install NGINX Plus without root privileges:
 
 1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
 
-1. Ensure that the downloaded JWT license file is named **license.jwt**.
+1. Name the downloaded JWT license file `license.jwt`.
 
-1. Obtain the script:
+1. Download the script:
 
-   ```shell
-   wget https://raw.githubusercontent.com/nginxinc/nginx-plus-install-tools/main/ngxunprivinst.sh
-   ```
+    ```shell
+    wget https://raw.githubusercontent.com/nginxinc/nginx-plus-install-tools/main/ngxunprivinst.sh
+    ```
 
 1. Make the script executable:
 
-   ```shell
-   chmod +x ngxunprivinst.sh
-   ```
+    ```shell
+    chmod +x ngxunprivinst.sh
+    ```
 
-1. Download NGINX Plus and its module packages for your operating system. The `<CERT_FILE>` and `<KEY_FILE>` are your NGINX Plus certificate and a private key required to access the NGINX Plus repo:
+1. Download the NGINX Plus package and its module packages for your operating system. `<CERT_FILE>` and `<KEY_FILE>` are the certificate and key of your subscription:
 
-   ```shell
-   ./ngxunprivinst.sh fetch -c <CERT_FILE> -k <KEY_FILE>
-   ```
+    ```shell
+    ./ngxunprivinst.sh fetch -c <CERT_FILE> -k <KEY_FILE>
+    ```
 
-   If you need to install a particular version of NGINX Plus:
+    To install a specific version of NGINX Plus:
 
-   - first, list all available NGINX Plus versions from the repository:
+    1. List the versions in the repository:
 
-       ```shell
-       ./ngxunprivinst.sh list -c <CERT_FILE> -k <KEY_FILE>
-       ```
+        ```shell
+        ./ngxunprivinst.sh list -c <CERT_FILE> -k <KEY_FILE>
+        ```
 
-   - then specify a particular NGINX Plus version with the `-v` parameter:
+    1. Download that version with the `-v` option:
 
-       ```shell
-       ./ngxunprivinst.sh fetch -c <CERT_FILE> -k <KEY_FILE> -v <VERSION>
-       ```
+        ```shell
+        ./ngxunprivinst.sh fetch -c <CERT_FILE> -k <KEY_FILE> -v <VERSION>
+        ```
 
-       Replace `<VERSION>` with the version of the NGINX Plus API.
+        Replace `<VERSION>` with a package version from the list.
 
-1. Extract the downloaded packages to the program prefix `<INSTALL_PATH>` specified by the `-p` parameter and specify the **license.jwt** `<LICENSE_FILE>` with the `-j` parameter. The optional `-y` parameter allows overwriting an existing installation:
+1. Extract the downloaded packages to the directory `<INSTALL_PATH>`, set with the `-p` option. Set the path of your `license.jwt` file with the `-j` option. The optional `-y` option answers "yes" to all questions, for example to overwrite an existing installation.
 
-   ```shell
-   ./ngxunprivinst.sh install [-y] -p <INSTALL_PATH> -j <LICENSE_FILE> <FILE1.RPM> <FILE2.RPM>
-   ```
+    ```shell
+    ./ngxunprivinst.sh install [-y] -p <INSTALL_PATH> -j <LICENSE_FILE> <FILE1> <FILE2>
+    ```
 
-   Replace `<FILE1.RPM>` with the name of the first downloaded RPM package and `<FILE2.RPM>` with the name of the second downloaded RPM package.
+    Replace `<FILE1>` and `<FILE2>` with the names of the downloaded package files.
 
-1. When the installation procedure is finished, run NGINX Plus. The `-p` parameter sets a path to the directory that keeps nginx files. The `-c` parameter sets a path to an alternative NGINX configuration file. Please note NGINX Plus must listen on ports above `1024`:
+1. Start NGINX Plus with the command that the script prints when it finishes. For NGINX Plus R23 and later, it's:
 
-   ```shell
-   <INSTALL_PATH>/usr/sbin/nginx -p <INSTALL_PATH>/etc/nginx -c <INSTALL_PATH>/etc/nginx/conf.d
-   ```
+    ```shell
+    <INSTALL_PATH>/usr/sbin/nginx -p <INSTALL_PATH>/etc/nginx -c nginx.conf -e <INSTALL_PATH>/var/log/nginx/error.log
+    ```
 
-With this script, you can also upgrade an existing unprivileged installation of NGINX Plus in the provided `<INSTALL_PATH>`. The optional `-y` parameter performs a forced upgrade without any confirmation:
+    The `-p` option sets the directory of the NGINX Plus files. The `-c` option sets the configuration file, relative to that directory, and `-e` sets the error log. Without root privileges, NGINX Plus can listen only on ports 1024 and above. The script changes the port of the default server from 80 to 8080.
+
+To upgrade an unprivileged installation in `<INSTALL_PATH>`, run the script with `upgrade`. For NGINX Plus R33 and later, the `-j` option with the license file is required. The optional `-y` option upgrades without asking for confirmation.
 
 ```shell
-./ngxunprivinst.sh upgrade [-y] -p <INSTALL_PATH> <FILE1.RPM> <FILE2.RPM>
+./ngxunprivinst.sh upgrade [-y] -p <INSTALL_PATH> -j <LICENSE_FILE> <FILE1> <FILE2>
 ```
 
-## NGINX Plus offline installation {#offline_install}
+---
 
-This section explains how to install NGINX Plus and its [dynamic modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}) on a server with limited or no Internet access.
+## Install without internet access {#offline_install}
 
-To install NGINX Plus offline, you will need a machine connected to the Internet to get the NGINX Plus package, JWT license, SSL certificate and key. Then your can transfer these files to the target server for offline installation.
+You can install NGINX Plus and its [dynamic modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}) on a server with limited or no internet access. You need a machine with internet access to get the NGINX Plus packages, the license file, the certificate, and the key. Then you transfer these files to the target server.
 
-### Step 1: Obtaining files on the machine connected to the Internet {#offline-obtain-files}
+### Step 1: Get the files on a machine with internet access {#offline-obtain-files}
 
 1. {{< include "licensing-and-reporting/download-jwt-crt-from-myf5.md" >}}
 
-1. Transfer the files to the target server that doesn't have online access and where NGINX Plus will be installed.
+1. Download the NGINX Plus package and the module packages that you need, on a machine with the same operating system as the target server. For example, the `fetch` command of the [installation script for unprivileged installations](#unpriv_install) downloads them with your certificate and key. For Alpine Linux, also download the signing key from `https://cs.nginx.com/static/keys/nginx_signing.rsa.pub`.
 
-### Step 2: Installing NGINX Plus on a server without Internet connectivity
+1. Transfer the files to the target server.
+
+### Step 2: Install NGINX Plus on the server without internet access
 
 1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
-
-1. Make sure you’ve downloaded the SSL certificate, private key, and the JWT file required for your NGINX Plus subscription. You can find these files in the MyF5 Customer Portal. For details on how to obtain these files, see [Step 1: Obtaining files on the machine connected to the Internet](#offline-obtain-files).
 
 1. {{< include "nginx-plus/install/create-dir-for-crt-key.md" >}}
 
 1. {{< include "nginx-plus/install/copy-crt-and-key.md" >}}
 
-1. Install the NGINX Plus package or a dynamic module. Any older NGINX Plus package is automatically replaced.
+1. Install the NGINX Plus package or a dynamic module package. This replaces any older NGINX Plus package. These commands don't install the packages that NGINX Plus or a module depends on, so download those too, and install them first.
 
-    - **For RHEL, Amazon Linux, CentOS, Oracle Linux, AlmaLinux and Rocky Linux**:
+    - **RHEL, Amazon Linux, CentOS, Oracle Linux, AlmaLinux, Rocky Linux, and SLES**:
 
-         ```shell
-         sudo rpm -ihv <RPM_PACKAGE_NAME>
-         ```
+        ```shell
+        sudo rpm -Uvh <RPM_PACKAGE_NAME>
+        ```
 
-         Replace `<RPM_PACKAGE_NAME>` with the name of the RPM package.
+        Replace `<RPM_PACKAGE_NAME>` with the name of the RPM package file.
 
-    - **For Debian, Ubuntu**:
+    - **Debian and Ubuntu**:
 
-         ```shell
-         sudo dpkg -i <DEB_PACKAGE_NAME>
-         ```
+        ```shell
+        sudo dpkg -i <DEB_PACKAGE_NAME>
+        ```
 
-         Replace `<DEB_PACKAGE_NAME>` with the name of the DEB package.
+        Replace `<DEB_PACKAGE_NAME>` with the name of the DEB package file.
 
-    - **For Alpine**:
+    - **Alpine Linux**. Put the signing key in `/etc/apk/keys/` first, or `apk` stops with `UNTRUSTED signature`:
 
-         ```shell
-         apk add <APK_PACKAGE_NAME>
-         ```
+        ```shell
+        sudo cp nginx_signing.rsa.pub /etc/apk/keys/
+        sudo apk add ./<APK_PACKAGE_NAME>
+        ```
 
-         Replace `<APK_PACKAGE_NAME>` with the name of the APK package.
-
-    - **For SLES**:
-
-         ```shell
-         rpm -ivh <RPM_PACKAGE_NAME>
-         ```
+        Replace `<APK_PACKAGE_NAME>` with the name of the APK package file.
 
 1. {{< include "nginx-plus/install/copy-jwt-to-etc-nginx-dir.md" >}}
 
 1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
 
-1. Install NGINX Instance Manager 2.18 or later in your local environment to enable usage reporting, which is mandatory since R33. For more information, see [Disconnected environments](https://docs.nginx.com/nginx-instance-manager/disconnected/) and [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md">}}).
+1. Install NGINX Instance Manager 2.18 or later in your local network. Since R33, usage reporting is mandatory, and NGINX Instance Manager reports usage for servers without internet access. For more information, see [Disconnected environments]({{< ref "nim/disconnected/_index.md" >}}) and [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md" >}}).
 
-1. Configure usage reporting of the NGINX Plus instance to NGINX Instance Manager which is mandatory starting from R33.
+1. Set up usage reporting from NGINX Plus to NGINX Instance Manager. In the `nginx.conf` file, add:
 
-    In the `nginx.conf` configuration file, specify the following directives:
-
-    - the [`mgmt {}`](https://nginx.org/en/docs/ngx_mgmt_module.html#mgmt) block that handles NGINX Plus licensing and usage reporting configuration,
-
-    - the [`usage_report`](https://nginx.org/en/docs/ngx_mgmt_module.html#usage_report) directive that sets the domain name or IP address of NGINX Instance Manager,
-
-    - the [`enforce_initial_report`](https://nginx.org/en/docs/ngx_mgmt_module.html#usage_report) directive that enables the 180-day grace period for sending the initial usage report. The initial usage report must be received by F5 licensing endpoint during the grace period, otherwise traffic processing will be stopped:
+    - The [`mgmt {}`](https://nginx.org/en/docs/ngx_mgmt_module.html#mgmt) block, which holds the licensing and usage reporting configuration of NGINX Plus.
+    - The [`usage_report`](https://nginx.org/en/docs/ngx_mgmt_module.html#usage_report) directive, which sets the domain name or IP address of NGINX Instance Manager.
+    - The [`enforce_initial_report`](https://nginx.org/en/docs/ngx_mgmt_module.html#enforce_initial_report) directive. Set to `off`, it turns on a 180-day grace period for the initial usage report. If the F5 licensing endpoint doesn't receive the initial report during this period, NGINX Plus stops processing traffic.
 
     ```nginx
     mgmt {
-        usage_report endpoint=NIM_FQDN;
+        usage_report endpoint=<NIM_FQDN>;
         enforce_initial_report off;
     }
     ```
 
 1. {{< include "nginx-plus/install/nim-disconnected-report-usage.md" >}}
 
-1. Upload the usage acknowledgement to NGINX Instance Manager. For more information, see [Report usage to F5 in a disconnected environment](https://docs.nginx.com/nginx-instance-manager/disconnected/report-usage-disconnected-deployment/#submit-usage-report).
+1. Upload the usage acknowledgement to NGINX Instance Manager. For more information, see [Report usage to F5 in a disconnected environment]({{< ref "nim/licensing-and-reporting/report-usage-disconnected-deployment.md#submit-usage-report" >}}).
 
+1. [Start NGINX Plus](#start). If it's already running, reload the configuration with `sudo nginx -s reload`.
 
-## Explore related topics
+---
 
-### Install F5 WAF for NGINX
+## Verify the installation {#verify}
 
-To install F5 WAF for NGINX, follow the steps in the [F5 WAF for NGINX install section]({{< ref "/waf/install/" >}}).
+1. {{< include "nginx-plus/install/check-nginx-binary-version.md" >}}
 
-## Upgrade NGINX Plus {#upgrade}
+    The output shows the NGINX Open Source version and the NGINX Plus release, for example:
 
-For upgrade instructions, see [Upgrading NGNIX Plus]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}})
+    ```none
+    nginx version: nginx/1.31.6 (nginx-plus-r37.2.0)
+    ```
 
+1. Test the configuration:
+
+    ```shell
+    sudo nginx -t
+    ```
+
+    The output ends with `test is successful`.
+
+---
+
+## Troubleshooting
+
+### The package manager can't get packages from pkgs.nginx.com
+
+**Symptom**: Updating the package list shows errors for `pkgs.nginx.com`, and installing `nginx-plus` then fails. For example, `apt` says `Unable to locate package nginx-plus`, and `apk` says `nginx-plus (no such package)`.
+
+**Cause**: The package manager can't present the certificate and key of your subscription, which the repository requires. The messages show why:
+
+- `Could not load client certificate (... SslCert option): ... No such file or directory`: the files aren't at `/etc/ssl/nginx/nginx-repo.crt` and `/etc/ssl/nginx/nginx-repo.key`.
+- `Could not load client certificate (... SslCert option): ... Permission denied`: `apt` downloads as the `_apt` user, which can't read the files.
+- `400  Bad Request` from `apt`, or `HTTP 400: Bad Request` from `apk`: the package manager didn't send a certificate. On Debian and Ubuntu, `/etc/apt/apt.conf.d/90pkgs-nginx` is missing.
+
+**Fix**: [Copy the certificate and the key](#subscription-files) to `/etc/ssl/nginx/`, and check the repository configuration that points to them:
+
+- On Debian and Ubuntu, download `90pkgs-nginx` as in the installation steps. If `apt` can't read the files, give the `_apt` user read access. The `setfacl` command is in the `acl` package:
+
+    ```shell
+    sudo setfacl -m u:_apt:r /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key
+    ```
+
+- On Alpine Linux, check `/etc/apk/cert.pem` and `/etc/apk/cert.key`.
+- On RHEL-based systems, check the `sslclientcert` and `sslclientkey` lines in the `.repo` file.
+- On SLES, check the bundle file `/etc/ssl/nginx/nginx-repo-bundle.crt`.
+- On FreeBSD, check the `PKG_ENV` lines in `/usr/local/etc/pkg.conf`.
+
+---
+
+### apk stops with "UNTRUSTED signature"
+
+**Symptom**: On Alpine Linux, installing a package file fails with a message such as `ERROR: ./nginx-plus.apk: UNTRUSTED signature`.
+
+**Cause**: The NGINX signing public key isn't in the `/etc/apk/keys/` directory.
+
+**Fix**: Copy `nginx_signing.rsa.pub` to `/etc/apk/keys/`, and then install the package again.
+
+---
+
+### A dynamic module doesn't load: "version ... instead of ..."
+
+**Symptom**: `nginx -t` or a reload fails with a message such as `module "/etc/nginx/modules/ngx_http_hello_world_module_1.31.6.so" version 1031006 instead of 1031009`.
+
+**Cause**: The module was built for another NGINX version. A dynamic module must match the NGINX Open Source version of your NGINX Plus exactly.
+
+**Fix**: Install the module package from the NGINX Plus repository together with NGINX Plus. For a community module, compile it again with the NGINX Open Source version that `nginx -v` shows.
+
+---
+
+## References
+
+<span id="upgrade"></span>
+
+- [Upgrading NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}})
+- [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}})
+- [NGINX Plus Technical Specifications]({{< ref "nginx/technical-specs.md" >}})
+- [NGINX Plus Releases]({{< ref "nginx/releases.md" >}})
+- [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md" >}})
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [F5 WAF for NGINX installation]({{< ref "/waf/install/" >}})

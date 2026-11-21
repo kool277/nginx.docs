@@ -1,94 +1,92 @@
 ---
-description: Deploy NGINX and F5 NGINX Plus as the Docker container.
 title: Deploying NGINX and NGINX Plus with Docker
+description: Run NGINX Open Source and F5 NGINX Plus in Docker containers from official images or your own image, and manage their files, logs, and signals.
 toc: true
 weight: 600
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "nginx docker, nginx plus docker image, private-registry.nginx.com, docker run, docker build, bind mount, container logs, reload"
+f5-summary: >
+  This page shows how to run NGINX Open Source and F5 NGINX Plus in Docker containers.
+  It covers the official NGINX Plus images from the F5 registry, the NGINX Open Source image from Docker Hub, and building your own NGINX Plus image.
+  It also shows how to manage configuration files, logs, and NGINX signals in containers.
+f5-audience: operator
 ---
 
-[F5 NGINX Plus](https://www.nginx.com/products/nginx/), the high‑performance application delivery platform, load balancer, and web server, is available as the Docker container.
+## Overview
+
+You can run [F5 NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) and NGINX Open Source in Docker containers. For NGINX Plus, pull an official image from the F5 registry, or build your own image. For NGINX Open Source, run the official image from Docker Hub. When you finish this page, NGINX runs in a container, and you know how to give it configuration files, read its logs, and reload it.
+
+---
 
 <span id="prereq"></span>
-## Prerequisites
 
-- The [Docker Engine](https://docs.docker.com/engine/install/) command-line tool
-- for NGINX Plus:
+## Before you begin
 
-  * the JSON Web Token (JWT) from [MyF5](https://my.f5.com) customer portal
-  * the *nginx-repo.crt* and *nginx-repo.key* files from [MyF5](https://my.f5.com) customer portal
-  * your private Docker registry is configured and running
+Before you begin, make sure you have:
 
-- for NGINX Open Source: [Docker Hub](https://hub.docker.com/) account
+- **Docker Engine**: You need the [Docker Engine](https://docs.docker.com/engine/install/) and its command-line tool.
+- **For NGINX Plus**:
+    - The JSON Web Token (JWT) license file and the `nginx-repo.crt` and `nginx-repo.key` files of your subscription, from the [MyF5](https://my.f5.com) customer portal.
+    - A private Docker registry that runs and that you can push images to.
+- **For NGINX Open Source**: Nothing else. You don't need a [Docker Hub](https://hub.docker.com/) account to pull the image, but Docker Hub allows fewer pulls without one.
 
+---
 
 <span id="nginx_plus_official_images"></span>
-## Use official NGINX Plus Docker images
 
-Since NGINX Plus [Release 31]({{< ref "nginx/releases.md#r31" >}}) you can get an NGINX Plus image from the official NGINX Plus Docker registry and upload it to your private registry.
+## Use the official NGINX Plus images
 
-The NGINX Plus Docker registry is available at `https://private-registry.nginx.com/v2/`.
+Since NGINX Plus [Release 31]({{< ref "nginx/releases.md#r31" >}}), you can get NGINX Plus images from the F5 registry at `private-registry.nginx.com` and upload them to your private registry.
 
-The registry contains the following image types:
+The registry has these image types:
 
-- [NGINX Plus]({{< ref "/nginx/releases.md" >}}):</br>
-  `https://private-registry.nginx.com/v2/nginx-plus/base`
+{{< table >}}
 
-- [Unprivileged]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#unpriv_install" >}}) installation of NGINX Plus:</br>
-  `https://private-registry.nginx.com/v2/nginx-plus/rootless-base`
+| Image type | Contents |
+|---|---|
+| `nginx-plus/base` | [NGINX Plus]({{< ref "/nginx/releases.md" >}}) |
+| `nginx-plus/rootless-base` | NGINX Plus that runs as the `nginx` user, like an [unprivileged installation]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#unpriv_install" >}}) |
+| `nginx-plus/agent` | NGINX Plus with [NGINX Agent]({{< ref "/agent/" >}}) version 2 |
+| `nginx-plus/agentv3` | NGINX Plus with NGINX Agent version 3 |
+| `nginx-plus/rootless-agent` | NGINX Plus with NGINX Agent version 2, both running as the `nginx` user |
+| `nginx-plus/rootless-agentv3` | NGINX Plus with NGINX Agent version 3, both running as the `nginx` user |
+| `nginx-plus/modules` | [NGINX Plus dynamic modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}) |
 
-- NGINX Plus bundled with [NGINX Agent](https://docs.nginx.com/nginx-agent/overview/):</br>
-  `https://private-registry.nginx.com/v2/nginx-plus/agent`
+{{< /table >}}
 
-- Unprivileged installation of NGINX Plus and NGINX Agent:</br>
-  `https://private-registry.nginx.com/v2/nginx-plus/rootless-agent`
-
-- [NGINX Plus dynamic modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}):</br>
-  `https://private-registry.nginx.com/v2/nginx-plus/modules`
-
-The images can be targeted for a particular operating system and NGINX Plus release using tags.
+Tags select the operating system and the NGINX Plus release of an image.
 
 ### Tags for operating systems
 
-{{<table>}}
-| Operating system                           | Basic OS tag | Tag examples                                  |
-|--------------------------------------------|--------------|-----------------------------------------------|
-| Alpine (x86_64, aarch64)                   | `alpine`     | `r36-alpine`, `r36-alpine-3.20`               |
-| Debian (x86_64, aarch64)                   | `debian`     | `r36-debian`, `r36-debian-bookworm`           |
-| Red Hat Enterprise Linux (x86_64, aarch64) | `ubi`        | `r36-ubi`, `r36-ubi-9`,  `r36-ubi-9-20251201` |
-{{</table >}}
+{{< table >}}
+
+| Operating system | Basic OS tag | Tag examples |
+|---|---|---|
+| Alpine (x86_64, aarch64) | `alpine` | `r36-alpine`, `r36-alpine-3.20` |
+| Debian (x86_64, aarch64) | `debian` | `r36-debian`, `r36-debian-bookworm` |
+| Red Hat Enterprise Linux (x86_64, aarch64) | `ubi` | `r36-ubi`, `r36-ubi-9`, `r36-ubi-9-20251201` |
+
+{{< /table >}}
 
 ### Tags for NGINX Plus versions
 
-The NGINX Plus registry contains images for the two most recent versions of NGINX Plus. The basic operating system tag returns the latest version of NGINX Plus built for the latest version of this operating system.
-
-{{<call-out class="tip" title="Example:" icon="terminal" >}}
-`nginx-plus-r36-ubi-9`, `nginx-plus-r36-alpine-3.22`.
-{{</call-out>}}
-
-The image may contain a particular version of NGINX Plus or contain a bundle of NGINX Plus and NGINX Agent, and can be targeted for a specific architecture.
+The registry has images of the two most recent NGINX Plus versions. The basic operating system tag gives you the latest NGINX Plus version, built for the latest version of that operating system. Add the release to get a specific version, for example `r36-ubi-9` or `r36-alpine-3.22`.
 
 ### List all tags
 
-For a complete tag list for NGINX Plus bundled with NGINX Agent images, use the command:
+To list the tags of an image type, run:
 
 ```shell
 curl https://private-registry.nginx.com/v2/nginx-plus/<NGINXPLUS_IMAGE_TYPE>/tags/list --key <NGINX_REPO.KEY> --cert <NGINX_REPO.CRT> | jq
 ```
 
-where:
-- the `<NGINXPLUS_IMAGE_TYPE>` is the location of images in NGINX Plus private registry:
-  - `base` is NGINX Plus only
-  - `rootless-base` is NGINX Plus run from `nginx` user
-  - `agent` is NGINX Plus along with NGINX Agent in a single image
-  - `rootless-agent` is NGINX Plus with NGINX Agent both run from `nginx` user
-  - `modules` is NGINX Plus dynamic modules <!-- As described in internal issue SE-3 -->
+Where:
 
-- the `<NGINX_REPO.KEY>` is a local path to your client key from MyF5, for example, `/etc/ssl/nginx/nginx-repo-x12345.key`
-
-- the `<NGINX_REPO.CRT>` is a local path to your client certificate from MyF5, for example,`/etc/ssl/nginx/nginx-repo-x12345.crt`
-
-- the `jq` command is used to format the JSON output for easier reading and requires the [jq](https://jqlang.github.io/jq/) JSON processor to be installed.
+- `<NGINXPLUS_IMAGE_TYPE>` is an image type from the table above without `nginx-plus/`, for example `base` or `rootless-agent`.
+- `<NGINX_REPO.KEY>` is the path to the client key from MyF5, for example `/etc/ssl/nginx/nginx-repo-x12345.key`.
+- `<NGINX_REPO.CRT>` is the path to the client certificate from MyF5, for example `/etc/ssl/nginx/nginx-repo-x12345.crt`.
+- `jq` formats the JSON output for easier reading. It needs the [jq](https://jqlang.github.io/jq/) JSON processor.
 
 ### Download your subscription credential files
 
@@ -100,272 +98,265 @@ where:
 
 ### Pull the image
 
-Next, pull the image you need from `private-registry.nginx.com`.
+Pull the image that you need from `private-registry.nginx.com`. Replace `<VERSION_TAG>` with a tag for the NGINX Plus version, or for the NGINX Plus version and the operating system, that you need.
 
-To pull an image, replace `<VERSION_TAG>` with the specific NGINX Plus version or the NGINX Plus version and OS version you need.
+- NGINX Plus:
 
-For NGINX Plus, run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/base:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/base:<VERSION_TAG>
-```
+- NGINX Plus with NGINX Agent version 2:
 
-For NGINX Plus with NGINX Agent version 2, run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/agent:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/agent:<VERSION_TAG>
-```
+- NGINX Plus with NGINX Agent version 3:
 
-For NGINX Plus with NGINX Agent version 3, run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/agentv3:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/agentv3:<VERSION_TAG>
-```
+- NGINX Plus running as the `nginx` user:
 
-For NGINX Plus installed from `nginx` user (rootless installation), run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/rootless-base:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/rootless-base:<VERSION_TAG>
-```
+- NGINX Plus with NGINX Agent version 2, running as the `nginx` user:
 
-For NGINX Plus with NGINX Agent version 2 installed from `nginx` user (rootless installation), run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/rootless-agent:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/rootless-agent:<VERSION_TAG>
-```
+- NGINX Plus with NGINX Agent version 3, running as the `nginx` user:
 
-For NGINX Plus with NGINX Agent version 3 installed from `nginx` user (rootless installation), run:
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/rootless-agentv3:<VERSION_TAG>
+    ```
 
-```shell
-docker pull private-registry.nginx.com/nginx-plus/rootless-agentv3:<VERSION_TAG>
-```
+- NGINX Plus dynamic modules:
 
-To run the unprivileged images on Kubernetes or OpenShift, see [Deploy unprivileged NGINX Plus on Kubernetes and OpenShift]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-unprivileged-kubernetes-openshift.md" >}}).
+    ```shell
+    docker pull private-registry.nginx.com/nginx-plus/modules:<VERSION_TAG>
+    ```
 
-For NGINX modules, run:<!-- Is this enough info?-->
-
-```shell
-docker pull private-registry.nginx.com/nginx-plus/modules:<VERSION_TAG>
-```
+To run the images that run as the `nginx` user on Kubernetes or OpenShift, see [Deploy unprivileged NGINX Plus on Kubernetes and OpenShift]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-unprivileged-kubernetes-openshift.md" >}}).
 
 {{< include "security/jwt-password-note.md" >}}
 
 ### Push the image to your private registry
 
-After pulling the image, tag it and upload it to your private registry.
+After you pull the image, tag it and upload it to your private registry.
 
-> **Note:** Never upload your NGINX Plus images to a public repository such as Docker Hub. Doing so violates your license agreement.
+{{< call-out class="caution" >}} Never upload NGINX Plus images to a public repository such as Docker Hub. This violates your license agreement. {{< /call-out >}}
 
-Log in to your private registry:
+1. Log in to your private registry:
 
-```shell
-docker login <MY_DOCKER_REGISTRY>
-```
+    ```shell
+    docker login <YOUR_REGISTRY>
+    ```
 
-Tag and push the image. Replace `<MY_DOCKER_REGISTRY>` with your registry’s path and `<VERSION_TAG>` with the your NGINX Plus version and/or OS version:
+1. Tag and push the image. Replace `<YOUR_REGISTRY>` with the path of your registry, and `<VERSION_TAG>` with the tag of the image:
 
-```shell
-docker tag private-registry.nginx.com/nginx-plus/base:<VERSION_TAG> <MY_DOCKER_REGISTRY>/nginx-plus/base:<VERSION_TAG>
-```
-
-```shell
-docker push <MY_DOCKER_REGISTRY>/nginx-plus/base:<VERSION_TAG>
-```
+    ```shell
+    docker tag private-registry.nginx.com/nginx-plus/base:<VERSION_TAG> <YOUR_REGISTRY>/nginx-plus/base:<VERSION_TAG>
+    docker push <YOUR_REGISTRY>/nginx-plus/base:<VERSION_TAG>
+    ```
 
 ### Run the NGINX Plus container
 
-{{< call-out class="note" >}} Starting from [NGINX Plus Release 33]({{< ref "nginx/releases.md#r33" >}}), the JWT file is required for each NGINX Plus instance. For more information, see [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md">}}). {{< /call-out >}}
+{{< call-out class="note" >}} Since [NGINX Plus Release 33]({{< ref "nginx/releases.md#r33" >}}), every NGINX Plus instance needs the JWT license file. For more information, see [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md" >}}). {{< /call-out >}}
 
-To start the Docker container with NGINX Plus, you will need to pass your JWT license file named `license.jwt` as the `NGINX_LICENSE_JWT` environment variable. If the license file needs to be located in a non-default directory, specify its full path using the `NGINX_LICENSE_PATH` variable (default path: `/etc/nginx/license.jwt`).
+Pass the contents of your JWT license file, named `license.jwt`, to the container in the `NGINX_LICENSE_JWT` environment variable. If the license file must be in another place than the default, `/etc/nginx/license.jwt`, set its full path in the `NGINX_LICENSE_PATH` variable.
 
-To start the Docker container with NGINX Plus only:
-```sh
+To start a container with NGINX Plus only, run:
+
+```shell
 sudo docker run \
---env=NGINX_LICENSE_JWT=$(cat license.jwt) \
---restart=always \
---runtime=runc \
--d <YOUR_REGISTRY>/nginx-plus/base:<VERSION_TAG>
+    --name nginxplus \
+    --env=NGINX_LICENSE_JWT=$(cat license.jwt) \
+    --restart=always \
+    --runtime=runc \
+    -p 80:80 \
+    -d <YOUR_REGISTRY>/nginx-plus/base:<VERSION_TAG>
 ```
 
-Replace `<YOUR_REGISTRY>` with the path to your private registry.
+Replace `<YOUR_REGISTRY>` with the path of your private registry. The `-p 80:80` option maps port 80 of the Docker host to port 80 in the container.
 
-To start the Docker container with NGINX Plus and NGINX Agent,
-you will need to additionally pass the NGINX One data plane key as the `NGINX_AGENT_SERVER_TOKEN` environment variable. For more information, see [Create and manage data plane keys]({{< ref "/nginx-one-console/connect-instances/create-manage-data-plane-keys.md" >}}):
+To check that the container runs, list it. The `STATUS` column shows `Up`:
 
-```sh
-sudo docker run \
---env=NGINX_LICENSE_JWT=$(cat license.jwt) \
---env=NGINX_AGENT_SERVER_GRPCPORT=443 \
---env=NGINX_AGENT_SERVER_HOST=agent.connect.nginx.com \
---env=NGINX_AGENT_SERVER_TOKEN="YOUR_NGINX_ONE_DATA_PLANE_KEY" \
---env=NGINX_AGENT_TLS_ENABLE=true \
---restart=always \
---runtime=runc \
--d <YOUR_REGISTRY>/nginx-plus/agent:<VERSION_TAG>
+```shell
+sudo docker ps --filter name=nginxplus
 ```
 
-where:
- - `NGINX_LICENSE_JWT` is your JWT license file from MyF5. The file name should be `license.jwt`.
- - `NGINX_AGENT_SERVER_GRPCPORT` sets a GRPC port used by NGINX Agent to communicate with NGINX Instance Manager.
- - `NGINX_AGENT_SERVER_HOST` sets the domain name or IP address of NGINX Instance Manager. Note that for production environments it is not recommended to expose NGINX Instance Manager to public networks.
- - `NGINX_AGENT_SERVER_TOKEN` sets NGINX One data plane key. See [Create and manage data plane keys]({{< ref "/nginx-one-console/connect-instances/create-manage-data-plane-keys.md" >}}) for details.
- - `NGINX_AGENT_TLS_ENABLE` enables mutual TLS, server-side TLS, or insecure mode (not recommended for production environments). See [Encrypt communication]({{< ref "agent/configuration/encrypt-communication.md" >}}) for details.
- - `YOUR_REGISTRY` is the path to your private registry.
- - `VERSION_TAG` is the tag assigned when pushing to your registry.
+To start a container with NGINX Plus and NGINX Agent, also pass the NGINX One data plane key in the `NGINX_AGENT_SERVER_TOKEN` variable. For more information, see [Create and manage data plane keys]({{< ref "/nginx-one-console/connect-instances/create-manage-data-plane-keys.md" >}}).
 
-
-<br>
-
-{{<call-out class="" title="Example:" >}}
-To start the Docker Container with NGINX Plus and NGINX Agent on Debian or Ubuntu:
-
-```sh
+```shell
 sudo docker run \
---env=NGINX_LICENSE_JWT=$(cat license.jwt) \
---env=NGINX_AGENT_SERVER_GRPCPORT=443 \
---env=NGINX_AGENT_SERVER_HOST=agent.connect.nginx.com \
---env=NGINX_AGENT_SERVER_TOKEN="YOUR_NGINX_ONE_DATA_PLANE_KEY" \
---env=NGINX_AGENT_TLS_ENABLE=true \
---restart=always \
---runtime=runc \
--d private-registry.nginx.com/nginx-plus/agent:debian
-{{</call-out>}}
+    --name nginxplus \
+    --env=NGINX_LICENSE_JWT=$(cat license.jwt) \
+    --env=NGINX_AGENT_SERVER_GRPCPORT=443 \
+    --env=NGINX_AGENT_SERVER_HOST=agent.connect.nginx.com \
+    --env=NGINX_AGENT_SERVER_TOKEN="YOUR_NGINX_ONE_DATA_PLANE_KEY" \
+    --env=NGINX_AGENT_TLS_ENABLE=true \
+    --restart=always \
+    --runtime=runc \
+    -p 80:80 \
+    -d <YOUR_REGISTRY>/nginx-plus/agent:<VERSION_TAG>
+```
 
+Where:
+
+- `NGINX_LICENSE_JWT` is the contents of your JWT license file from MyF5, `license.jwt`.
+- `NGINX_AGENT_SERVER_GRPCPORT` is the gRPC port of the server that NGINX Agent connects to.
+- `NGINX_AGENT_SERVER_HOST` is the domain name or IP address of that server: `agent.connect.nginx.com` for NGINX One Console, or your NGINX Instance Manager. Don't expose NGINX Instance Manager to public networks in production.
+- `NGINX_AGENT_SERVER_TOKEN` is your NGINX One data plane key. For details, see [Create and manage data plane keys]({{< ref "/nginx-one-console/connect-instances/create-manage-data-plane-keys.md" >}}).
+- `NGINX_AGENT_TLS_ENABLE` turns on mutual TLS, server-side TLS, or insecure mode, which isn't recommended for production. For details, see [Encrypt communication]({{< ref "agent/configuration/encrypt-communication.md" >}}).
+- `<YOUR_REGISTRY>` is the path of your private registry.
+- `<VERSION_TAG>` is the tag that you used when you pushed the image to your registry.
+
+For example, to start a container with NGINX Plus and NGINX Agent on Debian, directly from the F5 registry:
+
+```shell
+sudo docker run \
+    --name nginxplus \
+    --env=NGINX_LICENSE_JWT=$(cat license.jwt) \
+    --env=NGINX_AGENT_SERVER_GRPCPORT=443 \
+    --env=NGINX_AGENT_SERVER_HOST=agent.connect.nginx.com \
+    --env=NGINX_AGENT_SERVER_TOKEN="YOUR_NGINX_ONE_DATA_PLANE_KEY" \
+    --env=NGINX_AGENT_TLS_ENABLE=true \
+    --restart=always \
+    --runtime=runc \
+    -p 80:80 \
+    -d private-registry.nginx.com/nginx-plus/agent:debian
+```
+
+---
 
 <span id="docker_oss"></span>
-## Using NGINX Open Source Docker Images
 
-You can create an NGINX instance in a Docker container using the NGINX Open Source image from the Docker Hub.
+## Use the NGINX Open Source image
 
-1. Launch an instance of NGINX running in a container and using the default NGINX configuration with the following command:
+The official NGINX Open Source image on Docker Hub is built from the [nginx.org packages]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-open-source.md#prebuilt" >}}). It runs NGINX with the default configuration.
+
+1. Start a container from the image:
 
     ```shell
     docker run --name mynginx1 -p 80:80 -d nginx
     ```
 
-    where:
+    Where:
 
-    - `mynginx1` is the name of the created container based on the NGINX image
+    - `mynginx1` is the name of the new container.
+    - `-p 80:80` maps port 80 of the Docker host to port 80 in the container. The first number is the port on the host.
+    - `-d` runs the container in the background and prints its ID.
 
-    - the `-d` option specifies that the container runs in detached mode: the container continues to run until stopped but does not respond to commands run on the command line.
+    The command prints the long form of the container ID, for example `fcd1fb01b14557c7c9d991238f2558ae2704d129cf9fb97bb4fadf673a58580d`. Docker uses this ID in the names of the container's log files.
 
-    - the `-p` option tells Docker to map the ports exposed in the container by the NGINX image (port `80`) to the specified port on the Docker host. The first parameter specifies the port in the Docker host, the second parameter is mapped to the port exposed in the container
-
-    The command returns the long form of the container ID: `fcd1fb01b14557c7c9d991238f2558ae2704d129cf9fb97bb4fadf673a58580d`. This form of ID is used in the name of log files.
-
-2. Verify that the container was created and is running with the `docker ps` command:
+1. Check that the container runs:
 
     ```shell
-    $ docker ps
-    CONTAINER ID  IMAGE         COMMAND               CREATED         STATUS        ...
-    fcd1fb01b145  nginx:latest  "nginx -g 'daemon of  16 seconds ago  Up 15 seconds ...
-
-        ... PORTS              NAMES
-        ... 0.0.0.0:80->80/tcp mynginx1
+    docker ps
     ```
 
-This command also allows viewing the port mappings set in the previous step: the `PORTS` field in the output reports that port `80` on the Docker host is mapped to port `80` in the container.
+    The output lists the container. The `PORTS` column shows that port 80 of the host, for IPv4 and IPv6, maps to port 80 in the container:
 
+    ```none
+    CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+    fcd1fb01b145   nginx     "/docker-entrypoint.…"   16 seconds ago   Up 15 seconds   0.0.0.0:80->80/tcp, [::]:80->80/tcp   mynginx1
+    ```
+
+---
 
 <span id="docker_plus_image"></span>
-## Creating custom NGINX Plus Docker Image
+<span id="docker_plus"></span>
 
-As NGINX Plus is a commercial offering, NGINX Plus Docker images are not available at Docker Hub, so first you will need to create an NGINX Plus Docker image.
+## Build your own NGINX Plus image
 
-> **Note:** Never upload your NGINX Plus images to a public repository such as Docker Hub. Doing so violates your license agreement.
+NGINX Plus is a commercial product, so Docker Hub has no NGINX Plus images. Instead of the [official images](#nginx_plus_official_images), you can build your own.
 
-To generate a custom NGINX Plus image:
+{{< call-out class="caution" >}} Never upload NGINX Plus images to a public repository such as Docker Hub. This violates your license agreement. {{< /call-out >}}
 
-1. Create the Docker build context, or a Dockerfile, for example:
+1. Create a Dockerfile in an empty directory, the build context. For example, start from the [example Dockerfile](https://gist.github.com/nginx-gists/36e97fc87efb5cf0039978c8e41a34b5) for Debian. It installs NGINX Plus from the NGINX Plus repository with your subscription files.
 
-   <script src="https://gist.github.com/nginx-gists/36e97fc87efb5cf0039978c8e41a34b5.js"></script>
-
-2. As with NGINX Open Source, default NGINX Plus image has the same default settings:
-
-    - access and error logs are linked to the Docker log collector
-    - no volumes are specified: a Dockerfile can be used to create base images from which you can create new images with volumes specified, or volumes can be specified manually:
+    Like the NGINX Open Source image, this image sends the access and error logs to the Docker log collector, and it defines no volumes. To define volumes, add them to the Dockerfile, or to a Dockerfile that builds on this image:
 
     ```dockerfile
     VOLUME /usr/share/nginx/html
     VOLUME /etc/nginx
     ```
 
-    - no files are copied from the Docker host as a container is created: you can add `COPY` definitions to each Dockerfile, or the image you create can be used as the basis for another image
+    The image doesn't copy files from the Docker host either. To add files, add `COPY` instructions.
 
-3. Log in to [MyF5 Customer Portal](https://account.f5.com/myf5). As noted in the [Prerequisites](#prerequisites], download your *nginx-repo.crt*, *nginx-repo.key*, and **JSON Web Token** files. For a trial of NGINX Plus, the files are provided with your trial package.
+1. Log in to the [MyF5 Customer Portal](https://account.f5.com/myf5), and download the `nginx-repo.crt`, `nginx-repo.key`, and JSON Web Token files, as described in [Before you begin](#prereq). A trial of NGINX Plus comes with these files.
 
-4. Copy the files to the directory where the Dockerfile is located.
+1. Copy the files to the directory of the Dockerfile, and rename them to `nginx-repo.crt`, `nginx-repo.key`, and `license.jwt`. The build command reads these names.
 
-5. Create a Docker image, for example, `nginxplus` (note the final period in the command).
+1. Build the image, for example `nginxplus`. The final period sets the current directory as the build context.
 
     ```shell
     docker build --no-cache --secret id=nginx-key,src=nginx-repo.key --secret id=nginx-crt,src=nginx-repo.crt --secret id=nginx-jwt,src=license.jwt -t nginxplus .
     ```
 
-    The `--no-cache` option tells Docker to build the image from scratch and ensures the installation of the latest version of NGINX Plus. If the Dockerfile was previously used to build an image without the `--no-cache` option, the new image uses the version of NGINX Plus from the previously built image from the Docker cache.
+    The `--secret` options give the build access to the files. The certificate and the key don't stay in the image. The JWT license does, because NGINX Plus needs it at runtime. The `--no-cache` option makes Docker build the image from scratch, so that it installs the latest version of NGINX Plus. Without it, Docker can reuse the NGINX Plus version of an image that it built before.
 
-6. Verify that the `nginxplus` image was created successfully with the `docker images` command:
+1. Check that Docker created the image:
 
     ```shell
-    $ docker images nginxplus
-    REPOSITORY  TAG     IMAGE ID      CREATED        SIZE
-    nginxplus   latest  ef2bf65931cf  6 seconds ago  91.2 MB
+    docker images nginxplus
     ```
 
-7. Create a container based on this image, for example, `mynginxplus` container:
+    The output lists the image `nginxplus` with the tag `latest`.
+
+1. Start a container from the image, for example `mynginxplus`:
 
     ```shell
     docker run --name mynginxplus -p 80:80 -d nginxplus
     ```
 
-8. Verify that the `mynginxplus` container is up and running with the `docker ps` command:
+1. Check that the container runs:
 
     ```shell
-    $ docker ps
-    CONTAINER ID  IMAGE             COMMAND               CREATED         STATUS        ...
-    eb7be9f439db  nginxplus:latest  "nginx -g 'daemon of  1 minute ago    Up 15 seconds ...
-
-        ... PORTS              NAMES
-        ... 0.0.0.0:80->80/tcp mynginxplus
+    docker ps
     ```
 
-NGINX Plus containers are controlled and managed in the same way as NGINX Open Source containers.
+You manage NGINX Plus containers the same way as NGINX Open Source containers.
 
+---
 
 <span id="manage"></span>
-## Managing Content and Configuration Files
 
-Content served by NGINX and NGINX configuration files can be managed in several ways:
+## Manage content and configuration files
 
-- files are maintained on the Docker host
-- files are copied from the Docker host to a container
-- files are maintained in the container
+You can manage the content and the configuration files of NGINX in three ways:
 
+- [Keep the files on the Docker host](#manage_host).
+- [Copy the files into the image](#manage_copy).
+- [Change the files in a running container](#manage_container).
 
 <span id="manage_host"></span>
-### Maintaining Content and Configuration Files on the Docker Host
 
-When the container is created, you can mount a local directory on the Docker host to a directory in the container. The NGINX image uses the default NGINX configuration, which uses `/usr/share/nginx/html` as the container’s root directory and puts configuration files in `/etc/nginx`. For a Docker host with content in the local directory `/var/www` and configuration files in `/var/nginx/conf`, run the command:
+### Keep the files on the Docker host
+
+When you create a container, you can mount directories of the Docker host into it. The image's default configuration serves content from `/usr/share/nginx/html`, and its `/etc/nginx/nginx.conf` reads every `.conf` file in `/etc/nginx/conf.d`. For content in `/var/www` and server configuration files in `/var/nginx/conf.d` on the host, run:
 
 ```shell
 docker run --name mynginx2 \
-   --mount type=bind,source=/var/www,target=/usr/share/nginx/html,readonly \
-   --mount type=bind,source=/var/nginx/conf,target=/etc/nginx/conf,readonly \
-   -p 80:80 \
-   -d nginxplus
+    --mount type=bind,source=/var/www,target=/usr/share/nginx/html,readonly \
+    --mount type=bind,source=/var/nginx/conf.d,target=/etc/nginx/conf.d,readonly \
+    -p 80:80 \
+    -d nginx
 ```
 
-Any change made to the files in the local directories `/var/www and /var/nginx/conf` on the Docker host are reflected in the directories `/usr/share/nginx/html` and `/etc/nginx` in the container. The `readonly` option means these directories can be changed only on the Docker host, not from within the container.
-
+Changes to the files in `/var/www` and `/var/nginx/conf.d` on the host appear in `/usr/share/nginx/html` and `/etc/nginx/conf.d` in the container. With `readonly`, the container can't change these files. After you change a configuration file, [reload NGINX](#control).
 
 <span id="manage_copy"></span>
-### Copy content and configuration files from the Docker host
 
-Docker can copy the content and configuration files from a local directory on the Docker host during container creation. Once a container is created, the files are maintained by creating a new container when files change or by modifying the files in the container.
+### Copy the files into the image
 
-A simple way to copy the files is to create a Dockerfile with commands that are run during generation of a new Docker image based on the NGINX image. For the file‑copy (COPY) commands in the Dockerfile, the local directory path is relative to the build context where the Dockerfile is located.
-
-Let's assume that the content directory is `content`  and the directory for configuration files is `conf`, both subdirectories of the directory where the Dockerfile is located. The NGINX image has the default NGINX configuration files, including `default.conf`, in the `/etc/nginx/conf.d` directory. To use the configuration files from the Docker host only, delete the default files with the `RUN` command:
+You can copy the files into a new image when you build it. In this example, the content is in the `content` directory, and the configuration files are in the `conf` directory, both next to the Dockerfile. `COPY` paths are relative to the build context. To use only your own configuration files, the `RUN` instruction deletes the image's default server, `default.conf`:
 
 ```dockerfile
 FROM nginx
@@ -374,113 +365,85 @@ COPY content /usr/share/nginx/html
 COPY conf /etc/nginx
 ```
 
-Create NGINX image by running the command from the directory where the Dockerfile is located. The period (“.”) at the end of the command defines the current directory as the build context, which contains the Dockerfile and the directories to be copied:
+1. Build the image from the directory of the Dockerfile:
 
-```shell
-docker build -t mynginx_image1 .
-```
+    ```shell
+    docker build -t mynginx_image1 .
+    ```
 
-Create a container `mynginx3` based on the `mynginx_image1` image:
+1. Start a container from the image:
 
-```shell
-docker run --name mynginx3 -p 80:80 -d mynginx_image1
-```
+    ```shell
+    docker run --name mynginx3 -p 80:80 -d mynginx_image1
+    ```
 
-To make changes to the files in the container, use a helper container as described in the next section.
-
+To change the files, build a new image and start a new container from it, or [change the files in the running container](#manage_container).
 
 <span id="manage_container"></span>
-### Maintain content and configuration files in the container
 
-As SSH cannot be used to access the NGINX container, to edit the content or configuration files directly you need to create a helper container that has shell access. For the helper container to have access to the files, create a new image that has the proper Docker data volumes defined for the image:
+### Change files in a running container
 
-1. Copy nginx content and configuration files and define the volume for the image with the Dockerfile:
-
-    ```dockerfile
-    FROM nginx
-    COPY content /usr/share/nginx/html
-    COPY conf /etc/nginx
-    VOLUME /usr/share/nginx/html
-    VOLUME /etc/nginx
-    ```
-
-2. Create the new NGINX image by running the following command:
-
-    ```shell
-    docker build -t mynginx_image2 .
-    ```
-
-3. Create an NGINX container `mynginx4` based on the `mynginx_image2` image:
-
-    ```shell
-    docker run --name mynginx4 -p 80:80 -d mynginx_image2
-    ```
-
-4. Start a helper container `mynginx4_files` that has a shell, providing access the content and configuration directories of the `mynginx4` container we just created:
-
-    ```shell
-    $ docker run -i -t --volumes-from mynginx4 --name mynginx4_files debian /bin/bash
-    root@b1cbbad63dd1:/#
-    ```
-
-    where:
-    - the new `mynginx4_files` helper container runs in the foreground with a persistent standard input (the `-i` option) and a tty (the `-t` option). All volumes defined in `mynginx4` are mounted as local directories in the helper container.
-    - the `debian` argument means that the helper container uses the Debian image from Docker Hub. Because the NGINX image also uses Debian, it is most efficient to use Debian for the helper container, rather than having Docker load another operating system
-    - the `/bin/bash` argument means that the bash shell runs in the helper container, presenting a shell prompt that you can use to modify files as needed
-
-To start and stop the container, run the commands:
+To change files inside a running container, open a shell in it with `docker exec`:
 
 ```shell
-docker start mynginx4_files
-docker stop mynginx4_files
+docker exec -it mynginx3 bash
 ```
 
-To exit the shell but leave the container running, press `Ctrl+p` followed by `Ctrl+q`. To regain shell access to a running container, run this command:
+The NGINX Open Source image is based on Debian and has `bash`. Images based on Alpine Linux have `sh` instead. To leave the shell, run `exit`. The container keeps running.
+
+Changes inside a container are lost when you remove the container. To keep them for the next container, store the files in named volumes. Docker creates a volume the first time that a container mounts it. If the volume is empty, Docker copies the files of the image into it. For example, to keep the content and the configuration in the volumes `nginx-content` and `nginx-conf`:
 
 ```shell
-docker attach mynginx4_files
+docker run --name mynginx4 \
+    --mount source=nginx-content,target=/usr/share/nginx/html \
+    --mount source=nginx-conf,target=/etc/nginx \
+    -p 80:80 \
+    -d nginx
 ```
 
-To exit the shell and terminate the container, run the `exit` command.
+The changes that you make in `mynginx4` stay in the volumes. A new container that mounts the same volumes gets them. To keep the files in directories of the Docker host instead, see [Keep the files on the Docker host](#manage_host).
 
+Other containers can then use these volumes. For example, to work on the files with the tools of another image, start a helper container with the volumes of `mynginx4`:
+
+```shell
+docker run -it --volumes-from mynginx4 --name mynginx4_files debian /bin/bash
+```
+
+---
 
 <span id="log"></span>
+
 ## Manage logging
 
-You can use default logging or customize logging.
-
 <span id="log_default"></span>
-### Use default logging
 
-By default, the NGINX image is configured to send NGINX [access log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) and [error log](https://nginx.org/en/docs/ngx_core_module.html#error_log) to the Docker log collector. This is done by linking them to `stdout` and `stderr`: all messages from both logs are then written to the file `/var/lib/docker/containers/container-ID/container-ID-json.log` on the Docker host. The container‑ID is the long‑form ID returned when you [create a container](#docker_oss_image). To display the long form ID, run the command:
+### Use the default logging
 
-```shell
-docker inspect --format '{{ .Id }}' container-name
-```
-
-You can use both the Docker command line and the Docker Engine API to extract the log messages.
-
-To extract log messages from the command line, run the command:
+The NGINX image sends the [access log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) and the [error log](https://nginx.org/en/docs/ngx_core_module.html#error_log) to the Docker log collector, because it links them to `stdout` and `stderr`. With the default logging driver, Docker writes both logs to the file `/var/lib/docker/containers/CONTAINER_ID/CONTAINER_ID-json.log` on the host. `CONTAINER_ID` is the long form of the ID that `docker run` prints when you [create a container](#docker_oss). To show it, run:
 
 ```shell
-docker logs container-name
+docker inspect --format '{{ .Id }}' CONTAINER_NAME
 ```
 
-To extract log messages using the Docker Remote API, send a `GET` request using the Docker Unix sock:
+To read the log messages with the Docker command line, run:
 
 ```shell
-curl --unix-sock /var/run/docker-sock http://localhost/containers/container-name/logs?stdout=1&stderr=1
+docker logs CONTAINER_NAME
 ```
 
-To include only access log messages in the output, include only `stdout=1`. To limit the output to error log messages, include only `stderr=1`. For other available options, see [Get container logs](https://docs.docker.com/reference/api/engine/version/v1.45/#tag/Container/operation/ContainerLogs) section of the [Docker Engine API](https://docs.docker.com/reference/api/engine/version/v1.45/) documentation.
+To read them with the Docker Engine API, send a `GET` request to the Docker UNIX socket:
 
+```shell
+curl --unix-socket /var/run/docker.sock --output - "http://localhost/containers/CONTAINER_NAME/logs?stdout=1&stderr=1"
+```
+
+Quote the URL, because the shell treats `&` as a special character. Without `--output -`, curl doesn't print the logs to a terminal, because they contain binary data. For a container without a terminal, the API puts a binary header of 8 bytes before each log message. For only the access log, use only `stdout=1`. For only the error log, use only `stderr=1`. For other options, see [Get container logs](https://docs.docker.com/reference/api/engine/version/v1.45/#tag/Container/operation/ContainerLogs) in the [Docker Engine API](https://docs.docker.com/reference/api/engine/version/v1.45/) documentation.
 
 <span id="log_custom"></span>
-### Use customized logging
 
-If you want to configure logging differently for certain configuration blocks (such as `server {}` and `location {}`), define a Docker volume for the directory in which to store the log files in the container, create a helper container to access the log files, and use any logging tools. To implement this, create a new image that contains the volume or volumes for the logging files.
+### Use custom logging
 
-For example, to configure NGINX to store log files in `/var/log/nginx/log`, add a `VOLUME` definition for this directory to the Dockerfile (provided that content and configuration Files are [managed in the container](#manage_container)):
+To log differently in some configuration blocks, such as `server {}` and `location {}`, write the logs to files in a volume. Then read them from a helper container with any logging tools. For example, to keep log files in `/var/log/nginx/log`, add a `VOLUME` instruction for this directory to the Dockerfile:
 
 ```dockerfile
 FROM nginx
@@ -489,22 +452,69 @@ COPY conf /etc/nginx
 VOLUME /var/log/nginx/log
 ```
 
-Then you can [create an image](#docker_plus_image) and use it to create an NGINX container and a helper container that have access to the logging directory. The helper container can have any desired logging tools installed.
+Then [build an image](#manage_copy), and create an NGINX container and a helper container that both use this volume.
 
+---
 
 <span id="control"></span>
+
 ## Control NGINX
 
-Since there is no direct access to the command line of the NGINX container, NGINX commands cannot be sent to a container directly. Instead, [signals](https://nginx.org/en/docs/control.html) can be sent to a container via Docker `kill` command.
-
-To reload the NGINX configuration, send the `HUP` signal to Docker:
+You can run NGINX commands in the container with `docker exec`. To test the configuration and reload it, run:
 
 ```shell
-docker kill -s HUP container-name
+docker exec CONTAINER_NAME nginx -t
+docker exec CONTAINER_NAME nginx -s reload
 ```
 
-To restart NGINX, run this command to restart the container:
+You can also send [signals](https://nginx.org/en/docs/control.html) to NGINX, which runs as the main process of the container. To reload the configuration, send the `HUP` signal:
 
 ```shell
-docker restart container-name
+docker kill -s HUP CONTAINER_NAME
 ```
+
+To restart NGINX, restart the container:
+
+```shell
+docker restart CONTAINER_NAME
+```
+
+---
+
+## Troubleshooting
+
+### The container doesn't start because the port is in use
+
+**Symptom**: `docker run` prints an error, and the container doesn't start. If another container uses the port, the error ends like this:
+
+```none
+Bind for 0.0.0.0:80 failed: port is already allocated
+```
+
+If another process on the Docker host uses the port, the error ends like this:
+
+```none
+failed to bind host port 0.0.0.0:80/tcp: address already in use
+```
+
+**Cause**: Another container or process on the Docker host already uses that host port.
+
+**Fix**:
+
+1. Remove the container that didn't start. It keeps its name, so another `docker run` with that name fails:
+
+    ```shell
+    docker rm CONTAINER_NAME
+    ```
+
+1. Stop the other container or process, or start the container again with another host port, for example `-p 8080:80`.
+
+---
+
+## References
+
+- [Installing NGINX Open Source]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-open-source.md" >}})
+- [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}})
+- [Deploy unprivileged NGINX Plus on Kubernetes and OpenShift]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-unprivileged-kubernetes-openshift.md" >}})
+- [About Subscription Licenses]({{< ref "/solutions/about-subscription-licenses.md" >}})
+- [NGINX image on Docker Hub](https://hub.docker.com/_/nginx)

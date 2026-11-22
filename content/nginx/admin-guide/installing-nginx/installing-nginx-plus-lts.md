@@ -172,11 +172,11 @@ These steps apply to Red Hat Enterprise Linux, Oracle Linux, AlmaLinux, and Rock
 
     {{< table >}}
 
-    | Version | Pin to the current LTS | Pin to the LTS track |
-    |---|---|---|
-    | 8 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/8/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/8/$basearch/` |
-    | 9 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/9/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/9/$basearch/` |
-    | 10 | `baseurl=https://pkgs.nginx.com/plus/R37.0/rhel/10/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/rhel/10/$basearch/` |
+   | Version | Pin to the current LTS | Pin to the LTS track |
+   |---|---|---|
+   | 8 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/8/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/8/$basearch/` |
+   | 9 | `baseurl=https://pkgs.nginx.com/plus/R37.0/centos/9/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/centos/9/$basearch/` |
+   | 10 | `baseurl=https://pkgs.nginx.com/plus/R37.0/rhel/10/$basearch/` | `baseurl=https://pkgs.nginx.com/plus/LTS/rhel/10/$basearch/` |
 
     {{< /table >}}
 

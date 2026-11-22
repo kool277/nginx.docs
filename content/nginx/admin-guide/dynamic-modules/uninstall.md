@@ -1,97 +1,139 @@
 ---
-description: This section describes how to uninstall an F5 NGINX Plus dynamic module.
-title: Uninstalling a dynamic module
+title: Uninstall a dynamic module
+description: Remove a dynamic module from F5 NGINX Plus. Take it out of the configuration first, and then uninstall its package.
 toc: true
 weight: 100
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "uninstall dynamic module, remove module, load_module, nginx-plus-module, dnf remove, apt remove"
+f5-summary: >
+  This guide shows how to remove a dynamic module from F5 NGINX Plus.
+  You take the module out of the configuration first, so NGINX Plus never loads a module file that's gone.
+  Then you uninstall the module package with your package manager.
+f5-audience: operator
 ---
 
-You may need to uninstall a dynamic module in NGINX Plus in several scenarios:
+## Overview
 
-- The module is being replaced with a newer or alternative version. For example, the [OpenTracing]({{< ref "opentracing.md" >}}) module has been replaced by the [OpenTelemetry]({{< ref "opentelemetry.md" >}}) module. The [Cookie-Flag]({{< ref "cookie-flag.md" >}}) dynamic module has been superseded by natively supported [`proxy_cookie_flags`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cookie_flags) directive.
+You might uninstall a dynamic module when:
 
-- The module is no longer supported, for example, the [NGINX ModSecurity WAF]({{< ref "nginx-waf.md" >}}) module.
+- A replacement exists. For example, the [OpenTelemetry]({{< ref "/nginx/admin-guide/dynamic-modules/opentelemetry.md" >}}) module replaces the [OpenTracing]({{< ref "/nginx/admin-guide/dynamic-modules/opentracing.md" >}}) module, and the `proxy_cookie_flags` directive replaces the [Cookie-Flag]({{< ref "/nginx/admin-guide/dynamic-modules/cookie-flag.md" >}}) module.
+- F5 no longer supports the module, such as the [NGINX ModSecurity WAF]({{< ref "/nginx/admin-guide/dynamic-modules/nginx-waf.md" >}}) module.
+- The module doesn't support your operating system. For details, see [Dynamic modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) in the technical specifications.
+- You no longer need the module, it causes errors, or your security policy doesn't allow it.
 
-- The operating system is not supported by the module. See the the [Dynamic Modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) section of the [NGINX Plus Technical Specifications]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}).
+Remove the module from the configuration before you uninstall its package. If the configuration loads a module file that's gone, NGINX Plus can't start, and a reload keeps the old configuration.
 
-- The module it is no longer required, uninstalling it helps optimize resource usage and reduce maintenance overhead.
+---
 
-- The module is causing runtime errors or configuration conflicts that affect stability or performance.
+## Before you begin
 
-- Security or compliance policies require removal, particularly in regulated environments where only approved or certified modules are allowed.
+Before you begin, make sure you have:
 
-## Instructions
+- **The package name of the module**: Each module's page lists its package, for example `nginx-plus-module-njs`. For the list, see [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}}).
+- **Root access**: You need `sudo` to change the configuration and to remove packages.
 
-To uninstall a dynamic module, run the appropriate command for your operating system in a terminal, replacing `<MODULE_NAME>` with the actual package name, for example, `nginx-plus-module-cookie-flag`.
+---
 
--  For Amazon Linux 2, CentOS, Oracle Linux, and RHEL:
+## Remove the module from the configuration
 
-   ```shell
-   sudo yum remove <MODULE_NAME>
-   ```
-
--  For Amazon Linux 2023, AlmaLinux, Rocky Linux:
-
-   ```shell
-   sudo dnf remove <MODULE_NAME>
-   ```
-
--  For Debian and Ubuntu:
-
-   ```shell
-   sudo apt remove <MODULE_NAME>
-   ```
-
--  For SLES:
-
-   ```shell
-   sudo zypper remove <MODULE_NAME>
-   ```
-
--  For FreeBSD:
-
-   ```shell
-   sudo pkg delete <MODULE_NAME>
-   ```
-
-## Configuration
-
-After uninstalling the package, you will need to disable the module in the NGINX configuration file.
-
-1. In a text editor, open the NGINX Plus configuration file:
-   - `/etc/nginx/nginx.conf` for Linux
-   - `/usr/local/etc/nginx/nginx.conf` for FreeBSD
-
-2. Disable dynamic loading of the module by removing the corresponding [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive.
-
-3. Remove all directives related to the dynamic module.
-
-4. Save the configuration.
-
-5. Test the NGINX Plus configuration. In a terminal, type-in the command:
+1. Find the `load_module` directives in the configuration:
 
     ```shell
-    nginx -t
+    sudo grep -rn load_module /etc/nginx/
     ```
 
-    Expected output of the command:
+    On FreeBSD, search `/usr/local/etc/nginx/` instead. The output shows the file and line number of each directive.
+
+1. Delete the `load_module` directives of the module. The module's page lists them.
+
+1. Delete or replace the directives of the module. The module's documentation lists them.
+
+1. Test the configuration:
 
     ```shell
+    sudo nginx -t
+    ```
+
+    The output ends with a successful test:
+
+    ```none
     nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
-    nginx: configuration file /etc/nginx/nginx.conf is successful
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
     ```
 
-5. Reload the NGINX Plus configuration:
+1. Reload the configuration:
 
     ```shell
-    nginx -s reload
+    sudo nginx -s reload
     ```
 
-## More info
+---
 
-- [NGINX modules reference](https://nginx.org/en/docs/)
+## Uninstall the module package
 
-- [NGINX dynamic modules]({{< ref "dynamic-modules.md" >}})
+Run the command for your operating system. Replace `<MODULE_PACKAGE>` with the package name, for example `nginx-plus-module-njs`.
 
-- [NGINX Plus technical specifications]({{< ref "/nginx/technical-specs.md" >}})
+- RHEL and its derivatives, and Amazon Linux 2023:
+
+    ```shell
+    sudo dnf remove <MODULE_PACKAGE>
+    ```
+
+- Debian and Ubuntu:
+
+    ```shell
+    sudo apt remove <MODULE_PACKAGE>
+    ```
+
+- SLES:
+
+    ```shell
+    sudo zypper remove <MODULE_PACKAGE>
+    ```
+
+- Alpine Linux:
+
+    ```shell
+    sudo apk del <MODULE_PACKAGE>
+    ```
+
+- FreeBSD:
+
+    ```shell
+    sudo pkg delete <MODULE_PACKAGE>
+    ```
+
+Other module packages can depend on the one you remove. For example, the Lua package needs the NDK package. In that case, the package manager might also remove them, or refuse to remove the package. Read its output before you confirm.
+
+---
+
+## Troubleshooting
+
+### nginx -t reports that dlopen() failed
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] dlopen() "/etc/nginx/modules/ngx_http_js_module.so" failed (/etc/nginx/modules/ngx_http_js_module.so: cannot open shared object file: No such file or directory)`.
+
+**Cause**: The package is gone, but a `load_module` directive still loads its module.
+
+**Fix**: Delete the `load_module` directive, as described in [Remove the module from the configuration](#remove-the-module-from-the-configuration).
+
+---
+
+### nginx -t reports an unknown directive
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] unknown directive "js_import"`.
+
+**Cause**: The configuration still uses a directive of the module that you removed.
+
+**Fix**: Delete or replace the directive, and test the configuration again.
+
+---
+
+## References
+
+For more information, see:
+
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [NGINX Plus Technical Specifications]({{< ref "/nginx/technical-specs.md" >}})
+- [The `load_module` directive](https://nginx.org/en/docs/ngx_core_module.html#load_module)

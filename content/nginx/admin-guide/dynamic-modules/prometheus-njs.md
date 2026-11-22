@@ -1,19 +1,27 @@
 ---
-description: Expose Prometheus metrics endpoint directly from F5 NGINX Plus.
 title: Prometheus-njs
+description: Install the Prometheus-njs module in F5 NGINX Plus to export the metrics of the NGINX Plus API in the Prometheus format.
 toc: true
 weight: 100
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: installation-guide
+f5-product: F5 NGINX Plus
+f5-keywords: "Prometheus, prometheus-njs, metrics, NGINX Plus API, js_import, nginx-plus-module-prometheus, njs"
+f5-summary: >
+  This guide shows how to install the Prometheus-njs module in F5 NGINX Plus and expose a metrics endpoint for Prometheus.
+  The module converts the status metrics of the NGINX Plus API into the Prometheus format.
+  It runs in njs, so the package manager installs the njs dynamic module with it, and you load that module.
+f5-audience: operator
 ---
 
-The `nginx-plus-module-prometheus` module is an [njs](https://nginx.org/en/docs/njs/) module that converts miscellaneous F5 NGINX Plus status metrics exposed by the [API](https://nginx.org/en/docs/http/ngx_http_api_module.html) module to a Prometheus compliant format. The module uses subrequests to the `/api` endpoint to access the metrics.
-In case you have configured [dynamic upstream routing](#prom_keyval) with generic names for upstream groups, the module can understand replacements for these names and display the correct statistics.
+## Overview
 
+The Prometheus-njs module is written in [njs](https://nginx.org/en/docs/njs/). It reads the status metrics of the [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html), and returns them in the Prometheus format. Prometheus can then collect them from NGINX Plus. The `nginx-plus-module-prometheus` package in the NGINX Plus repository contains it.
 
-## Exported metrics {#data}
+Some setups route requests to upstream groups with generic names, and a key-value store maps the real names to them. In that case, the module can report the statistics under the real names. For details, see [Report upstream groups under their real names](#prom_keyval).
 
-The following NGINX Plus status metrics are exported to Prometheus:
+### Exported metrics {#data}
+
+The module exports these NGINX Plus status metrics:
 
 - [nginx](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_object): `/nginx`
 - [Processes](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_processes): `/processes`
@@ -23,175 +31,196 @@ The following NGINX Plus status metrics are exported to Prometheus:
 - [Slabs](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_slab_zone): `/slabs/`
 - [Workers](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_worker): `/workers/`
 - [HTTP](https://nginx.org/en/docs/http/ngx_http_api_module.html#http_): `/http/`
-- [HTTP Requests](http://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_requests): `/http/requests`
-- [HTTP Caches](http://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_cache): `/http/caches/`
+- [HTTP Requests](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_requests): `/http/requests`
+- [HTTP Caches](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_cache): `/http/caches/`
 - [HTTP Server Zones](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_server_zone): `/http/server_zones/`
 - [HTTP Location Zones](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_location_zone): `/http/location_zones/`
 - [HTTP Upstreams](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_upstream): `/http/upstreams/`
-- [HTTP Limit Conn](http://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_limit_conn_zone): `/http/limit_conns/`
-- [HTTP Limit Req](http://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_limit_req_zone): `/http/limit_reqs/`
+- [HTTP Limit Conn](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_limit_conn_zone): `/http/limit_conns/`
+- [HTTP Limit Req](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_limit_req_zone): `/http/limit_reqs/`
 - [Stream Server Zones](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_server_zone): `/stream/server_zones/`
-- [Stream Zone Sync](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_server_zone): `/stream/zone_sync/`
+- [Stream Zone Sync](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_zone_sync): `/stream/zone_sync/`
 - [Stream Upstreams](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_upstream): `/stream/upstreams/`
-- [Stream Limit Conn](http://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_limit_conn_zone): `/stream/limit_conns/`
+- [Stream Limit Conn](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_limit_conn_zone): `/stream/limit_conns/`
 
-{{< call-out class="note" >}} The `state` metric values in [`/http/upstreams/`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_upstream) and [`/stream/upstreams/`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_upstream) are converted using the following rule:
+The module converts the `state` values of servers in [`/http/upstreams/`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_http_upstream) and [`/stream/upstreams/`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_upstream) to numbers:
 
+{{< table >}}
 
-{{<table>}}
+| NGINX Plus state | Prometheus value |
+|---|---|
+| `up` | `1` |
+| `draining` | `2` |
+| `down` | `3` |
+| `unavail` | `4` |
+| `checking` | `5` |
+| `unhealthy` | `6` |
 
-|NGINX | Prometheus |
-| ---| --- |
-|"up" | `1` |
-|"draining" | `2` |
-|"down" | `3` |
-|"unavail" | `4` |
-|"checking" | `5` |
-|"unhealthy" | `6` |
+{{< /table >}}
 
-{{</table >}}
-{{< /call-out >}}
+---
 
-## Installation {#install}
+## Before you begin
 
-1. Check the [Technical Specifications]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) page to verify that the module is supported by your operating system.
+Before you begin, make sure you have:
 
-2. Make sure that your operating system is configured to retrieve binary packages from the official NGINX Plus repository. See installation instructions for your operating system on the [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) page.
+- **NGINX Plus**: NGINX Plus installed from the NGINX Plus repository. For the steps, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+- **A supported operating system**: For details, see [Dynamic modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) in the technical specifications.
+- **Prometheus**: A Prometheus server that can reach NGINX Plus over HTTP.
+- **Root access**: You need `sudo` to install packages and to change the configuration.
 
-3. Install the `nginx-plus-module-prometheus` module from the official NGINX Plus repository.
+---
 
-   - For Amazon Linux 2, CentOS, Oracle Linux, and RHEL:
+## Install the module package {#install}
 
-     ```shell
-     sudo yum install nginx-plus-module-prometheus
-     ```
+Install the `nginx-plus-module-prometheus` package from the NGINX Plus repository. The package manager also installs the [njs module]({{< ref "/nginx/admin-guide/dynamic-modules/nginscript.md" >}}) package, `nginx-plus-module-njs`.
 
-   - For Amazon Linux 2023, AlmaLinux, Rocky Linux:
+- RHEL and its derivatives, and Amazon Linux 2023:
 
-     ```shell
-     sudo dnf install nginx-plus-module-prometheus
-     ```
+    ```shell
+    sudo dnf install nginx-plus-module-prometheus
+    ```
 
-   - For Debian and Ubuntu:
+- Debian and Ubuntu:
 
-     ```shell
-     sudo apt install nginx-plus-module-prometheus
-     ```
+    ```shell
+    sudo apt update
+    sudo apt install nginx-plus-module-prometheus
+    ```
 
-   - For SLES:
+- SLES:
 
-     ```shell
-     sudo zypper install nginx-plus-module-prometheus
-     ```
+    ```shell
+    sudo zypper install nginx-plus-module-prometheus
+    ```
 
-   - For Alpine:
+- Alpine Linux:
 
-     ```shell
-     apk add nginx-plus-module-prometheus
-     ```
+    ```shell
+    sudo apk add nginx-plus-module-prometheus
+    ```
 
-     For FreeBSD:
+- FreeBSD:
 
-     ```shell
-     sudo pkg install nginx-plus-module-prometheus
-     ```
+    ```shell
+    sudo pkg install nginx-plus-module-prometheus
+    ```
 
-   {{< call-out class="note" >}} The [`nginx-plus-module-njs`]({{< ref "nginscript.md" >}}) module will also be installed together with the module. {{< /call-out >}}
+---
 
+## Load the njs module
 
-## Configuration {#conf}
+1. Open the NGINX Plus configuration file: `/etc/nginx/nginx.conf` on Linux, or `/usr/local/etc/nginx/nginx.conf` on FreeBSD.
 
-After module installation, perform the following steps in NGINX Plus configuration file (**nginx.conf**):
+1. At the top of the file, before the `events` block, add the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive for the njs module:
 
-1. Enable the [`nginx-plus-module-njs`]({{< ref "nginscript.md" >}}) module in the top‑level context:
+    ```nginx
+    load_module modules/ngx_http_js_module.so;
+    ```
 
-   ```nginx
-   load_module modules/ngx_http_js_module.so;
+    If another directive already loads this module, for example for njs, don't load it again.
 
-   http {
-       # ...
-   }
-   ```
+---
 
-2. [Include](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_import) the `prometheus.js` file:
+## Configure the module {#conf}
 
-   ```nginx
-   http {
-       # ...
-       js_import /usr/share/nginx-plus-module-prometheus/prometheus.js;
-   }
-   ```
+1. In the `http` block, import the script of the module with [`js_import`](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_import):
 
-3. [Create](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) a location for Prometheus metrics, for example, `/metrics`:
+    ```nginx
+    js_import /usr/share/nginx-plus-module-prometheus/prometheus.js;
+    ```
 
-   ```nginx
-   location = /metrics {
-       js_content prometheus.metrics;
-   }
-   ```
+1. In a `server` block, turn on the [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html#api), and limit who can reach it:
 
-4. [Enable](https://nginx.org/en/docs/http/ngx_http_api_module.html#api) the API to be able to expose the `/metrics` endpoint from Prometheus:
+    ```nginx
+    location /api {
+        api;
+        allow 127.0.0.1;
+        deny  all;
+    }
+    ```
 
-   ```nginx
-   location /api {
-       api;
-       #...
-   }
-   ```
+    The module reads the API with subrequests to `/api`, so keep that location name. NGINX Plus doesn't apply `allow` and `deny` to subrequests, so the module still reaches the API.
 
-5. (optional, in case of "`too big subrequest response`" error in error log) Since the module uses subrequests for API calls, you may need to [increase](https://nginx.org/en/docs/http/ngx_http_core_module.html#subrequest_output_buffer_size) the size of the buffer that stores the response body of a subrequest:
+1. In the same `server` block, add a location for the metrics, for example `/metrics`:
 
-   ```nginx
-   http {
-       # ...
-       subrequest_output_buffer_size 32k;
-   }
-   ```
+    ```nginx
+    location = /metrics {
+        js_content prometheus.metrics;
+    }
+    ```
 
-6. Configure Prometheus to obtain metrics from NGINX Plus by specifying the network address of the NGINX Plus instance in a [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) section of the Prometheus configuration file.
+1. Optional: If the error log shows `too big subrequest response`, make the buffer for subrequest responses bigger with [`subrequest_output_buffer_size`](https://nginx.org/en/docs/http/ngx_http_core_module.html#subrequest_output_buffer_size) in the `http` block:
 
+    ```nginx
+    subrequest_output_buffer_size 32k;
+    ```
 
-## Upgrade
+1. Add NGINX Plus to a [`scrape_config`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) section of the Prometheus configuration. Replace `nginx-plus.example.com:80` with the address of NGINX Plus. Prometheus reads `/metrics` by default.
 
-When upgrading Prometheus-njs version to version 1.3.1 and later, it is important to update NGINX Plus configuration file with the changes introduced in NGINX Plus [R22](https://www.nginx.com/blog/nginx-plus-r22-released/) and [njs 0.4.0](https://www.nginx.com/blog/nginx-plus-r22-released#njs):
+    ```yaml
+    scrape_configs:
+      - job_name: nginx-plus
+        static_configs:
+          - targets: ['nginx-plus.example.com:80']
+    ```
 
-- the [`js_include`](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_include) directive is deprecated
-- the [`js_import`](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_import) directive is used instead of [js_include](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_include)
-- the [`js_content`](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_content) and [`js_set`](https://nginx.org/en/docs/http/ngx_http_js_module.html#js_set) directives can reference a module function
+This is a complete NGINX Plus configuration:
 
-See [Configuration](#conf) for the example of Prometheus-njs configuration in NGINX Plus configuration file.
+```nginx
+load_module modules/ngx_http_js_module.so;
 
+events {}
 
-## Module variables {#vars}
+http {
+    js_import /usr/share/nginx-plus-module-prometheus/prometheus.js;
+    subrequest_output_buffer_size 32k;
 
-The module supports several embedded variables:
+    upstream backend {
+        zone   backend 64k;
+        server backend1.example.com;
+        server backend2.example.com;
+    }
+
+    server {
+        listen 80;
+        status_zone backend_zone;
+
+        location / {
+            proxy_pass http://backend;
+        }
+
+        location /api {
+            api;
+            allow 127.0.0.1;
+            deny  all;
+        }
+
+        location = /metrics {
+            js_content prometheus.metrics;
+        }
+    }
+}
+```
+
+---
+
+## Set the module variables {#vars}
+
+Set these variables with the [`set`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set) directive in the metrics location:
 
 - [`$prom_keyval`](#prom_keyval)
 - [`$prom_keyval_stream`](#prom_keyval_stream)
 - [`$prom_metrics_disabled`](#prom_metrics_disabled)
 
-The variables can be set in NGINX Plus configuration file with the [`set`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set) directive.
+### Report upstream groups under their real names {#prom_keyval}
 
-
-### Using the $prom_keyval variable {#prom_keyval}
-
-The `$prom_keyval` variable has been created to correctly show statistics for dynamic configuration of upstream routing: when names of upstreams are generic and these names are dynamically replaced by real names from the [key-value](https://nginx.org/en/docs/http/ngx_http_keyval_module.html) storage.
-
-To add the `$prom_keyval` variable, add the [`set`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set) directive to the location that exposes metrics to Prometheus (for example, `= /metrics`), in the following format:
-
-```nginx
-set $prom_keyval "upstream_keyval";
-```
-
-where `$prom_keyval` will hold all values from `upstream_keyval` key-value storage specified in the [`keyval_zone`](https://nginx.org/en/docs/http/ngx_http_keyval_module.html#keyval_zone) directive:
+Upstream groups can have generic names, with a [key-value store](https://nginx.org/en/docs/http/ngx_http_keyval_module.html) that maps the real names to them. Then set `$prom_keyval` to the name of that store. The module then reports the statistics under the real names. In this example, the store is `http_upstream_keyval`:
 
 ```nginx
 http {
-
-    #...
-
-    keyval_zone zone=upstream_keyval:64k;
-    keyval      $domain $upstream zone=http_upstream_keyval;
+    keyval_zone zone=http_upstream_keyval:64k;
+    keyval      $host $upstream zone=http_upstream_keyval;
 
     upstream 0 {
         zone   http_backend 64k;
@@ -200,16 +229,12 @@ http {
     }
 
     server {
-        #...
-
         location / {
             proxy_pass http://$upstream;
-            #...
         }
 
         location /api {
             api;
-            #...
         }
 
         location = /metrics {
@@ -220,18 +245,17 @@ http {
 }
 ```
 
-### Using the $prom_keyval_stream variable {#prom_keyval_stream}
+### Report stream upstream groups under their real names {#prom_keyval_stream}
 
-In order to perform dynamic replacements in the [`stream {}`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#stream) context, you will need to specify a new key-value storage in the stream block and set the name of the key-value storage in the `$prom_keyval_stream` variable:
+For upstream groups in the [`stream`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#stream) context, define a key-value store in the `stream` block, and set `$prom_keyval_stream` to its name:
 
 ```nginx
-
 http {
-
-    # the contents of the 'http' block is the same as for the $prom_keyval example
-    # except the 'location /metrics' block:
+    # The same http block as in the previous example,
+    # with this metrics location:
     # ...
-
+    server {
+        # ...
         location = /metrics {
             set $prom_keyval        "http_upstream_keyval";
             set $prom_keyval_stream "stream_upstream_keyval";
@@ -241,8 +265,7 @@ http {
 }
 
 stream {
-
-    keyval_zone zone=stream_keyval:32k;
+    keyval_zone zone=stream_upstream_keyval:32k;
 
     upstream stream_backend {
         zone   stream_backend 64k;
@@ -251,30 +274,25 @@ stream {
     }
 
     server {
-        listen 12345;
-
+        listen      12345;
         proxy_pass  stream_backend;
         status_zone backend_stream_zone;
     }
 }
 ```
 
-### Using the $prom_metrics_disabled variable {#prom_metrics_disabled}
+### Leave out metrics {#prom_metrics_disabled}
 
-The `$prom_metrics_disabled` variable disables exporting particular NGINX Plus status metrics to Prometheus. If you are concerned about the amount of storage NGINX Plus metrics are taking in Prometheus, you can disable particular endpoints via this variable. The variable value must be a comma separated list of NGINX Plus endpoints:
+To save storage in Prometheus, leave out some NGINX Plus metrics. Set `$prom_metrics_disabled` to a comma-separated list of API endpoints:
 
 ```nginx
-#...
-location /metrics {
-    set $prom_keyval           "http_upstream_keyval";
-    set $prom_keyval_stream    "stream_upstream_keyval";
+location = /metrics {
     set $prom_metrics_disabled "stream/upstreams, resolvers";
     js_content                 prometheus.metrics;
 }
-#...
 ```
 
-You can disable exporting the following NGINX Plus status metrics to Prometheus:
+You can leave out these endpoints:
 
 - `nginx`
 - `processes`
@@ -295,70 +313,77 @@ You can disable exporting the following NGINX Plus status metrics to Prometheus:
 - `stream/zone_sync`
 - `stream/limit_conns`
 
+---
 
-## Example 
+## Verify the installation
 
-```nginx
-load_module modules/ngx_http_js_module.so;
+1. Test the configuration:
 
-#...
+    ```shell
+    sudo nginx -t
+    ```
 
-http {
+    The output ends with a successful test:
 
-    js_import /usr/share/nginx-plus-module-prometheus/prometheus.js;
+    ```none
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
+    ```
 
-    subrequest_output_buffer_size 32k;
+1. Reload the configuration:
 
-    upstream backend {
-        zone   backend 64k;
-        server backend1.example.com;
-        server backend2.example.com;
-    }
+    ```shell
+    sudo nginx -s reload
+    ```
 
-    server {
-        listen 80;
+1. Request the metrics:
 
-        location / {
-            proxy_pass http://backend;
-        }
+    ```shell
+    curl -s http://localhost/metrics | head
+    ```
 
-        location /api {
-            api;
-        }
+    The output shows metrics in the Prometheus text format.
 
-        location = /metrics {
-            set $prom_keyval           "http_upstream_keyval";
-            set $prom_keyval_stream    "stream_upstream_keyval";
-            set $prom_metrics_disabled "stream/upstreams, resolvers";
-            js_content                 prometheus.metrics;
-        }
+---
 
-        status_zone backend_zone;
-    }
-}
+## Troubleshooting
 
-stream {
+### The error log shows "too big subrequest response"
 
-    keyval_zone zone=stream_keyval:32k;
+**Symptom**: The metrics are missing or incomplete, and the error log shows `too big subrequest response`.
 
-    upstream stream_backend {
-        zone   stream_backend 64k;
-        server backend1.example.com:12345;
-        server backend2.example.com:12345;
-    }
+**Cause**: An API response is bigger than the buffer for subrequest responses.
 
-    server {
-        listen 12345;
+**Fix**: Set `subrequest_output_buffer_size` to a bigger value, for example `32k`, as described in [Configure the module](#conf).
 
-        proxy_pass  stream_backend;
-        status_zone backend_stream_zone;
-}
-```
+---
 
-## More info {#info}
+### nginx -t reports an unknown directive
 
-- [NGINX dynamic modules]({{< ref "dynamic-modules.md" >}})
+**Symptom**: `nginx -t` fails with the message `nginx: [emerg] unknown directive "js_import"`.
 
-- [NGINX Plus technical specifications]({{< ref "/nginx/technical-specs.md" >}})
+**Cause**: No `load_module` directive loads the njs module.
 
-- [Uninstalling a dynamic module]({{< ref "uninstall.md" >}})
+**Fix**: Add the `load_module` directive, as described in [Load the njs module](#load-the-njs-module).
+
+---
+
+### The configuration uses js_include
+
+**Symptom**: `nginx -t` fails with the message `nginx: [emerg] unknown directive "js_include"`.
+
+**Cause**: The configuration was written for Prometheus-njs before version 1.3.1. It uses `js_include`, which njs deprecated in version 0.4.0 and removed in version 0.7.1.
+
+**Fix**: Replace `js_include` with `js_import`, and refer to the function with the module name, `prometheus.metrics`, as shown in [Configure the module](#conf).
+
+---
+
+## References {#info}
+
+For more information, see:
+
+- [Module ngx_http_api_module](https://nginx.org/en/docs/http/ngx_http_api_module.html)
+- [njs scripting language](https://nginx.org/en/docs/njs/)
+- [Prometheus configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [Uninstall a dynamic module]({{< ref "/nginx/admin-guide/dynamic-modules/uninstall.md" >}})

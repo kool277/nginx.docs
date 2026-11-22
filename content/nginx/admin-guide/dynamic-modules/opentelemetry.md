@@ -1,305 +1,251 @@
 ---
-description: Analyze your software performance by instrumenting, generating, collecting,
-  and exporting telemetry data.
 title: OpenTelemetry
+description: Install the OpenTelemetry dynamic module in F5 NGINX Plus to send distributed traces of requests to an OTLP endpoint.
 toc: true
 weight: 100
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: installation-guide
+f5-product: F5 NGINX Plus
+f5-keywords: "OpenTelemetry, OTel, distributed tracing, otel_exporter, otel_trace, OTLP, nginx-plus-module-otel, dynamic module"
+f5-summary: >
+  This guide shows how to install the OpenTelemetry dynamic module in F5 NGINX Plus and turn on tracing.
+  The module sends a trace span for each request to an OTLP endpoint over gRPC, such as an OpenTelemetry Collector.
+  It replaces the OpenTracing module, which F5 removed in NGINX Plus R34.
+f5-audience: operator
 ---
 
-[OpenTelemetry](https://opentelemetry.io/) (OTel) is an observability framework for monitoring, tracing, troubleshooting, and optimizing applications. OTel enables the collection of telemetry data from a deployed application stack.
+## Overview
 
-The `nginx-plus-module-otel` module is an [NGINX-authored]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#nginx-authored-dynamic-modules" >}}) dynamic module that enables NGINX Plus to send telemetry data to an OTel collector. The module supports [W3C](https://w3c.github.io/trace-context/) trace context propagation, OpenTelemetry Protocol (OTLP)/gRPC trace exports, and offers several advantages over existing OTel modules including:
+[OpenTelemetry](https://opentelemetry.io/) (OTel) is an observability framework for tracing, monitoring, and troubleshooting applications. The OpenTelemetry dynamic module adds distributed tracing to F5 NGINX Plus. It sends spans of the requests that NGINX Plus handles to an OpenTelemetry Protocol (OTLP) endpoint over gRPC. For the trace context, it uses W3C `traceparent` and `tracestate` headers.
 
-- Enhanced performance: with the module enabled, request processing overhead is limited to 10-15%, compared to other OpenTelemetry implementations, which can introduce performance degradation of up to 50%.
+The module has these features:
 
-- Simplified provisioning through NGINX configuration file.
+- **Low overhead**: Its [project page](https://github.com/nginx/nginx-otel) says that it adds about 10 to 15% to request processing time. Other OpenTelemetry implementations can add up to 50%.
+- **Configuration in NGINX**: You set it up with NGINX directives.
+- **Per-request control**: Variables, such as cookies and tokens, can turn tracing on or off for each request. For an example, see [Trace a share of requests](#trace-a-share-of-requests).
+- **Changes at runtime**: You can change sampling with the [NGINX Plus API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md#using-the-rest-api" >}}) and the [key-value store]({{< ref "/nginx/admin-guide/security-controls/denylisting-ip-addresses.md" >}}), without a reload.
 
-- Dynamic, variable-based control of trace parameters with cookies, tokens, and variables. See [Ratio-based Tracing](#example) example for details.
+This is an [NGINX-authored module]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#nginx-authored-dynamic-modules" >}}). The `nginx-plus-module-otel` package in the NGINX Plus repository contains it, since NGINX Plus R29. Its reference is the [ngx_otel_module documentation](https://nginx.org/en/docs/ngx_otel_module.html). It replaces the [OpenTracing]({{< ref "/nginx/admin-guide/dynamic-modules/opentracing.md" >}}) module, which F5 removed in [NGINX Plus R34]({{< ref "/nginx/releases.md#r34" >}}).
 
-- Dynamic control of sampling parameters via the [NGINX Plus API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md#using-the-rest-api" >}}) and [key-value storage]({{< ref "/nginx/admin-guide/security-controls/denylisting-ip-addresses.md" >}}).
+---
 
-The source code for the module is available in the official [GitHub repository](https://github.com/nginxinc/nginx-otel). The official documentation, including module reference and usage examples, is available on the [nginx.org](https://nginx.org/en/docs/ngx_otel_module.html) website.
+## Before you begin
 
-The OpenTelemetry module supersedes the deprecated [OpenTracing]({{< ref "opentracing.md" >}}) module which was available until NGINX Plus [Release 34]({{< ref "/nginx/releases.md#r34" >}}).
+Before you begin, make sure you have:
 
+- **NGINX Plus R29 or later**: NGINX Plus installed from the NGINX Plus repository. To check your release, run `nginx -v`. For the steps, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+- **A supported operating system**: The module package isn't available for SLES 15 SP5 and later. For the operating systems of NGINX Plus, see the [technical specifications]({{< ref "/nginx/technical-specs.md" >}}).
+- **An OTLP endpoint**: A service that receives traces over OTLP and gRPC, such as the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/). It forwards the traces to your tracing back end.
+- **Root access**: You need `sudo` to install packages and to change the configuration.
 
-## Installation
+---
 
-The installation process closely follows the [NGINX Plus installation procedure]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}). The module is available as the prebuilt `nginx-plus-module-otel` package for various Linux distributions and can be installed directly from the official NGINX Plus repository. Prior to installation, you need to add the NGINX Plus package repository for your distribution and update the repository metadata.
+## Install the module package
 
-1.  Check the [Technical Specifications]({{< ref "/nginx/technical-specs.md" >}}) page to verify that the module is supported by your operating system.
+Install the `nginx-plus-module-otel` package from the NGINX Plus repository:
 
-    {{< call-out class="note" >}} The OpenTelemetry module cannot be installed on Amazon Linux 2 LTS and SLES 15 SP5+. {{< /call-out >}}
-
-2.  Make sure you have the latest version of NGINX Plus. In Terminal, run the command:
-
-    ```shell
-    nginx -v
-    ```
-
-    Expected output of the command:
-
-    ```shell
-    nginx version: nginx/1.29.8 (nginx-plus-r37.0.0)
-    ```
-
-3.  Ensure you have the **nginx-repo.crt** and **nginx-repo.key** files from [MyF5 Customer Portal](https://account.f5.com/myf5) in the **/etc/ssl/nginx/** directory. These files are required for accessing the NGINX Plus repository.
+- RHEL and its derivatives, and Amazon Linux 2023:
 
     ```shell
-    sudo cp <DOWNLOADED_FILE_NAME>.crt /etc/ssl/nginx/nginx-repo.crt && \
-    sudo cp <DOWNLOADED_FILE_NAME>.key /etc/ssl/nginx/nginx-repo.key
-    ```
-
-    In each command, replace `<DOWNLOADED_FILE_NAME>` with the corresponding downloaded filename without its `.crt` or `.key` extension.
-
-    For Alpine, the **nginx-repo.crt** to **/etc/apk/cert.pem** and **nginx-repo.key** files should be added to **/etc/apk/cert.key**. Ensure these files contain only the specific key and certificate as Alpine Linux does not support mixing client certificates for multiple repositories.
-
-    For FreeBSD, the path to these files should also be added to the `/usr/local/etc/pkg.conf` file:
-
-    ```shell
-    PKG_ENV: { SSL_NO_VERIFY_PEER: "1",
-    SSL_CLIENT_CERT_FILE: "/etc/ssl/nginx/nginx-repo.crt",
-    SSL_CLIENT_KEY_FILE: "/etc/ssl/nginx/nginx-repo.key" }
-    ```
-
-4.  Ensure that all required dependencies for your operating system are installed.
-
-    For Amazon Linux 2023, AlmaLinux, CentOS, Oracle Linux, RHEL, and Rocky Linux:
-
-    ```shell
-    sudo dnf update && \
-    sudo dnf install ca-certificates
-    ```
-
-    For Debian:
-
-    ```shell
-    sudo apt update && \
-    sudo apt install apt-transport-https \
-                     lsb-release \
-                     ca-certificates \
-                     wget \
-                     gnupg2 \
-                     debian-archive-keyring
-    ```
-
-    For Ubuntu:
-
-    ```shell
-    sudo apt update  && \
-    sudo apt install apt-transport-https \
-                     lsb-release \
-                     ca-certificates \
-                     wget \
-                     gnupg2 \
-                     ubuntu-keyring
-    ```
-
-    For FreeBSD:
-
-    ```shell
-    sudo pkg update  && \
-    sudo pkg install ca_root_nss
-    ```
-
-5.  Ensure that the NGINX signing key has been added, if required by your operating system.
-
-    For Debian:
-
-    ```shell
-    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-    | gpg --dearmor \
-    | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-    ```
-
-    For Ubuntu:
-
-    ```shell
-    printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-    https://pkgs.nginx.com/plus/ubuntu `lsb_release -cs` nginx-plus\n" \
-    | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-    ```
-
-    For Alpine:
-
-    ```shell
-    sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
-    ```
-
-6.  Ensure that your package management system is configured to pull packages from the NGINX Plus repository. See [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) for details.
-
-7.  Update the repository information and install the `nginx-plus-module-otel` package. In a terminal, run the appropriate command for your operating system.
-
-    For CentOS, Oracle Linux, and RHEL:
-
-    ```shell
-    sudo yum update  && \
-    sudo yum install nginx-plus-module-otel
-    ```
-
-    For Amazon Linux 2023, AlmaLinux, Rocky Linux:
-
-    ```shell
-    sudo dnf update  && \
     sudo dnf install nginx-plus-module-otel
     ```
 
-    For Debian and Ubuntu:
+- Debian and Ubuntu:
 
     ```shell
-    sudo apt update  && \
+    sudo apt update
     sudo apt install nginx-plus-module-otel
     ```
 
-    For Alpine:
+- Alpine Linux:
 
     ```shell
-    sudo apk update  && \
     sudo apk add nginx-plus-module-otel
     ```
 
-    For FreeBSD:
+- FreeBSD:
 
     ```shell
-    sudo pkg update  && \
     sudo pkg install nginx-plus-module-otel
     ```
 
-    The resulting `ngx_otel_module.so`  dynamic module will be written to the following directory, depending on your operating system:
+---
 
-   - `/usr/lib64/nginx/modules/` for most Linux distributions
-   - `/usr/lib/nginx/modules` for Debian, Ubuntu, Alpine
-   - `/usr/local/etc/nginx/modules` for FreeBSD
+## Load the module
 
-8.  Enable dynamic loading of the module.
+1. Open the NGINX Plus configuration file: `/etc/nginx/nginx.conf` on Linux, or `/usr/local/etc/nginx/nginx.conf` on FreeBSD.
 
-    - In a text editor, open the NGINX Plus configuration file (`/etc/nginx/nginx.conf` for Linux or `/usr/local/etc/nginx/nginx.conf` for FreeBSD).
-
-    -  On the top-level (or “`main`”) context, specify the path to the dynamic module with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive:
+1. At the top of the file, before the `events` block, add the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive:
 
     ```nginx
     load_module modules/ngx_otel_module.so;
+    ```
 
-    http {
-    #...
+---
+
+## Configure the module
+
+1. In the `http` block, set where NGINX Plus sends the traces, and the name of the service in the traces:
+
+    ```nginx
+    otel_exporter {
+        endpoint localhost:4317;
     }
-    ```
-    - Save the configuration file.
 
-9.  Test the NGINX Plus configuration. In a terminal, type-in the command:
-
-    ```shell
-    nginx -t
+    otel_service_name nginx-plus;
     ```
 
-    Expected output of the command:
+    Replace `localhost:4317` with the host and port of your OTLP endpoint. To connect to it over TLS, start the value with `https://`. Without `otel_service_name`, traces show the service name `unknown_service:nginx`.
 
-    ```shell
-    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
-    nginx: configuration file /etc/nginx/nginx.conf is successful
-    ```
+1. Turn on tracing with [`otel_trace`](https://nginx.org/en/docs/ngx_otel_module.html#otel_trace), and choose how to handle the trace context of requests with [`otel_trace_context`](https://nginx.org/en/docs/ngx_otel_module.html#otel_trace_context). The next sections show three common setups.
 
-10. Reload the NGINX Plus configuration to enable the module:
+For all directives, variables, and default span attributes, see the [ngx_otel_module documentation](https://nginx.org/en/docs/ngx_otel_module.html).
 
-    ```shell
-    nginx -s reload
-    ```
+### Trace every request
 
-
-## Configuration
-
-In a text editor, open the NGINX Plus configuration file:
-  - `/etc/nginx/nginx.conf` for Linux
-  - `/usr/local/etc/nginx/nginx.conf` for FreeBSD
-
-For a complete list of directives, embedded variables, default span attributes, refer to the `ngx_otel_module` official documentation.
-
-List of directives:
-
-[`https://nginx.org/en/docs/ngx_otel_module.html#directives`](https://nginx.org/en/docs/ngx_otel_module.html#directives)
-
-List of variables:
-
-[`https://nginx.org/en/docs/ngx_otel_module.html#variables`](https://nginx.org/en/docs/ngx_otel_module.html#variables)
-
-Default span attributes:
-
-[`https://nginx.org/en/docs/ngx_otel_module.html#span`](https://nginx.org/en/docs/ngx_otel_module.html#span)
-
-
-## Usage examples
-
-### Simple Tracing
-
-This configuration enables basic request tracing, capturing tracing information for every incoming request, even in non-distributed environments.
+This setup traces each request, even when no other service sends trace context. `otel_trace_context inject` adds a new trace context to the proxied request:
 
 ```nginx
-http {
-    otel_trace on;
-    server {
-        location / {
-        proxy_pass http://backend;
-        }
+location / {
+    otel_trace         on;
+    otel_trace_context inject;
+    proxy_pass         http://backend;
+}
+```
+
+### Trace the requests that the caller traces
+
+This setup traces a request only if the caller traced it. The [`$otel_parent_sampled`](https://nginx.org/en/docs/ngx_otel_module.html#var_otel_parent_sampled) variable holds the sampled flag of the incoming trace context. `otel_trace_context propagate` keeps that context and passes it on to the proxied server:
+
+```nginx
+location / {
+    otel_trace         $otel_parent_sampled;
+    otel_trace_context propagate;
+    proxy_pass         http://backend;
+}
+```
+
+### Trace a share of requests
+
+This setup traces 10% of requests. The [`split_clients`](https://nginx.org/en/docs/http/ngx_http_split_clients_module.html) block sets the `$ratio_sampler` variable to `on` for 10% of the trace IDs. To trace 10% of user sessions instead, use a session cookie, such as `$cookie_sessionid`, in place of `$otel_trace_id`.
+
+```nginx
+split_clients $otel_trace_id $ratio_sampler {
+    10%     on;
+    *       off;
+}
+
+server {
+    location / {
+        otel_trace         $ratio_sampler;
+        otel_trace_context inject;
+        proxy_pass         http://backend;
     }
 }
 ```
 
-### Parent-based Tracing
+### Complete example
 
-This configuration enables parent-based tracing, where NGINX Plus captures and propagates trace information from incoming requests, allowing tracing contexts to be inherited from the parent request. It is useful in scenarios where NGINX Plus is used as a reverse proxy within a distributed tracing system.
-
-```nginx
-http {
-    server {
-        location / {
-            otel_trace $otel_parent_sampled;
-            otel_trace_context propagate;
-
-            proxy_pass http://backend;
-        }
-    }
-}
-```
-
-### Ratio-based Tracing
-
-This configuration enables sampling of a specified percentage of requests or user sessions for tracing, based on configurable ratios.
+This configuration traces every request to the proxied servers in the `backend` group:
 
 ```nginx
+load_module modules/ngx_otel_module.so;
+
+events {}
+
 http {
-    # trace 10% of requests
-    split_clients $otel_trace_id $ratio_sampler {
-        10%     on;
-        *       off;
+    otel_exporter {
+        endpoint localhost:4317;
     }
 
-    # or we can trace 10% of user sessions
-    split_clients $cookie_sessionid $session_sampler {
-        10%     on;
-        *       off;
+    otel_service_name nginx-plus;
+
+    upstream backend {
+        server 127.0.0.1:8080;
     }
 
     server {
+        listen 80;
+
         location / {
-            otel_trace $ratio_sampler;
+            otel_trace         on;
             otel_trace_context inject;
-
-            proxy_pass http://backend;
+            proxy_pass         http://backend;
         }
     }
 }
 ```
 
-## More info
+---
 
-- [NGINX Native OpenTelemetry module GitHub project](https://github.com/nginxinc/nginx-otel)
+## Verify the installation
 
-- [Official documentation for the NGINX Native OpenTelemetry module](https://nginx.org/en/docs/ngx_otel_module.html)
+1. Test the configuration:
 
-- [NGINX Plus technical specifications]({{< ref "/nginx/technical-specs.md" >}})
+    ```shell
+    sudo nginx -t
+    ```
 
-- [NGINX dynamic modules]({{< ref "dynamic-modules.md" >}})
+    The output ends with a successful test:
 
-- [Uninstalling a dynamic module]({{< ref "uninstall.md" >}})
+    ```none
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
+    ```
+
+1. Reload the configuration:
+
+    ```shell
+    sudo nginx -s reload
+    ```
+
+1. Send a request to a location with tracing. Replace `localhost` with your server name:
+
+    ```shell
+    curl -s -o /dev/null -w '%{http_code}\n' http://localhost/
+    ```
+
+1. Find the trace of the request in your tracing back end. Its service name is the value of `otel_service_name`.
+
+---
+
+## Troubleshooting
+
+### nginx -t reports an unknown directive
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] unknown directive "otel_exporter"`.
+
+**Cause**: The configuration uses a directive of the module, but no `load_module` directive loads the module.
+
+**Fix**: Add the `load_module` directive, as described in [Load the module](#load-the-module).
+
+---
+
+### nginx -t reports that the otel_exporter block is missing
+
+**Symptom**: `nginx -t` fails with the message `nginx: [emerg] "otel_exporter" block is missing`.
+
+**Cause**: The configuration turns on tracing with `otel_trace`, but it doesn't say where to send the traces.
+
+**Fix**: Add an `otel_exporter` block with an `endpoint` to the `http` block, as described in [Configure the module](#configure-the-module).
+
+---
+
+### Traces don't appear in the tracing back end
+
+**Symptom**: Requests succeed, but your tracing back end shows no traces from NGINX Plus.
+
+**Cause**: NGINX Plus can't reach the OTLP endpoint, or the endpoint doesn't forward the traces to the back end.
+
+**Fix**: Check the `endpoint` value and the NGINX Plus error log. Then check that the endpoint accepts OTLP over gRPC on that port.
+
+---
+
+## References
+
+For more information, see:
+
+- [Module ngx_otel_module](https://nginx.org/en/docs/ngx_otel_module.html)
+- [The nginx-otel project on GitHub](https://github.com/nginx/nginx-otel)
+- [OpenTracing]({{< ref "/nginx/admin-guide/dynamic-modules/opentracing.md" >}}), for moving from the OpenTracing module
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [Uninstall a dynamic module]({{< ref "/nginx/admin-guide/dynamic-modules/uninstall.md" >}})

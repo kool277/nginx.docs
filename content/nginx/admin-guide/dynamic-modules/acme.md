@@ -1,309 +1,276 @@
 ---
-description: Automates SSL/TLS certificate lifecycle management by enabling direct communication between clients and certificate authorities.
 title: ACME
+description: Install the ACME dynamic module in F5 NGINX Plus to get and renew TLS certificates automatically from Let's Encrypt and other ACME servers.
 toc: true
 weight: 100
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: installation-guide
+f5-product: F5 NGINX Plus
+f5-keywords: "ACME, Let's Encrypt, automatic certificates, acme_issuer, acme_certificate, nginx-plus-module-acme, HTTP-01, dynamic module"
+f5-summary: >
+  This guide shows how to install the ACME dynamic module in F5 NGINX Plus and get certificates with it.
+  The module implements the ACMEv2 protocol, so NGINX Plus requests and renews its own TLS certificates.
+  It works with Let's Encrypt and other certificate authorities that support ACME.
+f5-audience: operator
 ---
 
-The ACME protocol automates SSL/TLS certificate lifecycle management by enabling direct communication between clients and certificate authorities for issuance, installation, revocation, and replacement of SSL certificates. 
+## Overview
 
-The `nginx-plus-module-acme` module is an [NGINX-authored]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#nginx-authored-dynamic-modules" >}}) dynamic module that implements the automatic certificate management ([ACMEv2](https://www.rfc-editor.org/rfc/rfc8555.html)) protocol.
+The Automatic Certificate Management Environment (ACME) protocol, [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html), gets TLS certificates from a certificate authority (CA) without manual steps. The ACME dynamic module adds this protocol to F5 NGINX Plus. NGINX Plus requests certificates for its server names, proves to the CA that it controls them, and renews the certificates.
 
-The source code for the module is available in the official [GitHub repository](https://github.com/nginx/nginx-acme). The official documentation, including module reference and usage examples, is available on the [nginx.org](https://nginx.org/en/docs/http/ngx_http_acme_module.html) website.
+This is an [NGINX-authored module]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#nginx-authored-dynamic-modules" >}}). The `nginx-plus-module-acme` package in the NGINX Plus repository contains it, since NGINX Plus R35. Its source code is in the [nginx-acme project](https://github.com/nginx/nginx-acme) on GitHub, and its reference is the [ngx_http_acme_module documentation](https://nginx.org/en/docs/http/ngx_http_acme_module.html).
 
+---
 
-## Installation
+## Before you begin
 
-The installation process closely follows the [NGINX Plus installation procedure]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}). The module is available as the prebuilt `nginx-plus-module-acme` package for various Linux distributions and can be installed directly from the official NGINX Plus repository. Prior to installation, you need to add the NGINX Plus package repository for your distribution and update the repository metadata.
+Before you begin, make sure you have:
 
-1.  Check the [Technical Specifications]({{< ref "/nginx/technical-specs.md" >}}) page to verify that the module is supported by your operating system.
+- **NGINX Plus R35 or later**: NGINX Plus installed from the NGINX Plus repository. To check your release, run `nginx -v`. For the steps, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+- **A supported operating system**: For details, see [Dynamic modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) in the technical specifications.
+- **DNS records for your server names**: The CA checks that you control each name in the certificate, so each name must point to the NGINX Plus server.
+- **Port 80 open to the internet**: For the default HTTP-01 challenge, the CA sends HTTP requests to port 80 of each name, as [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html#section-8.3) describes.
+- **A DNS server for NGINX Plus**: The module finds the ACME server through the DNS server that the `resolver` directive sets.
+- **Root access**: You need `sudo` to install packages and to change the configuration.
 
-2.  Make sure you have the latest version of NGINX Plus. In Terminal, run the command:
+---
 
-    ```shell
-    nginx -v
-    ```
+## Install the module package
 
-    Expected output of the command:
+Install the `nginx-plus-module-acme` package from the NGINX Plus repository:
 
-    ```shell
-    nginx version: nginx/1.29.8 (nginx-plus-r37.0.0)
-    ```
-
-3.  Ensure you have the **nginx-repo.crt** and **nginx-repo.key** files from [MyF5 Customer Portal](https://account.f5.com/myf5) in the **/etc/ssl/nginx/** directory. These files are required for accessing the NGINX Plus repository.
-
-    ```shell
-    sudo cp <DOWNLOADED_FILE_NAME>.crt /etc/ssl/nginx/nginx-repo.crt && \
-    sudo cp <DOWNLOADED_FILE_NAME>.key /etc/ssl/nginx/nginx-repo.key
-    ```
-
-    In each command, replace `<DOWNLOADED_FILE_NAME>` with the corresponding downloaded filename without its `.crt` or `.key` extension.
-
-    For Alpine, the **nginx-repo.crt** to **/etc/apk/cert.pem** and **nginx-repo.key** files should be added to **/etc/apk/cert.key**. Ensure these files contain only the specific key and certificate as Alpine Linux does not support mixing client certificates for multiple repositories.
-
-    For FreeBSD, the path to these files should also be added to the `/usr/local/etc/pkg.conf` file:
+- RHEL and its derivatives, and Amazon Linux 2023:
 
     ```shell
-    PKG_ENV: { SSL_NO_VERIFY_PEER: "1",
-    SSL_CLIENT_CERT_FILE: "/etc/ssl/nginx/nginx-repo.crt",
-    SSL_CLIENT_KEY_FILE: "/etc/ssl/nginx/nginx-repo.key" }
-    ```
-
-4.  Ensure that all required dependencies for your operating system are installed.
-
-    For Amazon Linux 2023, AlmaLinux, CentOS, Oracle Linux, RHEL, and Rocky Linux:
-
-    ```shell
-    sudo dnf update && \
-    sudo dnf install ca-certificates
-    ```
-
-    For Debian:
-
-    ```shell
-    sudo apt update && \
-    sudo apt install apt-transport-https \
-                     lsb-release \
-                     ca-certificates \
-                     wget \
-                     gnupg2 \
-                     debian-archive-keyring
-    ```
-
-    For Ubuntu:
-
-    ```shell
-    sudo apt update  && \
-    sudo apt install apt-transport-https \
-                     lsb-release \
-                     ca-certificates \
-                     wget \
-                     gnupg2 \
-                     ubuntu-keyring
-    ```
-
-    For FreeBSD:
-
-    ```shell
-    sudo pkg update  && \
-    sudo pkg install ca_root_nss
-    ```
-
-5.  Ensure that the NGINX signing key has been added, if required by your operating system.
-
-    For Debian:
-
-    ```shell
-    wget -qO - https://cs.nginx.com/static/keys/nginx_signing.key \
-    | gpg --dearmor \
-    | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-    ```
-
-    For Ubuntu:
-
-    ```shell
-    printf "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-    https://pkgs.nginx.com/plus/ubuntu `lsb_release -cs` nginx-plus\n" \
-    | sudo tee /etc/apt/sources.list.d/nginx-plus.list
-    ```
-
-    For Alpine:
-
-    ```shell
-    sudo wget -O /etc/apk/keys/nginx_signing.rsa.pub https://cs.nginx.com/static/keys/nginx_signing.rsa.pub
-    ```
-
-6.  Ensure that your package management system is configured to pull packages from the NGINX Plus repository. See [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) for details.
-
-7.  Update the repository information and install the `nginx-plus-module-acme` package. In a terminal, run the appropriate command for your operating system.
-
-    For CentOS, Oracle Linux, and RHEL:
-
-    ```shell
-    sudo yum update  && \
-    sudo yum install nginx-plus-module-acme
-    ```
-
-    For Amazon Linux 2023, AlmaLinux, Rocky Linux:
-
-    ```shell
-    sudo dnf update  && \
     sudo dnf install nginx-plus-module-acme
     ```
 
-    For Debian and Ubuntu:
+- Debian and Ubuntu:
 
     ```shell
-    sudo apt update  && \
+    sudo apt update
     sudo apt install nginx-plus-module-acme
     ```
 
-    For Alpine:
+- SLES:
 
     ```shell
-    sudo apk update  && \
+    sudo zypper install nginx-plus-module-acme
+    ```
+
+- Alpine Linux:
+
+    ```shell
     sudo apk add nginx-plus-module-acme
     ```
 
-    For FreeBSD:
+- FreeBSD:
 
     ```shell
-    sudo pkg update  && \
     sudo pkg install nginx-plus-module-acme
     ```
 
-    The resulting `ngx_http_acme_module.so`  dynamic module will be written to the following directory, depending on your operating system:
+---
 
-   - `/usr/lib64/nginx/modules/` for most Linux distributions
-   - `/usr/lib/nginx/modules` for Debian, Ubuntu, Alpine
-   - `/usr/local/etc/nginx/modules` for FreeBSD
+## Load the module
 
-8.  Enable dynamic loading of the module.
+1. Open the NGINX Plus configuration file: `/etc/nginx/nginx.conf` on Linux, or `/usr/local/etc/nginx/nginx.conf` on FreeBSD.
 
-    - In a text editor, open the NGINX Plus configuration file (`/etc/nginx/nginx.conf` for Linux or `/usr/local/etc/nginx/nginx.conf` for FreeBSD).
-
-    -  On the top-level (or “`main`”) context, specify the path to the dynamic module with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive:
+1. At the top of the file, before the `events` block, add the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive:
 
     ```nginx
     load_module modules/ngx_http_acme_module.so;
+    ```
 
-    http {
-    #...
+---
+
+## Configure the module
+
+These steps get a certificate from Let's Encrypt for `example.com` and `www.example.com`. Replace the names and the email address with your own.
+
+1. In the `http` block, set a DNS server, and define the CA with an [`acme_issuer`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#acme_issuer) block:
+
+    ```nginx
+    resolver 127.0.0.1:53;
+
+    acme_issuer letsencrypt {
+        uri         https://acme-v02.api.letsencrypt.org/directory;
+        contact     admin@example.com;
+        state_path  /var/cache/nginx/acme-letsencrypt;
+        accept_terms_of_service;
     }
     ```
-    - Save the configuration file.
 
-9.  Test the NGINX Plus configuration. In a terminal, type-in the command:
+    Where:
 
-    ```shell
-    nginx -t
+    - `resolver` sets the DNS server that NGINX Plus uses. Replace `127.0.0.1:53` with a DNS server that the NGINX Plus server can reach.
+    - `uri` is the directory URL of the ACME server.
+    - `contact` is the email address that the CA uses for messages about your account.
+    - `state_path` is the directory where the module keeps the account key, the certificates, and their private keys. NGINX Plus creates it. Keep it private.
+    - `accept_terms_of_service` accepts the terms of service of the CA. Some CAs require it. Read the terms first.
+
+    To test your setup, use the Let's Encrypt staging directory, `https://acme-staging-v02.api.letsencrypt.org/directory`. Its rate limits are higher, but browsers don't trust its certificates.
+
+1. Optional: If you have many certificates, make the shared memory zone of the module bigger with [`acme_shared_zone`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#acme_shared_zone). The default size, `256k`, holds about 50 ECDSA keys or 35 RSA keys.
+
+    ```nginx
+    acme_shared_zone zone=ngx_acme_shared:1M;
     ```
 
-    Expected output of the command:
+1. If no server listens on port 80, add one. The CA sends the HTTP-01 challenge requests to port 80:
 
-    ```shell
-    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
-    nginx: configuration file /etc/nginx/nginx.conf is successful
-    ```
+    ```nginx
+    server {
+        listen 80;
 
-10. Reload the NGINX Plus configuration to enable the module:
-
-    ```shell
-    nginx -s reload
-    ```
-
-## Configuration
-
-In a text editor, open the NGINX Plus configuration file:
-  - `/etc/nginx/nginx.conf` for Linux
-  - `/usr/local/etc/nginx/nginx.conf` for FreeBSD
-
-
-For a complete list of directives and variables refer to the `ngx_http_acme_module` [official documentation](https://nginx.org/en/docs/http/ngx_http_acme_module.html) and [NGINX ACME module GitHub project](https://github.com/nginx/nginx-acme).
-
-1. To enable ACME functionality, specify the directory URL of the ACME server with the [`uri`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#uri) directive.
-
-   Additionally, you can provide information regarding how to contact the client in case of certificate-related issues or where to store module data with the [`contact`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#contact) and [`state_path`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#state_path) directives.
-
-   ```nginx
-   acme_issuer letsencrypt {
-       uri         https://acme-v02.api.letsencrypt.org/directory;
-       # contact   admin@example.test;
-       state_path  /var/cache/nginx/acme-letsencrypt;
-
-       accept_terms_of_service;
-   }
-   ```
-
-2. If necessary, you can increase the default shared memory zone that stores certificates, private keys, and challenge data for all the configured certificate issuers with the [`acme_shared_zone`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#acme_shared_zone) directive. The default  zone size is `256k`.
-
-   ```nginx
-   acme_shared_zone zone=acme_shared:1M;
-   ```
-
-3. Configure Challenges by defining a listener on port 80 in the nginx configuration to process ACME HTTP-01 challenges:
-
-   ```nginx
-   server {
-       # listener on port 80 is required to process ACME HTTP-01 challenges
-       listen 80;
-
-       location / {
-           #Serve a basic 404 response while listening for challenges
-           return 404;
+        location / {
+            return 404;
         }
-   }
-   ```
+    }
+    ```
 
-4. Automate the issuance or renewal of TLS certificates with the [`acme_certificate`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#acme_certificate) directive in the respective [`server`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) block. The directive requires the list of identifiers (domains) for which the certificates need to be dynamically issued that can be defined with the [`server_name`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) directive. The [`$acme_certificate`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_acme_certificate_key) and [`$acme_certificate_key`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_acme_certificate_key) variables are used to pass the SSL certificate and key information for the associated domain:
+    The module answers the requests to `/.well-known/acme-challenge/` before the rest of the server configuration applies. This server can also redirect other requests to HTTPS.
 
-   ```nginx
-   server {
+1. In the HTTPS server, request a certificate with [`acme_certificate`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#acme_certificate), and use it:
 
-       listen 443 ssl;
+    ```nginx
+    server {
+        listen 443 ssl;
+        server_name .example.com;
 
-       server_name  .example.com;
+        acme_certificate letsencrypt;
 
-       acme_certificate letsencrypt;
+        ssl_certificate       $acme_certificate;
+        ssl_certificate_key   $acme_certificate_key;
+        ssl_certificate_cache max=2;
+    }
+    ```
 
-       ssl_certificate       $acme_certificate;
-       ssl_certificate_key   $acme_certificate_key;
-       ssl_certificate_cache max=2;
-   }
-   ```
+    Where:
 
-   Note that not all values accepted by the [`server_name`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) directive are valid identifiers. Wildcards and regular expressions are not supported.
+    - `acme_certificate` requests a certificate from the issuer for the names in `server_name`. A name with a leading dot, such as `.example.com`, stands for `example.com` and `www.example.com`. Regular expressions and wildcard names, such as `*.example.com`, aren't supported.
+    - The [`$acme_certificate`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#var_acme_certificate) and [`$acme_certificate_key`](https://nginx.org/en/docs/http/ngx_http_acme_module.html#var_acme_certificate_key) variables pass the certificate and its private key to NGINX Plus.
+    - [`ssl_certificate_cache`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_certificate_cache) keeps the certificate in memory, so NGINX Plus doesn't load it for each TLS handshake.
 
-
-## Full example
+This is the complete configuration:
 
 ```nginx
-resolver 127.0.0.1:53;
+load_module modules/ngx_http_acme_module.so;
 
-acme_issuer example {
-    uri         https://acme.example.com/directory;
-    # contact   admin@example.test;
-    state_path  /var/cache/nginx/acme-example;
-    accept_terms_of_service;
-}
+events {}
 
-acme_shared_zone zone=ngx_acme_shared:1M;
+http {
+    resolver 127.0.0.1:53;
 
-server {
-    listen 443 ssl;
-    server_name  .example.test;
+    acme_issuer letsencrypt {
+        uri         https://acme-v02.api.letsencrypt.org/directory;
+        contact     admin@example.com;
+        state_path  /var/cache/nginx/acme-letsencrypt;
+        accept_terms_of_service;
+    }
 
-    acme_certificate example;
+    server {
+        listen 80;
 
-    ssl_certificate       $acme_certificate;
-    ssl_certificate_key   $acme_certificate_key;
+        location / {
+            return 404;
+        }
+    }
 
-    # do not parse the certificate on each request
-    ssl_certificate_cache max=2;
-}
+    server {
+        listen 443 ssl;
+        server_name .example.com;
 
-server {
-    # listener on port 80 is required to process ACME HTTP-01 challenges
-    listen 80;
+        acme_certificate letsencrypt;
 
-    location / {
-        return 404;
+        ssl_certificate       $acme_certificate;
+        ssl_certificate_key   $acme_certificate_key;
+        ssl_certificate_cache max=2;
     }
 }
 ```
 
-## More info
+---
 
-- [Native support for ACME blog post](https://blog.nginx.org/blog/native-support-for-acme-protocol)
+## Verify the installation
 
-- [NGINX ACME module GitHub project](https://github.com/nginx/nginx-acme)
+1. Test the configuration:
 
-- [Official documentation for the NGINX ACME module](https://nginx.org/en/docs/http/ngx_http_acme_module.html)
+    ```shell
+    sudo nginx -t
+    ```
 
-- [NGINX Plus technical specifications]({{< ref "/nginx/technical-specs.md" >}})
+    The output ends with a successful test:
 
-- [NGINX dynamic modules]({{< ref "dynamic-modules.md" >}})
+    ```none
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
+    ```
 
-- [Uninstalling a dynamic module]({{< ref "uninstall.md" >}})
+1. Reload the configuration:
+
+    ```shell
+    sudo nginx -s reload
+    ```
+
+1. Check the certificate that the server sends. Replace `example.com` with one of your server names:
+
+    ```shell
+    openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null | openssl x509 -noout -issuer -subject -enddate
+    ```
+
+    The `issuer` line names your CA, for example Let's Encrypt. If the command shows no certificate, wait a minute, and check the error log.
+
+---
+
+## Troubleshooting
+
+### nginx -t reports an unknown directive
+
+**Symptom**: `nginx -t` fails with the message `nginx: [emerg] unknown directive "acme_issuer"`.
+
+**Cause**: The configuration uses a directive of the module, but no `load_module` directive loads the module.
+
+**Fix**: Add the `load_module` directive, as described in [Load the module](#load-the-module).
+
+---
+
+### nginx -t reports that no identifiers were found
+
+**Symptom**: `nginx -t` fails with the message `nginx: [emerg] "acme_certificate": no identifiers found in "server_name"`.
+
+**Cause**: The `server_name` directive of the server has no name that the module can use. The module skips regular expressions, and it reports each one with a warning such as `"acme_certificate": unsupported regular expression in server_name`.
+
+**Fix**: Add a plain name to `server_name`, or list the names after the issuer, for example `acme_certificate letsencrypt example.com www.example.com;`.
+
+---
+
+### nginx -t reports that the resolver isn't configured
+
+**Symptom**: `nginx -t` fails with a message that ends with `"resolver" is not configured`.
+
+**Cause**: The module needs a DNS server to find the ACME server, but the `http` block has no `resolver` directive.
+
+**Fix**: Add a `resolver` directive to the `http` block, as described in [Configure the module](#configure-the-module).
+
+---
+
+### The CA doesn't issue the certificate
+
+**Symptom**: The server doesn't send a certificate from your CA, and the error log shows errors from the module.
+
+**Cause**: The CA can't reach port 80 for a name in the certificate. Or the DNS record of the name doesn't point to the server.
+
+**Fix**: Open port 80 in your firewall, check the DNS records, and reload the configuration.
+
+---
+
+## References
+
+For more information, see:
+
+- [Module ngx_http_acme_module](https://nginx.org/en/docs/http/ngx_http_acme_module.html)
+- [The nginx-acme project on GitHub](https://github.com/nginx/nginx-acme)
+- [Native support for the ACME protocol](https://blog.nginx.org/blog/native-support-for-acme-protocol)
+- [RFC 8555: Automatic Certificate Management Environment (ACME)](https://www.rfc-editor.org/rfc/rfc8555.html)
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [Uninstall a dynamic module]({{< ref "/nginx/admin-guide/dynamic-modules/uninstall.md" >}})

@@ -1,99 +1,170 @@
 ---
-description: Replace text in response bodies, using regular expressions and fixed
-  strings, with the HTTP Substitutions Filter dynamic module supported by NGINX, Inc.
 title: HTTP Substitutions Filter
+description: Install and load the HTTP Substitutions Filter dynamic module in F5 NGINX Plus to replace text in response bodies.
 toc: true
 weight: 100
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: installation-guide
+f5-product: F5 NGINX Plus
+f5-keywords: "substitutions filter, subs_filter, replace text, response body, nginx-plus-module-subs-filter, dynamic module"
+f5-summary: >
+  This guide shows how to install and load the HTTP Substitutions Filter dynamic module in F5 NGINX Plus.
+  The module replaces text in response bodies, with regular expressions or fixed strings.
+f5-audience: operator
 ---
 
-The HTTP Substitutions Filter dynamic module replaces text in response bodies, using regular expressions and fixed strings.
+## Overview
 
-## Installation
+The HTTP Substitutions Filter dynamic module replaces text in response bodies, with regular expressions or fixed strings. It's an [NGINX-certified community module](https://github.com/yaoweibin/ngx_http_substitutions_filter_module) that F5 packages for NGINX Plus.
 
-1. Check the [Technical Specifications]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) page to verify that the module is supported by your operating system.
+The `nginx-plus-module-subs-filter` package in the NGINX Plus repository contains the module. For NGINX-certified community modules, F5 supports the [installation and basic configuration]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#nginx-certified-community-dynamic-modules" >}}).
 
-2. Make sure that your operating system is configured to retrieve binary packages from the official NGINX Plus repository. See installation instructions for your operating system on the [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) page.
+---
 
-3. Install the HTTP Substitutions Filter module package `nginx-plus-module-subs-filter` from the official NGINX Plus repository.
+## Before you begin
 
-   For Amazon Linux 2, CentOS, Oracle Linux, and RHEL:
+Before you begin, make sure you have:
 
-   ```shell
-   sudo yum update && \
-   sudo yum install nginx-plus-module-subs-filter
-   ```
+- **NGINX Plus**: NGINX Plus installed from the NGINX Plus repository. For the steps, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+- **A supported operating system**: Dynamic modules are available on the same operating systems as NGINX Plus, with a few exceptions. For details, see [Dynamic modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) in the technical specifications.
+- **Root access**: You need `sudo` to install packages and to change the configuration.
 
-   For Amazon Linux 2023, AlmaLinux, Rocky Linux:
+---
 
-   ```shell
-   sudo dnf update && \
-   sudo dnf install nginx-plus-module-subs-filter
-   ```
+## Install the module package
 
-   For Debian and Ubuntu:
+Install the `nginx-plus-module-subs-filter` package from the NGINX Plus repository:
 
-   ```shell
-   sudo apt update && \
-   sudo apt install nginx-plus-module-subs-filter
-   ```
-
-   For SLES:
-
-   ```shell
-   sudo zypper refresh && \
-   sudo zypper install nginx-plus-module-subs-filter
-   ```
-
-   For FreeBSD:
-
-   ```shell
-   sudo pkg update && \
-   sudo pkg install nginx-plus-module-subs-filter
-   ```
-
-## Configuration
-
-After installation you will need to enable and configure the module in F5 NGINX Plus configuration file `nginx.conf`.
-
-1. Enable dynamic loading of the module with the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive specified in the top-level (“`main`”) context:
-
-   ```nginx
-   load_module modules/ngx_http_subs_filter_module.so;
-
-   http {
-       # ...
-   }
-   ```
-
-2. Perform additional configuration as required by the [module](https://github.com/yaoweibin/ngx_http_substitutions_filter_module).
-
-3. Test the NGINX Plus configuration. In a terminal, type-in the command:
+- RHEL and its derivatives, and Amazon Linux 2023:
 
     ```shell
-    nginx -t
+    sudo dnf install nginx-plus-module-subs-filter
     ```
 
-    Expected output of the command:
+- Debian and Ubuntu:
 
     ```shell
+    sudo apt update
+    sudo apt install nginx-plus-module-subs-filter
+    ```
+
+- SLES:
+
+    ```shell
+    sudo zypper install nginx-plus-module-subs-filter
+    ```
+
+- Alpine Linux:
+
+    ```shell
+    sudo apk add nginx-plus-module-subs-filter
+    ```
+
+- FreeBSD:
+
+    ```shell
+    sudo pkg install nginx-plus-module-subs-filter
+    ```
+
+---
+
+## Load the module
+
+1. Open the NGINX Plus configuration file: `/etc/nginx/nginx.conf` on Linux, or `/usr/local/etc/nginx/nginx.conf` on FreeBSD.
+
+1. At the top of the file, before the `events` block, add the [`load_module`](https://nginx.org/en/docs/ngx_core_module.html#load_module) directive:
+
+    ```nginx
+    load_module modules/ngx_http_subs_filter_module.so;
+    ```
+
+---
+
+## Configure the module
+
+Set up the module as described in its [documentation](https://github.com/yaoweibin/ngx_http_substitutions_filter_module).
+
+---
+
+## Verify the installation
+
+1. Test the configuration:
+
+    ```shell
+    sudo nginx -t
+    ```
+
+    The output ends with a successful test:
+
+    ```none
     nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
-    nginx: configuration file /etc/nginx/nginx.conf is successful
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
     ```
 
-4. Reload the NGINX Plus configuration to enable the module:
+1. Reload the configuration:
 
     ```shell
-    nginx -s reload
+    sudo nginx -s reload
     ```
 
-## More info
+---
 
-- [NGINX Substitution Filter GitHub project](https://github.com/yaoweibin/ngx_http_substitutions_filter_module)
+## Troubleshooting
 
-- [NGINX dynamic modules]({{< ref "dynamic-modules.md" >}})
+### nginx -t reports that dlopen() failed
 
-- [NGINX Plus technical specifications]({{< ref "/nginx/technical-specs.md" >}})
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] dlopen() "/etc/nginx/modules/ngx_http_subs_filter_module.so" failed (/etc/nginx/modules/ngx_http_subs_filter_module.so: cannot open shared object file: No such file or directory)`.
 
-- [Uninstalling a dynamic module]({{< ref "uninstall.md" >}})
+**Cause**: The module package isn't installed, or the file name in `load_module` is wrong.
+
+**Fix**: Install the package, and check the file names in `/etc/nginx/modules/`, or in `/usr/local/etc/nginx/modules/` on FreeBSD.
+
+---
+
+### nginx -t reports an unknown directive
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] unknown directive "subs_filter"`.
+
+**Cause**: The configuration uses a directive of the module, but no `load_module` directive loads the module.
+
+**Fix**: Add the `load_module` directive, as described in [Load the module](#load-the-module).
+
+---
+
+### nginx -t reports that load_module is specified too late
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] "load_module" directive is specified too late in /etc/nginx/nginx.conf:12`.
+
+**Cause**: The `load_module` directive comes after an `events`, `http`, `stream`, or `mail` block.
+
+**Fix**: Move the `load_module` directive to the top of the file, before those blocks.
+
+---
+
+### nginx -t reports that a module is already loaded
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] module "ngx_http_subs_filter_module" is already loaded`.
+
+**Cause**: Two `load_module` directives load the same file. This can happen when several modules need the same module, such as the NDK.
+
+**Fix**: Keep only the first `load_module` directive for that file.
+
+---
+
+### nginx -t reports a module version mismatch
+
+**Symptom**: `nginx -t` or a reload fails with a message such as `nginx: [emerg] module "/etc/nginx/modules/ngx_http_subs_filter_module.so" version 1029003 instead of 1029008`.
+
+**Cause**: The module package doesn't match the NGINX Plus version, for example after you upgrade NGINX Plus but not the module.
+
+**Fix**: Upgrade the module package to the version of NGINX Plus, as described in [Upgrade NGINX Plus modules]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md#upgrade_modules" >}}).
+
+---
+
+## References
+
+For more information, see:
+
+- [The ngx_http_substitutions_filter_module project on GitHub](https://github.com/yaoweibin/ngx_http_substitutions_filter_module)
+- [Dynamic Modules]({{< ref "/nginx/admin-guide/dynamic-modules/dynamic-modules.md" >}})
+- [NGINX Plus Technical Specifications]({{< ref "/nginx/technical-specs.md" >}})
+- [Uninstall a dynamic module]({{< ref "/nginx/admin-guide/dynamic-modules/uninstall.md" >}})

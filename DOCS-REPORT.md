@@ -1,13 +1,13 @@
 # Documentation report: branch `claude/bugfixes-and-docs`
 
-This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done from 2026-11-14 to 2026-11-17. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
+This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done from 2026-11-14 to 2026-11-23. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
 
 ## Branch state
 
 | | |
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
-| Head | the commit that adds this version of the report (the last page commit is `73753c47`) |
+| Head | the commit that adds this version of the report (the last page commit is `378638aa`) |
 | Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 25 behind on 2026-11-20. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed. One of them, `2f7284a5` ("remove stale EOL release-version callouts"), changes 8 pages that this branch also rewrote: `live-activity-monitoring.md`, `dynamic-configuration-api.md`, `grpc-health-check.md`, `http-load-balancer.md`, `using-proxy-protocol.md`, `denylisting-ip-addresses.md`, `securing-tcp-traffic-upstream.md` and `terminating-ssl-tcp.md`. It replaces NGINX Plus release callouts such as "R13 or later" with "a supported release", and turns `<span>` anchors into heading IDs. A later merge will have text conflicts on these pages; the anchors themselves are the same on both sides. On `live-activity-monitoring.md`, this branch makes the same removal of release callouts in `07f242e4`, so the conflict there is in wording only. |
 
 ## Scope
@@ -25,6 +25,8 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 - **Diagrams:** each was validated with the Mermaid CLI and has a text description next to it.
 - **Checks:** each page lints clean, link-checks with no new failures, and builds with Hugo.
 - **Review:** a fresh reviewer then followed each page literally on a running nginx, and everything that reviewer found was fixed and checked again. Page 9 was committed before its review and fixed in a follow-up commit, `46f7e06e`.
+
+From page 31 on ([decision 10](#decisions)), each page uses the template of its content type: the installation guide template for the install and module pages, and the how-to template for the rest. Cloud console steps (AWS, Azure, Google Cloud, NS1) were checked against the providers' current documentation, not in live consoles. The single sign-on, third-party load balancing and NS1 guides were edited in parts, with scripts for their shared text. Each group of pages was reviewed by a fresh reviewer before its commit.
 
 ## Pages finished
 
@@ -49,7 +51,6 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 17 | `admin-guide/load-balancer/grpc-health-check.md` | `16856252`, `28deafbd` | The gRPC health check decision |
 | 18 | `admin-guide/load-balancer/using-proxy-protocol.md` | `a4e64ef3` | A PROXY protocol header through NGINX, with Real IP |
 | 19 | `admin-guide/load-balancer/dynamic-configuration-api.md` | `f2b86498` | An API change through the shared memory zone and the state file |
-
 | 20 | `admin-guide/security-controls/terminating-ssl-tcp.md` | `03f17b93` | A TLS connection through the stream proxy |
 | 21 | `admin-guide/security-controls/securing-http-traffic-upstream.md` | `524e4c25` | How NGINX opens and checks a TLS connection to an upstream server |
 | 22 | `admin-guide/security-controls/securing-tcp-traffic-upstream.md` | `cddcb8b5` | A TLS connection from NGINX to a TCP upstream |
@@ -61,6 +62,23 @@ Each page was rewritten to the how-to template: overview, prerequisites, how it 
 | 28 | `admin-guide/security-controls/denylisting-ip-addresses.md` | `73753c47` | A denylist lookup and its updates through the API |
 | 29 | `admin-guide/monitoring/debugging.md` | `b24e322d` | None. The page is a set of separate procedures with no flow that a diagram explains better than text. |
 | 30 | `admin-guide/monitoring/live-activity-monitoring.md` | `2cdc5798` | None. The page already has screenshots of each dashboard tab. |
+| 31 | `admin-guide/installing-nginx/installing-nginx-open-source.md` | `37586cd9` | None |
+| 32 | `admin-guide/installing-nginx/installing-nginx-plus.md` | `bb4cc05a` | None |
+| 33 | `admin-guide/installing-nginx/installing-nginx-plus-lts.md` | `026bc97d`, `fdfaddb4` | None |
+| 34 | `admin-guide/installing-nginx/upgrading-nginx-plus.md` | `94880209` | None |
+| 35–37 | `admin-guide/installing-nginx/installing-nginx-plus-{amazon-web-services,microsoft-azure,google-cloud-platform}.md` | `6ec1a6ff` | None |
+| 38 | `admin-guide/installing-nginx/installing-nginx-docker.md` | `253093ad` | None |
+| 39 | `admin-guide/installing-nginx/installing-nginx-plus-unprivileged-kubernetes-openshift.md` | `216254e6` | None |
+| 40–65 | `admin-guide/dynamic-modules/*` (26 pages: the overview, 17 module pages, ACME, OpenTelemetry, Prometheus-njs, uninstall, three migration pages for removed modules, and the section index) | `e829725b`, `2a79f52d`, `f94d84b2` | None |
+| 66 | `deployment-guides/setting-up-nginx-demo-environment.md` | `2734b4a1` | None |
+| 67–70 | `deployment-guides/amazon-web-services/*` (EC2, keepalived, NLB, EKS) | `e7894794` | None |
+| 71–72 | `deployment-guides/microsoft-azure/*` | `41d3ef33` | None |
+| 73 | `deployment-guides/google-cloud-platform/high-availability-all-active.md` | `03eef3bd` | None |
+| 74 | `deployment-guides/global-server-load-balancing/ns1-global-server-load-balancing.md` | `ccb69f2b` | None |
+| 75–76 | `deployment-guides/migrate-hardware-adc/*` (F5 BIG-IP, Citrix ADC) | `7aa8c415` | None |
+| 77–84 | `deployment-guides/single-sign-on/*` (8 OpenID Connect guides) | `be7fd45b` | None |
+| 85–92 | `deployment-guides/single-sign-on/oidc-njs/*` (7 legacy njs guides and the section index) | `2796c6ed` | None |
+| 93–98 | `deployment-guides/load-balance-third-party/*` (6 guides) | `378638aa` | None |
 
 The whole `admin-guide/load-balancer/` and `admin-guide/security-controls/` sections are now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
 
@@ -68,13 +86,16 @@ These pages keep every URL, file path and anchor. Headings keep their wording or
 
 ## Pages not reached
 
-This work didn't reach 105 of the 135 pages in `content/nginx/`. They keep their original text and weren't checked. In the requested order, the next pages are:
+This work didn't reach 18 of the 135 pages in `content/nginx/`, nor 19 section index pages that hold only front matter. They keep their original text and weren't checked. The next pages are:
 
-- `admin-guide/installing-nginx/*`
-- `admin-guide/dynamic-modules/*`
-- `deployment-guides/*`
+- `admin-guide/high-availability/*` (5 pages)
+- `admin-guide/mail-proxy/mail-proxy.md`
+- `admin-guide/monitoring/{diagnostic-package,new-relic-plugin,nginx-plus-api-reference}.md`
+- `admin-guide/web-server/{app-gateway-uwsgi-django,http-connect-proxy}.md`
+- `admin-guide/basic-functionality/control-api-reference.md`
+- The top-level pages `directives.md`, `variables.md`, `technical-specs.md`, `open-source-components.md`, `fips-compliance-nginx-plus.md` and `releases.md`
 
-The 8 pages in the section that use shared includes weren't reached either.
+Shared include files under `content/includes/` stay unchanged ([decision 9](#decisions)). Where an include on a rewritten page was wrong, the page got corrected text instead.
 
 ## Defects fixed
 
@@ -237,11 +258,94 @@ The page that each fix applies to is in brackets. Source references are in the n
   - The dashboard and Swagger UI expect the API at `/api`. Swagger UI must be pointed at the YAML file, and inline scripts are blocked by the page's CSP header.
   - Fixed the "Non synced data threshold" label, the Caches text ("upstream group"), the alt text of the Resolvers image, the broken `#the-swagger-ui`, `uwsgi_cache_path` and `ngx_mgmt_module` links, and the `usr/share` path. Kept the 6 anchors that other pages link to, including the generated `#gathering-data-to-appear-in-statistics`.
 
+- **[open source install]**
+  - The versions were out of date: on 2026-11-21, mainline was 1.31.9 and stable was 1.30.7, not 1.31.7 and 1.30.5.
+  - The key check `gpg --dry-run --import --import-options import-show` fails on a new system with "gpg: Fatal: /root/.gnupg: directory does not exist!". The page now uses `gpg --show-keys`.
+  - Debian and Ubuntu packages start nginx when they're installed, so the page's next `sudo nginx` failed with "bind() ... failed (98: Address already in use)". RPM packages don't start nginx, so the page now runs `systemctl enable --now`.
+  - Alpine's own nginx package is in `main`, not `community`. EPEL 9 and 10 have no nginx package, but the Rocky Linux AppStream repository has one. The SUSE package is in the Server Applications Module.
+  - `--with-control-api` builds the Control API that `-l` turns on (1.31.5); the page called it a UNIX socket of the master process. `http_grpc` is built only with HTTP/2 (`auto/modules:807`).
+  - The zlib download link returned 404 after zlib 1.4 came out on 2026-11-05. The links now point to the GitHub releases.
+  - The module lists now follow `auto/options` on `master`, including `tunnel` and `least_time` (1.31.0), `sticky` (1.29.6) and `http_json` (1.31.5). `--with-google-perftools` is `--with-google_perftools_module`.
+- **[NGINX Plus install]** (NGINX Plus)
+  - `dnf update` and `yum update` upgraded every package on the system; now `dnf makecache` and a plain install. The RHEL steps never started NGINX Plus.
+  - The Debian and Ubuntu signing key was never checked. The pin steps edited `nginx-plus-8.repo`, but the page downloads `plus-8.repo`, and RHEL 10 used the RHEL 9 pin.
+  - apt reports a missing or unreadable client certificate as "Could not load client certificate ... No such file or directory" or "... Permission denied". The page quoted "No required SSL certificate was sent", which apt doesn't print.
+  - `rpm -ihv` doesn't replace an older package; now `rpm -Uvh`. A local Alpine package without the signing key fails with "UNTRUSTED signature".
+  - The unprivileged install script needs `-j` from R33 on (it exits with "-j option is mandatory"), GNU `wget` and `cpio`, and it moves the default listener to port 8080. The run command pointed `-c` at a directory.
+  - `load_module` must come before the `events` block (`ngx_module.c:150`). The build dependencies `libpcre3-dev` and `pcre-devel` are gone from Debian 13 and Rocky Linux 10; now `libpcre2-dev` and `pcre2-devel`.
+  - Fixed typos (NIGNX, NGNIX, weareable), an empty LTS link, a dead NGINX Agent link and a broken anchor.
+- **[LTS, upgrade]** (NGINX Plus)
+  - Installing `nginx-plus` again doesn't move a newer CR release back to LTS: apt says "nginx-plus is already the newest version". A new section gives the downgrade command for each package manager.
+  - The unprivileged install script uses the CR repository by default (`ngxunprivinst.sh:121`). The LTS page now says how to change it.
+- **[cloud images]** (NGINX Plus)
+  - Azure: a VM joins an availability set only when it's created, so the steps now create the set first.
+- **[Docker]**
+  - The Engine API log command used `--unix-sock`, `/var/run/docker-sock` and an unquoted `&`. It needs `--unix-socket /var/run/docker.sock`, a quoted URL, and `--output -` with curl 8.5.
+  - The image doesn't read the bind mount target `/etc/nginx/conf`; now `/etc/nginx/conf.d`.
+  - The NGINX Plus build removed the certificate and key from the image, but kept the JWT license. The page now says so.
+  - The page said a container has no shell access; `docker exec` gives one. A failed container keeps its name, so `docker rm` comes first.
+- **[unprivileged Kubernetes and OpenShift]** (NGINX Plus)
+  - The `jsonpath` query needs the escaped key `openshift\.io/scc`. `build.sh` requires `-a`, and `start.sh` reads only `NGINX_LICENSE`.
+  - `start.sh` fails under a random OpenShift UID (`whoami`, `sg`, `su`). The builder always skips TLS verification for NGINX Agent v3 (`start.sh:60`). Both are now cautions.
+- **[dynamic modules]**
+  - The XSLT module file is `ngx_http_xslt_filter_module.so` (`auto/modules:317`), and the SPNEGO file is `ngx_http_auth_spnego_module.so`. A dynamic build confirmed the names.
+  - `load_module` paths are relative to the prefix (`nginx.c:1671`). The pages now explain the errors for a late `load_module` (`ngx_module.c:150`), a version mismatch (`:172`) and a module loaded twice (`:187`).
+  - OpenTelemetry: `otel_trace` without `otel_exporter` fails `nginx -t` with `"otel_exporter" block is missing`, so all three old examples were broken. The project moved to `nginx/nginx-otel`.
+  - OpenTracing: with the default `opentracing_trust_incoming_span on`, `opentracing_propagate_context` matches `otel_trace_context propagate`, not `inject`.
+  - Prometheus-njs: the examples had mismatched key-value zone names, an undefined `$domain`, an extra `}` and an unclosed `stream` block. `js_include` was removed in njs 0.7.1.
+  - ACME needs a `resolver`. The `$acme_certificate` links pointed to the core module.
+  - Cookie-Flag: `proxy_cookie_flags` (1.19.3) replaces the module. The first matching rule wins (`ngx_http_proxy_module.c:3159`).
+  - The overview linked Prometheus-njs to a separate Go exporter.
+- **[demo environment]**
+  - `include conf.d/*.conf` in the main context fails with `"server" directive is not allowed here`.
+  - `location /application1` with `proxy_pass http://app1/` sent `//` to the web servers.
+  - 29 non-breaking spaces in the demo HTML broke `grep`.
+  - With Debian and Ubuntu packages, `sites-enabled/default` causes "a duplicate default server" (`ngx_http.c:1369`).
+- **[AWS]**
+  - EC2: the step that restricted outbound traffic came before the install, which needs it. NGINX Plus R33 and later also needs outbound HTTPS for usage reports.
+  - keepalived: the demo's notify script uses IMDSv1, which fails with 401 when IMDSv2 is required, and Python 2 `print` statements. VRRP needs a rule for IP protocol 112.
+  - NLB: the verify step used `/backend-one`, but the demo environment serves `/application1/`. The steps now follow the current console, with security groups. The Packer and Terraform demo no longer runs.
+  - EKS: the Makefile has no `container` target, and the ConfigMap step added keys to `data: {}`. The page now covers the AWS Load Balancer Controller.
+- **[Azure]**
+  - The Ansible playbook didn't parse ("mapping values are not allowed here"). Basic SKU public IP addresses were retired on 2025-09-30. A managed image can't be captured from a Trusted Launch VM.
+  - The backend pool was created as `lb_backend` and used as `lb_backend_pool`. The SNAT claim was replaced with the five-tuple hash that Microsoft documents.
+- **[GCP]**
+  - The download commands used GitHub `blob` URLs, which return HTML: `nginx -t` fails with `unknown directive "<!DOCTYPE"`.
+  - The demo's `status.conf` uses the Extended Status module, which NGINX Plus R16 removed. The page now uses the NGINX Plus API and dashboard.
+  - `iptables -F` deleted every firewall rule; now `iptables -D` deletes only the added rule. Target pools can't be created in the console, so the page uses a backend service-based load balancer.
+- **[NS1]**
+  - F5 archived the agent in 2023. The YAML example didn't parse, and the Docker command needs `--network host` to reach the NGINX Plus API on `127.0.0.1`.
+
+- **[BIG-IP migration]**
+  - With `proxy_ssl_verify on`, NGINX checked the certificate against the upstream group name. Live, it returned 502 with `upstream SSL certificate does not match "ssl_test_pool"`; the example now sets `proxy_ssl_name` and `proxy_ssl_server_name`.
+  - The complete example set `Host` at the server level and `Connection` in each location, so the location didn't inherit `Host`. Live, the backends received `host=test_pool`; both headers are now in the location.
+  - Since 1.29.7, an upstream without `keepalive` keeps 32 idle connections in each worker process, for the location that opened them (`ngx_http_upstream_keepalive_module.c:551-554`, `:236`). The page said 32 for each location.
+  - Added the HTTPS monitor commands and the lost HA guide links. `ip_hash` uses three bytes of an IPv4 address (`ngx_http_upstream_ip_hash_module.c:124`), and `sticky` is in NGINX Open Source since 1.29.6.
+- **[Citrix ADC migration]**
+  - Persistence was described as critical for stateless applications; it's for stateful ones. The summary created one virtual server name and bound another. Relative certificate paths resolve against the configuration prefix (`ngx_event_openssl_cache.c:474`). The persistence link now points to the NetScaler documentation.
+- **[OpenID Connect guides]** (NGINX Plus)
+  - The guides need R36, because R34 and R35 lack `pkce` and front-channel logout. Six pages still said that only earlier versions use njs.
+  - The `issuer` link pointed to `#client_secret` on all 8 pages. The links to the test application said step 10 and pointed to the logout step; the application is step 11.
+  - Entra ID and AD FS send only `sid` for front-channel logout. The module reference says that such a request must carry the session cookie, or both `iss` and `sid`; the pages said that NGINX Plus clears the session either way.
+  - The Entra ID version output said `nginx/1.29.0 (nginx-plus-r36)`; R36 is based on 1.29.3. Fixed the Okta logout field name and five broken anchors.
+- **[legacy njs guides]**
+  - Fixed link texts that named old headings, step references with missing anchors, `https:///www.okta.com`, a stray `</span>` and "Desciption".
+- **[third-party load balancing]**
+  - The guides relied on configuration downloads from nginx.com, which are gone. They now start from their complete configurations.
+  - Saving a configuration in `conf.d` and also including it, as the pages said, loads it twice: `nginx -t` fails with a duplicate (`the same path name ... used in`).
+  - Exchange and EBS: their complete configurations are whole `nginx.conf` files. Moving their `http` blocks into `conf.d` fails with `duplicate "log_format" name "main"` and `"keepalive_timeout" directive is duplicate` (checked with the `nginx.conf` of pkg-oss). The Exchange `stream` part can't go in `conf.d`, which is read into `http`.
+  - Exchange: `proxy_pass https://exchange-active-sync` named an upstream that doesn't exist, so `nginx -t` failed with `host not found in upstream`.
+  - Tomcat: the `sticky route` maps used `(?Pw+)`, which fails `nginx -t`, and in the complete configuration matched nothing. Live, the corrected maps return routes `a` and `b`.
+  - The WebSocket locations proxied with `https://` to plain HTTP ports. The `status.conf` text described comments and open access that the file doesn't have.
+  - The HTTP/2 check printed nothing with the guides' self-signed certificate; it now uses `curl -k`. The prerequisites now name 1.25.1 and R30, which the `http2` directive needs.
+  - Restored 26 broken in-page anchors, 19 of them on the WebLogic page, and fixed the revision numbers.
+
 Fixed across the pages:
 
 - Lost anchors: a check of every changed page found that the gRPC page had lost three generated heading anchors. They're aliased again in `28deafbd`. No other page lost an anchor.
 - Broken inbound anchors: 11 links from other pages pointed at anchors on these pages that didn't exist. These are now aliased with `<span id>`; for example `#session-persistence`, `#purging-content-from-the-cache` and `#dns`.
 - Examples that couldn't be pasted, because of `...` placeholders, undefined upstreams, missing `listen` or `server_name`, or names that don't resolve.
+- From page 31 on, lost heading anchors are kept as `<span id>` elements. Tables inside list items are indented three spaces, because the theme's `table` shortcode runs `markdownify` and four spaces made a code block.
 - Links to the retired `www.nginx.com` admin guide.
 
 ## Examples not tested
@@ -272,6 +376,16 @@ Fixed across the pages:
   - [basic auth, TLS, runtime control] `user` switching needs root.
   - `sudo nginx -s reload` and `systemctl` against a system NGINX weren't run, because this host runs production services. The same commands were run against a test instance.
 
+- **Pages 31 to 98:**
+  - The nginx.org package installs were run on Debian 13.7 and Alpine 3.24.1 in containers, and so was a source build with PCRE2, zlib and OpenSSL. The RHEL, SLES, FreeBSD and macOS steps weren't run.
+  - NGINX Plus installs need a subscription certificate and a JWT license, so none was run. The apt errors for a missing or unreadable certificate were reproduced against the NGINX Plus repository.
+  - The dynamic module packages come from the NGINX Plus repository. The file names come from pkg-oss, and `load_module` was run with a dynamic build of the XSLT and GeoIP modules.
+  - The AWS, Azure, Google Cloud and NS1 console steps were checked against the providers' documentation from 2026-11-21 to 2026-11-23, not in live accounts. The Ansible playbooks, Packer, Terraform and the keepalived scripts weren't run.
+  - Kubernetes and OpenShift manifests were parsed as YAML, and their server blocks pass `nginx -t`. They weren't deployed.
+  - Docker behaviour was checked with Docker 29.9.3. The NGINX Plus image build wasn't run.
+  - The BIG-IP and Citrix ADC commands, and the identity provider consoles of the single sign-on guides, weren't run. The NGINX Plus OIDC directives can't run here.
+  - The complete configurations of the load balancing guides pass `nginx -t` with the NGINX Plus-only directives removed. The Tomcat route maps, the BIG-IP header fix and the double-include errors were run live.
+
 ## Facts left unverified
 
 These can't be checked against the open-source code:
@@ -288,13 +402,17 @@ These can't be checked against the open-source code:
 - **Debugging**: the FreeBSD `sysctl` names, the kernel's `core_pattern` rules (core(5)), whether a memory log has less performance impact than a file, and NGINX Plus Release 8 as the first with `nginx-debug`.
 - **Live monitoring**: the NGINX Plus dashboard behaviour, option defaults and tab contents, which statistics can be reset, and the release history of the API. The PLS37.0.0 row of the versions table names `response_time_hist`, but it links the v9 YAML, which doesn't have it; only v10 does. That row was left as is.
 
+- **Install pages**: the RHEL 10 pin URL, which follows the `/plus/R<NN>/` pattern of the other releases; the Amazon Linux 2023 package; the LTS `REPOPREFIX` value; whether `pkg upgrade` downgrades on FreeBSD; and the `zypper` and `apk` downgrade commands.
+- **Module pages**: the operating systems of each module package, which are kept from the original pages. Examples are SLES for ACME and GeoIP2, and Alpine for Brotli and Subs-Filter.
+- **Cloud pages**: console labels change often. The pages follow the providers' documentation as of 2026-11-23.
+
 ## Build, lint and link results
 
 | Check | Baseline (`364cbc06`) | After |
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
-| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 2186 errors (722 in `content/nginx`); no new errors |
-| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on the 28 changed pages |
+| `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 1771 errors (307 in `content/nginx`); no new errors |
+| `markdown-link-check`, `content/nginx` | 455 failures | No new failures on pages 1–30. From page 31 on, external links were checked with `curl` during the rewrite and by the reviewers. |
 
 The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
 
@@ -310,9 +428,20 @@ Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-che
 
 Not used: the third-party GeoIP2 module (`leev/ngx_http_geoip2_module` 3.4) was cloned to `deps/geoip2-src`, but building it was blocked by the session's permission system, and wasn't retried another way. `mmdblookup` and `geoipupdate` were unpacked from their Ubuntu packages to read their file lists and documentation, but not run.
 
+## Flagged for the owner
+
+These weren't changed, because they're F5 choices, outside `content/nginx/`, or need the owner:
+
+- **F5 choices kept**: the NGINX Plus `.repo` files set `gpgcheck=0`; the FreeBSD steps set `SSL_NO_VERIFY_PEER "1"`; the Kubernetes builder always skips TLS verification for NGINX Agent v3.
+- **Dead partner links**: the PingIntelligence 5.1 documentation and `seerbox.it/en` return 404.
+- **Include defects** ([decision 9](#decisions)): the `custom-paths-jwt` include runs `touch /etc/nginx/license.jwt` without `sudo`. The Docker credential include mentions "the script", runs `mkdir` and `cp` in `/etc/docker` without `sudo`, and links Docker for Mac and Windows to `docs.docker.com/desktop/`.
+- **URL typo**: the URL of `deployment-guides/single-sign-on/oidc-njs/_index.md` says `single-signon`. Changing it breaks existing links, so it's left for the owner.
+- **Unmaintained demos**: F5 archived the NS1 agent (`nginx-ns1-gslb`), and the AWS `aws-nlb-ha-asg` demo no longer runs. The guides now say so, but F5 might prefer to retire them.
+- **GCP demo code**: `app.conf` in the demo repository has `try_files $uri = 404;` with a space. It still returns 404, but logs an `open()` error for a file named `html404`.
+
 ## Decisions
 
-The repository owner approved decisions 1 to 5 on 2026-11-16, decision 6 on 2026-11-17, and decisions 7 and 8 on 2026-11-20.
+The repository owner approved decisions 1 to 5 on 2026-11-16, decision 6 on 2026-11-17, and decisions 7 and 8 on 2026-11-20. Decisions 9 and 10 wait for approval.
 
 1. **Technical-accuracy corrections.** The repository's agent instructions say to flag technical-accuracy problems for an expert rather than fix them. The task asked for correctness against the source, so facts were corrected only where the nginx source or a running nginx proves them. Every such correction is listed in [Defects fixed](#defects-fixed).
 2. **New front matter.** The changed pages gained `f5-keywords`, `f5-summary` and `f5-audience`. `f5-product` changed from `NGINX Plus` to `F5 NGINX Plus` to match the product-name list in `AGENTS.md`. No `f5-docs` ticket ID was added, because none exists.
@@ -322,3 +451,5 @@ The repository owner approved decisions 1 to 5 on 2026-11-16, decision 6 on 2026
 6. **One NGINX Plus-only example was changed.** NGINX Plus facts were otherwise left as they are. The DNS health check's `expect` regular expression could never match a real DNS response, which is a fact of the DNS wire format, not of NGINX Plus. This was checked by sending the same kind of query to a real resolver and matching both expressions against the response bytes. The example now matches `healthy\x04svcs`. The `match` block itself still couldn't be run.
 7. **Some NGINX Plus-only examples were changed where open-source NGINX or a public standard proves them wrong.** As with decision 6, the NGINX Plus facts themselves were kept. The changes are: configuration structure that `nginx -t` rejects (JWT), unanchored regular expressions in `map` blocks and an unverified TLS key fetch (JWT), `curl` commands that the page's own `allow`, `deny` and `auth_basic` rules reject (denylisting), and descriptions of OpenID Connect metadata fields that contradict the OpenID specifications (OIDC). Each is listed in [Defects fixed](#defects-fixed).
 8. **Observations of the public NGINX Plus demo as evidence.** On the live monitoring page, the sample outputs and the top-level endpoint list were replaced with what `https://demo.nginx.com/api/10/` returned on 2026-11-19 (NGINX Plus R37.3.0, GET requests only). The demo is a running NGINX Plus maintained by F5, and its output agrees with the v10 YAML in this repository. No other NGINX Plus behaviour was changed on this basis.
+9. **Shared include files stay unchanged** (waiting for approval). `content/includes/` is outside the approved scope of `content/nginx/`. Where an include on a rewritten page was wrong, the page got corrected text in its place, and the include defect is listed under [Flagged for the owner](#flagged-for-the-owner).
+10. **Each page follows the template of its content type** (waiting for approval). Pages 1 to 30 used the how-to template. From page 31 on, install and module pages use the installation-guide template, and guides use the how-to template. The remaining reference and tech-specs pages will use their own templates.

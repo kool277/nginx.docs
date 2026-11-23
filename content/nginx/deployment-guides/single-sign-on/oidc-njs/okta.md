@@ -5,8 +5,15 @@ f5-content-type: how-to
 title: Single Sign-On with Okta and njs
 toc: false
 weight: 100
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "single sign-on, SSO, OpenID Connect, OIDC, Okta, njs, nginx-openid-connect, NGINX Plus R33"
+f5-summary: >
+  This guide shows how to set up single sign-on for F5 NGINX Plus with Okta, with the njs-based nginx-openid-connect solution.
+  It's for NGINX Plus R33 and earlier. Since R34, the native OIDC module of NGINX Plus is simpler.
+f5-audience: operator
 ---
+
+## Overview
 
 {{< call-out class="note" >}} This guide applies to NGINX Plus [Release 15]({{< ref "nginx/releases.md#r15" >}}) and later, based on the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repo. Starting with NGINX Plus [Release 34]({{< ref "nginx/releases.md#r34" >}}), use the simpler solution with the [native OpenID connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html).
 
@@ -16,22 +23,24 @@ You can use NGINX Plus with Okta and OpenID Connect to enable single sign-on (SS
 
 {{< call-out class="note" >}}{{<include "nginx-plus/nginx-openid-repo-note">}}{{< /call-out>}}
 
-## Prerequisites
+<span id="prerequisites"></span>
 
-To complete the steps in this guide, you need the following:
+## Before you begin
+
+Before you begin, make sure you have:
 
 - An Okta administrator account.
-- [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) with a valid subscription.
+- [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) with a valid subscription.
 - The [NGINX JavaScript module](https://nginx.org/en/docs/njs/index.html) (`njs`) -- the `njs` module handles the interaction between NGINX Plus and Okta.
 - Install `jq` on the host machine where you installed NGINX Plus.
 
 ## Install NGINX Plus and the njs Module
 
-1. If you do not already have NGINX Plus installed, follow the steps in the [NGINX Plus Admin Guide](https://docs.nginx.com/nginx/admin-guide/installing-nginx/installing-nginx-plus/) to do so.
+1. If you do not already have NGINX Plus installed, follow the steps in the [NGINX Plus Admin Guide]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) to do so.
 2. Install the NGINX JavaScript module by following the steps in the [`njs` installation guide](https://nginx.org/en/docs/njs/install.html).
 3. Add the following directive to the top-level ("main") configuration context in the NGINX Plus configuration (`/etc/nginx/nginx.conf`) to load the `njs` module:
 
-   ```Nginx configuration file
+   ```nginx
    load_module modules/ngx_http_js_module.so;
    ```
 
@@ -47,14 +56,14 @@ This section describes the Okta Workforce Identity SSO product. You will need ad
 
 <span id="okta-login"></span>
 
-1. Log in to Okta at [okta.com](https:///www.okta.com).
+1. Log in to Okta at [okta.com](https://www.okta.com/).
 1. Select the **Admin** button next to your username to access the Admin console.
 1. On your Admin dashboard, select **Applications** in the left-hand navigation menu.
 1. On the **Applications** page, select the **Create App Integration** button.
 1. In the **Create a new app integration** window, define the following values, then select **Next**:
 
-   - **Sign-in method**: OIDC - OpenID Connect
-   - **Application type**: Web Application</span>
+   - **Sign-in method**: OIDC - OpenID Connect
+   - **Application type**: Web Application
 
    {{< img src="/img/sso/okta/Okta-Create-New-Application-Integration.png" alt="image showing the Create a new app integration window in the Okta UI, with OIDC and Web Application options selected" width="65%" >}}
 
@@ -64,12 +73,12 @@ On the **New Web App Integration** page in the Okta web interface, fill in the f
 
 {{<table>}}
 
-| Field | Desciption | Example Value |
+| Field | Description | Example Value |
 |-------------|---------|----------|
 | **App integration name** | The name of the OpenID Connect relying party. Okta refers to this as the "application". | **NGINX-Plus** |
-| **Sign-in redirect URIs** | The URI of the NGINX Plus instance -- including the port number -- ending in **`/_codexch`**. <br /><ul><li>The port is always required, even if you use the default port for HTTP (`80`) or HTTPS (`443`).</li><li>The use of SSL/TLS (`443`) is strongly recommended for production environments.</li></ul> | `https://my-nginx.example.com:443/_codexch` |
+| **Sign-in redirect URIs** | The URI of the NGINX Plus instance -- including the port number -- ending in **`/_codexch`**. <br /><ul><li>The port is always required, even if you use the default port for HTTP (`80`) or HTTPS (`443`).</li><li>The use of SSL/TLS (`443`) is strongly recommended for production environments.</li></ul> | `https://my-nginx.example.com:443/_codexch` |
 | **Sign-out redirect URIs** | The URI to redirect users to after logging out.<br />This is an optional field with a default value of `http://localhost:8080`. | We removed the default value in our example. |
-| **Controlled access** | Controls who can access the application. | "Allow everyone in your organization to access" <br />**You should select the appropriate value for your use case.**|
+| **Controlled access** | Controls who can access the application. | "Allow everyone in your organization to access" <br />**You should select the appropriate value for your use case.**|
 
 {{</table >}}
 
@@ -83,7 +92,7 @@ After you finish creating your application, the Okta Application page should dis
 
 {{< call-out class="tip" >}}If you need to find this information later, log in to your Okta admin account as [described above](#okta-login), select **Applications** in the left-hand menu, then select your application.{{< /call-out >}}
 
-Make note of the **Client ID** and **Client secret** values for your application. You will need these when you [configure NGINX Plus](#nginx-plus).
+Make note of the **Client ID** and **Client secret** values for your application. You will need these when you [configure NGINX Plus](#nginx-plus).
 
 ### Manage Access to your Okta Application {#okta-assign-applications}
 
@@ -97,7 +106,7 @@ Here, you can manage which users in your organization are granted access to this
 
 ## Set up NGINX Plus {#nginx-plus}
 
-Take the steps in this section to set up NGINX Plus as the OpenID Connect relying party.
+Take the steps in this section to set up NGINX Plus as the OpenID Connect relying party.
 
 ### Configure NGINX OpenID Connect {#nginx-plus-oidc-config}
 
@@ -147,7 +156,7 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect relyi
 
 ### Set up JSON Web Key Authorization {#nginx-plus-jwk-config}
 
-NGINX Plus can read the JWK file directly from the URL reported as `jwks_uri` in the output of the `curl` command you ran in the [previous section](#nginx-plus-oidc-config).
+NGINX Plus can read the JWK file directly from the URL reported as `jwks_uri` in the output of the `curl` command you ran in the [previous section](#nginx-plus-oidc-config).
 
 {{< call-out class="note" >}}
 If you are using NGINX Plus R16 or earlier, refer to [Set up JWK Authorization using a local file](#nginx-plus-jwk-auth-local).
@@ -155,8 +164,8 @@ If you are using NGINX Plus R16 or earlier, refer to [Set up JWK Authorization u
 
 Take the following steps to set up NGINX Plus to access the JWK file by using a URI.
 
-1. In the `/etc/nginx/conf.d/frontend.conf` file, remove (or comment out) the [auth_jwt_key_file](http://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html#auth_jwt_key_file) directive.
-1. Uncomment the [auth_jwt_key_request](http://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html#auth_jwt_key_request) directive.
+1. In the `/etc/nginx/conf.d/frontend.conf` file, remove (or comment out) the [auth_jwt_key_file](https://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html#auth_jwt_key_file) directive.
+1. Uncomment the [auth_jwt_key_request](https://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html#auth_jwt_key_request) directive.
 
    The parameter `/_jwks_uri` refers to the value of the `$oidc_jwt_keyfile` variable, which you already set in the OpenID Connect configuration file (`/etc/nginx/conf.d/openid_connect_configuration.conf`).
 
@@ -168,12 +177,14 @@ Take the steps below to set up JWK authorization using a local file:
 
 1. Copy the JSON contents from the JWK file named in the `jwks_uri` field to a local file. For example, `/etc/nginx/my_okta_jwk.json`
 1. In `/etc/nginx/conf.d/frontend.conf`, change the second parameter of the `set $oidc_jwt_keyfile` directive to the local file path of the JWK file.
-1. Confirm that the user named by the [user](http://nginx.org/en/docs/ngx_core_module.html#user) directive in the NGINX Plus configuration -- usually found in `/etc/nginx/nginx.conf` -- has read permission on the JWK file.
+1. Confirm that the user named by the [user](https://nginx.org/en/docs/ngx_core_module.html#user) directive in the NGINX Plus configuration -- usually found in `/etc/nginx/nginx.conf` -- has read permission on the JWK file.
 
-## Test Your Setup
+<span id="test-your-setup"></span>
 
-1. In a browser, enter the address of your NGINX Plus instance. You should be directed to the okta login page, as shown in the example below.
-   {{< img src="img/sso/okta/Okta-login-window.png" >}}
+## Test your setup
+
+1. In a browser, enter the address of your NGINX Plus instance. You should be directed to the okta login page, as shown in the example below.
+   {{< img src="img/sso/okta/Okta-login-window.png" alt="The Okta sign-in page" >}}
 1. Try to log in using the credentials of a user who is part of your organization.
 
 {{< call-out class="note" >}}If you restricted access to a group of users, be sure to select a user who has access to the application.{{< /call-out >}}
@@ -182,8 +193,17 @@ Take the steps below to set up JWK authorization using a local file:
 
 Refer to the [Troubleshooting](https://github.com/nginxinc/nginx-openid-connect#troubleshooting) section in the `nginx-openid-connect` repository on GitHub.
 
-### Revision History
+## References
 
-- Version 3 (March 2022) – Full edit incorporating updates to _Configuring Okta_ and _Configuring NGINX Plus_
-- Version 2 (March 2020) – Updates to _Configuring NGINX Plus_ section
-- Version 1 (April 2019) – Initial version (NGINX Plus Release 17)
+For more information, see:
+
+- [The nginx-openid-connect project on GitHub](https://github.com/nginxinc/nginx-openid-connect)
+- [Single Sign-On with Okta with the native OIDC module]({{< ref "/nginx/deployment-guides/single-sign-on/okta.md" >}})
+
+---
+
+## Revision history
+
+- Version 3 (March 2022) – Full edit incorporating updates to _Configuring Okta_ and _Configuring NGINX Plus_
+- Version 2 (March 2020) – Updates to _Configuring NGINX Plus_ section
+- Version 1 (April 2019) – Initial version (NGINX Plus Release 17)

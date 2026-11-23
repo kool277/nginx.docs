@@ -1,14 +1,21 @@
 ---
-description: Learn how to enable single sign-on (SSO) with [Auth0](https://auth0.com/)
+description: Learn how to enable single sign-on (SSO) with Auth0
   for applications proxied by F5 NGINX Plus.
 type:
 - tutorial
 title: Single Sign-On With Auth0 and njs
 toc: false
 weight: 100
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
 f5-content-type: how-to
+f5-keywords: "single sign-on, SSO, OpenID Connect, OIDC, Auth0, njs, nginx-openid-connect, NGINX Plus R33"
+f5-summary: >
+  This guide shows how to set up single sign-on for F5 NGINX Plus with Auth0, with the njs-based nginx-openid-connect solution.
+  It's for NGINX Plus R33 and earlier. Since R34, the native OIDC module of NGINX Plus is simpler.
+f5-audience: operator
 ---
+
+## Overview
 
 {{< call-out class="note" >}} This guide applies to NGINX Plus [Release 15]({{< ref "nginx/releases.md#r15" >}}) and later, based on the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repo. Starting with NGINX Plus [Release 34]({{< ref "nginx/releases.md#r34" >}}), use the simpler solution with the [native OpenID connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html).
 
@@ -18,21 +25,23 @@ You can use F5 NGINX Plus with [Auth0](https://auth0.com/) and OpenID Connect to
 
 {{< call-out class="note" >}}{{<include "nginx-plus/nginx-openid-repo-note">}}{{< /call-out>}}
 
-## Prerequisites
+<span id="prerequisites"></span>
 
-To complete the steps in this guide, you need the following:
+## Before you begin
+
+Before you begin, make sure you have:
 
 - An Auth0 tenant with administrator privileges.
-- [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) with a valid subscription.
+- [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) with a valid subscription.
 - The [NGINX JavaScript module](https://nginx.org/en/docs/njs/index.html) (`njs`) -- the `njs` module handles the interaction between NGINX Plus and Auth0.
 
 ## Install NGINX Plus and the njs Module {#install-nginx-plus-njs}
 
-1. If you do not already have NGINX Plus installed, follow the steps in the [NGINX Plus Admin Guide](https://docs.nginx.com/nginx/admin-guide/installing-nginx/installing-nginx-plus/) to do so.
+1. If you do not already have NGINX Plus installed, follow the steps in the [NGINX Plus Admin Guide]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}) to do so.
 2. Install the NGINX JavaScript module by following the steps in the [`njs` installation guide](https://nginx.org/en/docs/njs/install.html).
 3. Add the following directive to the top-level ("main") configuration context in the NGINX Plus configuration (`/etc/nginx/nginx.conf`) to load the `njs` module:
 
-   ```Nginx configuration file
+   ```nginx
    load_module modules/ngx_http_js_module.so;
    ```
 
@@ -90,7 +99,7 @@ To set up a new user database and add a user account to it, take the steps below
 1. Log in to the [Auth0 dashboard](https://manage.auth0.com/) and select **Authentication > Database** from the sidebar menu.
 1. Select the **Create DB Connection** button.
 1. Provide a **Name** for the database connection, then select **Create**.
-1. On the **Database** page, select the **Applications** tab. Then, select the toggle button next to the [application you created earlier](#create-a-new-auth0-application).
+1. On the **Database** page, select the **Applications** tab. Then, select the toggle button next to the [application you created earlier](#create-auth0-app).
 
     {{< img src="/img/sso/auth0/sso-auth0-db-app.png" alt="image showing the Applications settings for an OIDC Authentication database in the Auth0 dashboard" >}}
 
@@ -103,11 +112,11 @@ To set up a new user database and add a user account to it, take the steps below
 
     {{< img src="/img/sso/auth0/sso-auth0-create-user.png" alt="image showing the Create User settings window in the Auth0 dashboard" >}}
 
-The user should receive an email to the email address provided. Once the user verifies their account by clicking on the link in the email, the account creation process is complete.
+The user should receive an email to the email address provided. Once the user verifies their account by selecting the link in the email, the account creation process is complete.
 
 ## Set up NGINX Plus {#nginx-plus-setup}
 
-Take the steps in this section to set up NGINX Plus as the OpenID Connect relying party.
+Take the steps in this section to set up NGINX Plus as the OpenID Connect relying party.
 
 ### Configure NGINX OpenID Connect {#nginx-plus-oidc-config}
 
@@ -135,7 +144,7 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect relyi
 
     For example:
 
-    ```Nginx configuration file
+    ```nginx
     upstream my_backend {
         zone my_backend 64k;
         server my-backend-app.com:80;
@@ -144,7 +153,7 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect relyi
 
 1. In the *openid_connect.server_conf* file, add the [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) directive to the `/_jwks_uri` and `/_token` locations to `Accept-Encoding "gzip"`, as shown below.
 
-    ```Nginx configuration file
+    ```nginx
     ...
      location = /_jwks_uri {
         ...
@@ -171,7 +180,9 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect relyi
     sudo nginx -s reload
     ```
 
-## Test the Setup
+<span id="test-the-setup"></span>
+
+## Test your setup
 
 1. In a browser, enter the address of your NGINX Plus instance. You should be directed to the Auth0 login page, as shown in the example below.
 
@@ -183,6 +194,15 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect relyi
 
 Refer to the [Troubleshooting](https://github.com/nginxinc/nginx-openid-connect#troubleshooting) section in the `nginx-openid-connect` repository on GitHub.
 
-## Revision History
+## References
+
+For more information, see:
+
+- [The nginx-openid-connect project on GitHub](https://github.com/nginxinc/nginx-openid-connect)
+- [Single Sign-On with Auth0 with the native OIDC module]({{< ref "/nginx/deployment-guides/single-sign-on/auth0.md" >}})
+
+---
+
+## Revision history
 
 - Version 1 (May 2022) - Initial version

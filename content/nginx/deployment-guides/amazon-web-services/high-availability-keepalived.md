@@ -1,251 +1,319 @@
 ---
-description: Create a highly available active-passive deployment of F5 NGINX Plus
-  on AWS with a solution combining keepalived and the AWS Elastic IP address feature.
 title: Active-Passive HA for NGINX Plus on AWS Using Elastic IP Addresses
+description: Create an active-passive F5 NGINX Plus deployment on AWS that moves an Elastic IP address to the backup instance with keepalived.
 toc: true
 weight: 200
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "high availability, active-passive, keepalived, VRRP, Elastic IP address, AWS, nginx-ha-notify"
+f5-summary: >
+  This guide shows how to make two F5 NGINX Plus instances on AWS highly available with keepalived and an Elastic IP address.
+  When the primary instance fails, the backup instance takes over the Elastic IP address, so clients keep one static address.
+  The scripts behind this solution need changes on current Linux distributions, which the guide describes.
+f5-audience: operator
 ---
 
-This guide explains how to create a high availability (HA) active‑passive deployment of F5 NGINX Plus in the [Amazon Web Services](https://aws.amazon.com/) (AWS) cloud. It combines the `keepalived`‑based solution for high availability (provided by NGINX for on‑premises HA deployments) with the AWS Elastic IP address feature.
-NGINX also provides a [solution for active‑active HA of NGINX Plus in AWS]({{< ref "high-availability-network-load-balancer.md" >}}), using AWS Network Load Balancer.
-
 <span id="ha-aws_overview"></span>
+
 ## Overview
 
-The [supported solution for HA deployment]({{< ref "nginx/admin-guide/high-availability/ha-keepalived.md" >}}) of NGINX Plus that uses `keepalived` is designed for on‑premises deployments. It is typically not viable in cloud environments, such as AWS, because of the networking restrictions they impose.
+This guide creates an active-passive high availability (HA) deployment of F5 NGINX Plus on Amazon Web Services (AWS). It combines the [`keepalived` solution for on-premises HA]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}) with an AWS [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html). For an active-active deployment, see [Active-Active HA for NGINX Plus on AWS Using AWS Network Load Balancer]({{< ref "/nginx/deployment-guides/amazon-web-services/high-availability-network-load-balancer.md" >}}).
 
-One method for deploying NGINX Plus in a highly available manner on AWS is to use ELB in front of NGINX Plus instances. But, the method has several disadvantages:
+The on-premises `keepalived` solution moves a virtual IP address between instances. AWS networking doesn't support that. A load balancer such as Elastic Load Balancing (ELB) in front of NGINX Plus is another option, but it adds cost, limits the protocols you can use, and gives no single static IP address. Route 53 DNS load balancing has delays, because clients and DNS servers cache records.
 
-- It increases the cost of your deployment.
-- It limits the number of protocols NGINX Plus and your applications can support. In particular, ELB does not support UDP load balancing.
-- It does not provide a single static IP address for NGINX Plus instances, which is a crucial requirement for some applications.
+In this solution, the primary NGINX Plus instance holds the Elastic IP address. If it fails, the backup instance becomes the primary and moves the Elastic IP address to itself:
 
-This guide explains how to create an active‑passive HA deployment of NGINX Plus on AWS that doesn’t require ELB and thus isn't subject to its disadvantages. It combines the `keepalived`‑based solution with AWS’s [Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html) feature. Most importantly, this method addresses the requirement for a single IP address: as long as the primary NGINX Plus instance is operating correctly, it has the Elastic IP address. If the primary fails, the backup instance becomes the primary and reassociates the Elastic IP address with itself, as shown in the figure.
+<img src="/nginx/images/aws-elastic-ip-address-switch.png" alt="When two NGINX Plus nodes hosted in AWS share an elastic IP address, the address switches to the backup automatically when the primary goes down, preserving high availability" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-<img src="/nginx/images/aws-elastic-ip-address-switch.png" alt="When two NGINX Plus nodes hosted in AWS share an elastic IP address, the address switches to the backup automatically when the primary goes down, preserving high availability" style="border:2px solid #666666; padding:2px; margin:2px;" />
+Keep these points in mind:
 
-As an alternative to ELB, you can use Route 53 to distribute traffic among NGINX Plus instances, relying only on DNS load balancing. However, clients as well as intermediate DNS servers often cache DNS records as specified by the TTL value in the record, so there can be a delay in propagation of the updated records to the clients. This can lead to increased downtime of your applications as observed by clients. Such an update can happen when Route 53 detects the failure of an NGINX Plus instance and removes the corresponding record. In contrast, when you use the HA solution along with Route 53, the record usually doesn’t change because the IP address stays the same, and there is no TTL‑related problem.
+- Your NGINX Plus support contract doesn't cover this solution.
+- F5 tested it on Ubuntu 16.04 and CentOS 7, which are no longer supported. On current distributions, the notify script needs the changes in [Update the notify script](#update-the-notify-script).
+- Perform each step on both instances, unless the step says otherwise.
+- F5 also offers a solution based on [AWS Lambda](https://aws.amazon.com/lambda/), which needs no extra software on the NGINX Plus instances. [F5 Professional Services](https://www.f5.com/services) can deploy and support it for you.
 
-**Notes:**
+---
 
-- We have successfully tested the instructions on <span style="white-space: nowrap;">Ubuntu 16.04 LTS</span> (Xenial Xerus) and CentOS 7, with `keepalived` installed from the respective OS vendor repositories.
-- Except as noted, perform all steps on both the primary and backup instance.
-- The solution is not covered by your NGINX Plus support contract.
-- In addition to the [active‑active HA solution]({{< ref "high-availability-network-load-balancer.md" >}}) mentioned above, NGINX offers a solution based on [AWS Lambda](https://aws.amazon.com/lambda/) which does not require installation of any additional software on the NGINX Plus instances. The [F5 Professional Services](https://www.f5.com/services) team can deploy and configure the Lambda‑based solution for you and provide support.
+## Before you begin
+
+Before you begin, make sure you have:
+
+- **An AWS account**: You need permission to create IAM roles, EC2 instances, and Elastic IP addresses.
+- **NGINX Plus**: You install it on two instances in [Step 1](#ha-aws_step1).
+- **Root access**: You need `sudo` on both instances.
+
+---
 
 <span id="ha-aws_nginx-plus"></span><span id="ha-aws_step1"></span>
-## Step 1 – Launch Two NGINX Plus Instances
 
-The scripts in the HA solution use the AWS API to associate an Elastic IP address with an NGINX Plus instance, and so must have credentials for accessing the API. AWS uses _IAM roles_ to handle credentials, so you need to create a role and attach it to each NGINX Plus instance. Perform these steps (for <span style="white-space: nowrap;">step‑by‑step</span> instructions, see the [AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)):
+## Step 1: Create two NGINX Plus instances with an IAM role
 
-1. Create an IAM role and attach the following custom policy to it. The instance to which the policy applies can manipulate the Elastic IP address (adopt or release it) as well as perform the two indicated `Describe` actions.
+The HA scripts use the AWS API to move the Elastic IP address, so they need credentials. AWS gives credentials to an instance through an IAM role. For how to create the role and attach it, see [IAM roles for Amazon EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html).
 
-   ```json
-   {
-       "Version": "2012-10-17",
-       "Statement": [
-           {
-               "Effect": "Allow",
-               "Action": [
-                   "ec2:AssociateAddress",
-                   "ec2:DescribeInstances",
-                   "ec2:DescribeAddresses",
-                   "ec2:DisassociateAddress"
-               ],
-               "Resource": "*"
-           }
-       ]
-   }
-   ```
+1. Create an IAM role with this policy. It allows the instance to move the Elastic IP address, and to read the instances and addresses that the scripts need:
 
-   Alternatively, you can use the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables to provide credentials to the HA scripts, as shown in [Step 5](#ha-aws_keepalived-configure).
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:AssociateAddress",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeAddresses",
+                    "ec2:DisassociateAddress"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+    ```
 
-2. Launch two instances and [install NGINX Plus]({{< ref "nginx/admin-guide/installing-nginx/installing-nginx-plus-amazon-web-services.md" >}}) on each. (As noted, we tested the instructions on <span style="white-space: nowrap;">Ubuntu 16.04 LTS</span> and CentOS 7.)
+    Instead of a role, you can also give the scripts access keys, as described in [Step 5](#ha-aws_nginx-ha-notify-script).
 
-3. Attach this IAM role to the instance.
+1. Create two instances, and install NGINX Plus on each, as described in [Installing NGINX Plus AMIs on Amazon EC2]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-amazon-web-services.md" >}}). Put both instances in the same security group.
+
+1. Attach the IAM role to both instances.
+
+1. Allow `keepalived` traffic between the instances. `keepalived` sends Virtual Router Redundancy Protocol (VRRP) messages, which use IP protocol number 112. In the security group of the instances, add an inbound rule:
+
+    - **Type**: Custom protocol
+    - **Protocol**: 112 (VRRP)
+    - **Source**: the security group itself
+
+    If you restricted the outbound rules of the group, also allow outbound VRRP to the group, and HTTPS to the AWS API.
+
+---
 
 <span id="ha-aws_eip"></span>
-## Step 2 – Allocate an Elastic IP address
 
-Allocate an Elastic IP address and remember its ID. For detailed instructions, see the [AWS documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html#using-instance-addressing-eips-allocating).
+## Step 2: Allocate an Elastic IP address
+
+Allocate an Elastic IP address, and note its allocation ID. This step is needed only once. For the steps, see [Allocate an Elastic IP address](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-eips.html#using-instance-addressing-eips-allocating) in the AWS documentation.
+
+---
 
 <span id="ha-aws_keepalived-install"></span><span id="ha-aws_step3"></span>
-## Step 3 – Install `keepalived`, `wget`, and the AWS CLI
 
-1. Install two packages from your OS vendor’s repository: **keepalived** and **wget**, which is used by the HA scripts.
+## Step 3: Install keepalived, wget, and the AWS CLI
 
-   - On Ubuntu systems:
+1. Install `keepalived` and `wget` from the repositories of your operating system:
 
-      ```shell
-     sudo apt-get install keepalived wget
-     ```
+    - Ubuntu:
 
-   - On CentOS systems:
+        ```shell
+        sudo apt install keepalived wget
+        ```
 
-      ```shell
-     sudo yum install keepalived wget
-     ```
+    - RHEL and its derivatives:
 
-2. Follow the instructions in the [AWS documentation](https://docs.aws.amazon.com/cli/latest/userguide/installing.html) to install the AWS CLI.
+        ```shell
+        sudo dnf install keepalived wget
+        ```
+
+1. Install the AWS CLI, as described in [Installing or updating to the latest version of the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+
+---
 
 <span id="ha-aws_ha-scripts"></span><span id="ha-aws_step4"></span>
-## Step 4 – Download the HA Scripts
 
-The NGINX Plus HA solution uses two scripts, which are invoked by `keepalived`:
+## Step 4: Download the HA scripts
 
-- {{<nb>}}**nginx-ha-check**{{</nb>}} – Determines the health of NGINX Plus.
-- {{<nb>}}**nginx-ha-notify**{{</nb>}} – Moves the Elastic IP address when a state transition happens, for example when the backup instance becomes the primary.
+`keepalived` runs two scripts from the [aws-ha-elastic-ip project](https://github.com/nginxinc/aws-ha-elastic-ip) on GitHub:
 
-1. Create a directory for the scripts, if it doesn’t already exist.
+- `nginx-ha-check` checks the health of NGINX Plus.
+- `nginx-ha-notify` moves the Elastic IP address when the state of the instance changes, for example when the backup becomes the primary.
 
-   - On Ubuntu systems:
+1. Download the scripts to a directory for `keepalived` scripts, and make them executable. On Ubuntu, this guide uses `/usr/lib/keepalived`:
 
-      ```shell
-     sudo mkdir -p /usr/lib/keepalived
-     ```
+    ```shell
+    sudo mkdir -p /usr/lib/keepalived
+    cd /usr/lib/keepalived
+    sudo wget https://raw.githubusercontent.com/nginxinc/aws-ha-elastic-ip/master/nginx-ha-check
+    sudo wget https://raw.githubusercontent.com/nginxinc/aws-ha-elastic-ip/master/nginx-ha-notify
+    sudo chmod +x nginx-ha-check nginx-ha-notify
+    ```
 
-   - On CentOS systems:
+    On RHEL and its derivatives, use `/usr/libexec/keepalived` instead.
 
-      ```shell
-     sudo mkdir -p /usr/libexec/keepalived
-     ```
+<span id="update-the-notify-script"></span>
 
-2. Download the scripts from our [GitHub repository](https://github.com/nginxinc/aws-ha-elastic-ip) into the created directory.
+### Update the notify script
 
-<span id="ha-aws_keepalived-configure"></span>
-## Step 5 – Configure `keepalived` and the HA Scripts
+The `nginx-ha-notify` script was written for older systems. It reads instance metadata with IMDSv1 requests, which fail on instances that require IMDSv2. It also parses JSON with Python 2 at `/usr/bin/python`, which current distributions don't have. Python 3 stops at its `print` statements with `SyntaxError: Missing parentheses in call to 'print'`.
 
-There are two configuration files for the HA solution:
+In `nginx-ha-notify`, replace the two `wget` lines that request `http://169.254.169.254` with these IMDSv2 requests. Keep the lines after them, which only clean up the values:
 
-- **keepalived.conf** – The main configuration file for `keepalived`, slightly different for each NGINX Plus instance.
-- {{<nb>}}**nginx-ha-notify**{{</nb>}} – The script you downloaded in [Step 4](#ha-aws_ha-scripts), with several user‑defined variables.
-
-<span id="ha-aws_keepalived-conf-file"></span>
-### Creating keepalived.conf
-
-In the **/etc/keepalived** folder create a file named **keepalived.conf** with the following content.
-
-```nginx
-vrrp_script chk_nginx_service {
-    script "<PATH/TO/HEALTH_CHECK_SCRIPT>"
-    interval 3
-    weight 50
-}
-vrrp_instance VI_1 {
-    interface eth0
-    priority <PRIORITY>
-    virtual_router_id 51
-    advert_int 1
-    unicast_src_ip <INSTANCE_IP>
-    unicast_peer {
-        <OTHER_INSTANCE_IP>
-    }
-    authentication {
-        auth_type PASS
-        auth_pass <PASSWORD>
-    }
-    track_script {
-        chk_nginx_service
-    }
-    notify "<PATH/TO/NOTIFY_SCRIPT>"
-}
+```shell
+TOKEN=`curl -s -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300"`
+LOCAL_INTERNAL_DNS_NAME=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-hostname`
+INSTANCE_ID=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id`
 ```
 
-Replace the placeholders as follows:
+Then replace the lines that set `OTHER_INSTANCE_ID`, `ASSOCIATION_ID`, and `EIP_INSTANCE` with AWS CLI queries, which need no Python:
 
-- `<PATH/TO/HEALTH_CHECK_SCRIPT>`: the path to your health check script
-- `<PRIORITY>`: the VRRP priority for this node
-- `<INSTANCE_IP>`: the internal IP address of this instance
-- `<OTHER_INSTANCE_IP>`: the internal IP address of the other instance
-- `<PASSWORD>`: the password shared by the keepalived nodes
-- `<PATH/TO/NOTIFY_SCRIPT>`: the path to your notify script
+```shell
+OTHER_INSTANCE_ID=`aws ec2 describe-instances --filters "Name=private-dns-name,Values=$OTHER_INSTANCE_DNS_NAME" --query 'Reservations[0].Instances[0].InstanceId' --output text`
+ASSOCIATION_ID=`aws ec2 describe-addresses --allocation-ids $ALLOCATION_ID --query 'Addresses[0].AssociationId' --output text`
+EIP_INSTANCE=`aws ec2 describe-addresses --allocation-ids $ALLOCATION_ID --query 'Addresses[0].InstanceId' --output text`
+```
 
-You must change values for the following configuration keywords. As you do so, also remove the angle brackets enclosing the placeholder value:
+---
 
-- `script` in the `chk_nginx_service` block – The script that sends health checks to NGINX Plus.
+<span id="ha-aws_keepalived-configure"></span>
 
-  - On Ubuntu systems, {{<nb>}}**/usr/lib/keepalived/nginx-ha-check**{{</nb>}}
-  - On CentOS systems, {{<nb>}}**/usr/libexec/keepalived/nginx-ha-check**{{</nb>}}
+## Step 5: Configure keepalived and the HA scripts
 
-- `priority` – The value that controls which instance becomes primary, with a higher value meaning a higher priority. Use `101` for the primary instance and `100` for the backup.
+You set up two files on each instance: `keepalived.conf`, which differs a little between the instances, and the variables in `nginx-ha-notify`.
 
-- `unicast_src_ip` – This instance's IP address.
+<span id="ha-aws_keepalived-conf-file"></span>
 
-- `unicast_peer` – The other instance's IP address.
+### Create keepalived.conf
 
-- `auth_pass` – The password string used for authentication between peers.
+1. Create the file `/etc/keepalived/keepalived.conf` with this content:
 
-- `notify` – The script that is invoked during a state transition.
+    ```none
+    vrrp_script chk_nginx_service {
+        script "<PATH/TO/HEALTH_CHECK_SCRIPT>"
+        interval 3
+        weight 50
+    }
 
-  - On Ubuntu systems, {{<nb>}}**/usr/lib/keepalived/nginx-ha-notify**{{</nb>}}
-  - On CentOS systems, {{<nb>}}**/usr/libexec/keepalived/nginx-ha-notify**{{</nb>}}
+    vrrp_instance VI_1 {
+        interface <INTERFACE>
+        priority <PRIORITY>
+        virtual_router_id 51
+        advert_int 1
+        unicast_src_ip <INSTANCE_IP>
+        unicast_peer {
+            <OTHER_INSTANCE_IP>
+        }
+        authentication {
+            auth_type PASS
+            auth_pass <PASSWORD>
+        }
+        track_script {
+            chk_nginx_service
+        }
+        notify "<PATH/TO/NOTIFY_SCRIPT>"
+    }
+    ```
+
+1. Replace the placeholders, including the angle brackets:
+
+    - `<PATH/TO/HEALTH_CHECK_SCRIPT>`: the path of `nginx-ha-check`, for example `/usr/lib/keepalived/nginx-ha-check` on Ubuntu or `/usr/libexec/keepalived/nginx-ha-check` on RHEL.
+    - `<INTERFACE>`: the network interface of the instance, such as `eth0` or `ens5`. The `ip -br addr` command lists the interfaces.
+    - `<PRIORITY>`: `101` on the primary instance and `100` on the backup. The instance with the higher value becomes the primary.
+    - `<INSTANCE_IP>`: the private IP address of this instance.
+    - `<OTHER_INSTANCE_IP>`: the private IP address of the other instance.
+    - `<PASSWORD>`: a password that both instances share.
+    - `<PATH/TO/NOTIFY_SCRIPT>`: the path of `nginx-ha-notify`, in the same directory as `nginx-ha-check`.
 
 <span id="ha-aws_nginx-ha-notify-script"></span>
-### Creating nginx-ha-notify
 
-Modify the user‑defined variables section of the {{<nb>}}**nginx-ha-notify**{{</nb>}} script, replacing each `<VALUE>` placeholder with the value specified in the list below:
+### Set the variables in nginx-ha-notify
+
+In the user-defined variables at the top of `nginx-ha-notify`, set these values:
 
 ```none
-export AWS_ACCESS_KEY_ID=<VALUE>
-export AWS_SECRET_ACCESS_KEY=<VALUE>
+#export AWS_ACCESS_KEY_ID=
+#export AWS_SECRET_ACCESS_KEY=
 export AWS_DEFAULT_REGION=<VALUE>
 HA_NODE_1=<VALUE>
 HA_NODE_2=<VALUE>
 ALLOCATION_ID=<VALUE>
 ```
 
-- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` – The credentials for accessing the AWS API. Set them only when an IAM instance profile isn’t used. Otherwise, delete the corresponding two lines.
-- `AWS_DEFAULT_REGION` – The AWS region of your deployment.
-- `HA_NODE_1` and `HA_NODE_2` – The internal or private DNS names of the two NGINX Plus instances.
-- `ALLOCATION_ID` – The ID of the allocated Elastic IP address.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`: access keys for the AWS API. Uncomment and set them only if the instances have no IAM role.
+- `AWS_DEFAULT_REGION`: the AWS region of your deployment.
+- `HA_NODE_1` and `HA_NODE_2`: the private DNS names of the two NGINX Plus instances.
+- `ALLOCATION_ID`: the allocation ID of the Elastic IP address.
+
+---
 
 <span id="ha-aws_testing"></span>
-## Testing
 
-Run this command on both instances to start the `keepalived` daemon:
+## Test the failover
 
-```shell
-sudo service keepalived start
-```
+1. Start `keepalived` on both instances, and set it to start when the system starts:
 
-The instance with the higher priority becomes the primary. As a result, the Elastic IP address becomes associated with the primary instance, as confirmed on the AWS Console.
+    ```shell
+    sudo systemctl enable --now keepalived
+    ```
 
-To check the instance state, run:
+    The instance with the higher priority becomes the primary. The AWS console shows the Elastic IP address on the primary instance.
 
-```shell
-cat /var/run/nginx-ha-keepalived.state
-```
+1. Check the state of each instance:
 
-The command outputs `STATE=MASTER` on the primary instance and `STATE=BACKUP` otherwise.
+    ```shell
+    cat /var/run/nginx-ha-keepalived.state
+    ```
 
-You can simulate the failure of the primary by stopping the `keepalived` daemon:
+    The output is `STATE=MASTER` on the primary instance and `STATE=BACKUP` on the backup.
 
-```shell
-sudo service keepalived stop
-```
+1. To simulate a failure, stop `keepalived` on the primary instance:
 
-Check the state on the backup instance, confirming that it has transitioned to `MASTER`. Additionally, in the AWS Console the Elastic IP address is now associated with the new primary instance.
+    ```shell
+    sudo systemctl stop keepalived
+    ```
 
-<span id="ha-aws_troubleshooting"></span>
-## Troubleshooting
+1. On the backup instance, check the state again. It's now `STATE=MASTER`, and the AWS console shows the Elastic IP address on this instance.
 
-If the solution doesn’t work as expected, check the `keepalived` logs, which are written to **/var/log/syslog**. Also, you can manually run the commands that invoke the `awscli` utility in the {{<nb>}}**nginx-ha-notify**{{</nb>}} script to check that the utility is working properly.
+---
 
 <span id="ha-aws_caveats"></span>
-## Caveats
 
-- In most of our tests it took 5 to 6 seconds for the Elastic IP address to be reassigned.
-- Elastic IP address reassignment is not free; see [Amazon EC2 Pricing](https://aws.amazon.com/ec2/pricing/).
-- Because the solution relies on the AWS APIs to reassociate the Elastic IP address, in some rare scenarios – such as flip‑flopping (the instances change state rapidly) or split‑brain (the instances lose connectivity with each other) – it is possible for the Elastic IP address not to end up associated with the primary. We were not able to reproduce these scenarios in our testing, however. If they occur, restart `keepalived` on both instances.
+## Limitations
+
+- In F5's tests, AWS took 5 to 6 seconds to move the Elastic IP address.
+- Moving an Elastic IP address can cost money. See [Amazon EC2 pricing](https://aws.amazon.com/ec2/pricing/).
+- The solution uses the AWS API to move the address. If the instances change state quickly or lose contact with each other (split brain), the address can end up on the wrong instance. F5 couldn't reproduce this in testing. If it happens, restart `keepalived` on both instances.
+
+---
+
+<span id="ha-aws_troubleshooting"></span>
+
+## Troubleshooting
+
+### Both instances report STATE=MASTER
+
+**Symptom**: The state file shows `STATE=MASTER` on both instances, and the Elastic IP address moves back and forth.
+
+**Cause**: The instances don't receive each other's VRRP messages. The security group doesn't allow IP protocol 112, or `unicast_src_ip` and `unicast_peer` have the wrong addresses.
+
+**Fix**: Add the inbound VRRP rule from [Step 1](#ha-aws_step1), check the addresses in `keepalived.conf`, and restart `keepalived` on both instances.
+
+---
+
+### The Elastic IP address doesn't move
+
+**Symptom**: An instance becomes the primary, but the Elastic IP address stays where it was.
+
+**Cause**: The notify script fails. Common reasons are IMDSv1 requests on an instance that requires IMDSv2, Python 2 code, missing AWS credentials, or a wrong allocation ID.
+
+**Fix**: Read the messages of `keepalived` and of the scripts, which the systemd journal records for the `keepalived` service:
+
+```shell
+sudo journalctl -u keepalived
+```
+
+Apply the changes in [Update the notify script](#update-the-notify-script). To find the failing command, run the `aws` commands of the script by hand.
+
+---
 
 <span id="has-aws_resources"></span>
-## Resources
 
-[Download the HA solution from the NGINX GitHub repository](https://github.com/nginxinc/aws-ha-elastic-ip).
+## References
 
-### Revision History
+- [The aws-ha-elastic-ip project on GitHub](https://github.com/nginxinc/aws-ha-elastic-ip)
+- [High availability support for NGINX Plus in on-premises deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}})
+- [Configure the instance metadata options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-existing-instances.html)
+- [Elastic IP addresses](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html)
 
-- Version 1 (May 2017) – Initial version (NGINX Plus Release 12)
+---
 
+## Revision history
+
+- Version 2 (November 2026): Rewritten to the how-to template. Adds the VRRP security group rule, the download commands, and the changes that the notify script needs for IMDSv2 and Python 3.
+- Version 1 (May 2017): Initial version (NGINX Plus Release 12)

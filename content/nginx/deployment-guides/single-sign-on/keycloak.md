@@ -4,16 +4,26 @@ description: Enable OpenID Connect-based single sign-on (SSO) for applications p
 toc: true
 weight: 500
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "single sign-on, SSO, OpenID Connect, OIDC, Keycloak, oidc_provider, auth_oidc, NGINX Plus"
+f5-summary: >
+  This guide shows how to set up single sign-on with OpenID Connect for applications that F5 NGINX Plus proxies, with Keycloak as the identity provider.
+  NGINX Plus uses its native OIDC module, so you need only a few directives.
+  It covers sign-in, RP-initiated and front-channel logout, and PKCE.
+f5-audience: operator
 ---
 
-This guide explains how to enable single sign-on (SSO) for applications being proxied by F5 NGINX Plus. The solution uses OpenID Connect as the authentication mechanism, with [Keycloak](https://www.keycloak.org/) as the Identity Provider (IdP), and NGINX Plus as the Relying Party, or OIDC client application that verifies user identity.
+## Overview
 
-{{< call-out class="note" >}} This guide applies to [NGINX Plus Release 36]({{< ref "nginx/releases.md#r36" >}}) and later. In earlier versions, NGINX Plus relied on an [njs-based solution](#legacy-njs-guide), which required NGINX JavaScript files, key-value stores, and advanced OpenID Connect logic. Starting from NGINX Plus version R34, the new [OpenID Connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html) simplifies this process to just a few directives.{{< /call-out >}}
+This guide explains how to enable single sign-on (SSO) for applications being proxied by F5 NGINX Plus. The solution uses OpenID Connect for authentication. [Keycloak](https://www.keycloak.org/) is the identity provider (IdP), and NGINX Plus is the relying party (RP): the OIDC client that checks the identity of users.
 
-## Prerequisites
+{{< call-out class="note" >}} This guide needs [NGINX Plus R36]({{< ref "nginx/releases.md#r36" >}}) or later. The [OpenID Connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html) is in NGINX Plus since R34, but R34 and R35 lack some of its directives in this guide, such as `pkce`. Earlier releases use an [njs-based solution](#legacy-njs-guide), with JavaScript files and key-value stores.{{< /call-out >}}
 
-- An NGINX Plus [subscription](https://www.f5.com/products/nginx/nginx-plus) and NGINX Plus [Release 36]({{< ref "nginx/releases.md#r36" >}}) or later. For installation instructions, see [Installing NGINX Plus](https://docs.nginx.com/nginx/admin-guide/installing-nginx/installing-nginx-plus/).
+## Before you begin
+
+Before you begin, make sure you have:
+
+- An NGINX Plus [subscription](https://www.f5.com/products/nginx/nginx-plus) and NGINX Plus [Release 36]({{< ref "nginx/releases.md#r36" >}}) or later. For installation instructions, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
 
 - A domain name pointing to your NGINX Plus instance, for example, `demo.example.com`.
 
@@ -73,7 +83,7 @@ Front-channel logout allows Keycloak to notify NGINX Plus when a user signs out 
      https://demo.example.com/front_logout
      ```
 
-   - Enable **Front-channel logout session required**. With this option enabled, Keycloak includes both the session identifier (`sid`) and issuer (`iss`) parameters in the front-channel logout request that it sends to NGINX Plus, as defined by the OpenID Connect Front-Channel Logout specification. NGINX Plus uses these parameters to identify and clear the corresponding user session.
+   - Enable **Front-channel logout session required**. With this option on, Keycloak adds the session identifier (`sid`) and the issuer (`iss`) to its front-channel logout requests to NGINX Plus. The OpenID Connect Front-Channel Logout specification defines these parameters. NGINX Plus uses these parameters to identify and clear the corresponding user session.
 
 ### Assign Users or Groups
 
@@ -146,7 +156,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
 3.  In your preferred text editor, open the NGINX configuration file (`/etc/nginx/nginx.conf` for Linux or `/usr/local/etc/nginx/nginx.conf` for FreeBSD).
 
-4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, make sure your public DNS resolver is specified with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive: By default, NGINX Plus re‑resolves DNS records at the frequency specified by time‑to‑live (TTL) in the record, but you can override the TTL value with the `valid` parameter:
+4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, set your public DNS resolver with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive. By default, NGINX Plus re-resolves DNS records when their time-to-live (TTL) ends. The `valid` parameter overrides the TTL:
 
     ```nginx
     http {
@@ -179,7 +189,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     - (if not using PKCE) your **Client Secret** obtained in [Keycloak Configuration](#keycloak-setup) with the
       [`client_secret`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
 
-    - the **Issuer** URL obtained in [Keycloak Configuration](#keycloak-setup) with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
+    - the **Issuer** URL obtained in [Keycloak Configuration](#keycloak-setup) with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#issuer) directive
 
         The `issuer` is typically your Keycloak OIDC URL:
 
@@ -187,22 +197,22 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
         By default, NGINX Plus creates the metadata URL by appending the `/.well-known/openid-configuration` part to the Issuer URL. If your metadata URL is different, you can explicitly specify it with the [`config_url`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#config_url) directive.
 
-    - The **logout_uri** is URI that a user visits to start an RP‑initiated logout flow.
+    - The **logout_uri** is the URI that a user visits to start an RP-initiated logout flow.
 
-    - The **post_logout_uri** is absolute HTTPS URL where Keycloak should redirect the user after a successful logout. This value **must also be configured** in the Keycloak client's Post Logout Redirect URIs.
+    - The **post_logout_uri** is the absolute HTTPS URL where Keycloak should redirect the user after a successful logout. This value **must also be configured** in the Keycloak client's Post Logout Redirect URIs.
 
-    - If the **logout_token_hint** directive set to `on`, NGINX Plus sends the user's ID token as a *hint* to Keycloak.
-      This directive is **optional**, however, if it is omitted the Keycloak may display an extra confirmation page asking the user to approve the logout request.
+    - If the **logout_token_hint** directive is set to `on`, NGINX Plus sends the user's ID token as a *hint* to Keycloak.
+      This directive is **optional**, however, if you omit it, Keycloak might display an extra confirmation page asking the user to approve the logout request.
 
-    - The **frontchannel_logout_uri** directive defines the URI on NGINX Plus that receives OpenID Connect front-channel logout requests from Keycloak. This path must be an HTTPS endpoint and must match the **Front-channel Logout URL** configured for the client in Keycloak. When a front-channel logout request is sent (typically in a hidden iframe), Keycloak includes the session identifier and issuer (the `sid` and `iss` parameters, when **Front-channel logout session required** is enabled); the OIDC module uses these values to locate and clear the corresponding local session.
+    - The **frontchannel_logout_uri** directive defines the URI on NGINX Plus that receives OpenID Connect front-channel logout requests from Keycloak. This path must be an HTTPS endpoint and must match the **Front-channel Logout URL** configured for the client in Keycloak. Keycloak usually sends the front-channel logout request from a hidden iframe. With **Front-channel logout session required** on, the request includes the session identifier (`sid`) and the issuer (`iss`). The OIDC module uses them to find and clear the local session.
 
-    - If the **userinfo** directive is set to `on`, NGINX Plus will fetch `/protocol/openid-connect/userinfo` from the Keycloak and append the claims from userinfo to the `$oidc_claims_` variables.
+    - If the **userinfo** directive is set to `on`, NGINX Plus will fetch `/protocol/openid-connect/userinfo` from Keycloak and append the claims from userinfo to the `$oidc_claims_` variables.
 
-    - PKCE (Proof Key for Code Exchange) is automatically enabled when Keycloak's OpenID Connect discovery document advertises the `S256` code challenge method in the `code_challenge_methods_supported` field. You can override this behavior with the [`pkce`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#pkce) directive: set `pkce off;` to disable PKCE even when `S256` is advertised, or `pkce on;` to force PKCE even if the IdP metadata does not list `S256`.
+    - NGINX Plus turns on PKCE (Proof Key for Code Exchange) when the discovery document of the IdP lists `S256` in `code_challenge_methods_supported`. The [`pkce`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#pkce) directive overrides this: `pkce off;` turns PKCE off, and `pkce on;` turns it on even if the metadata doesn't list `S256`.
 
     - The module automatically selects the client authentication method for the token endpoint based on the provider metadata `token_endpoint_auth_methods_supported`. When only `client_secret_post` is advertised, NGINX Plus uses the `client_secret_post` method and sends the client credentials in the POST body. When both `client_secret_basic` and `client_secret_post` are present, the module prefers HTTP Basic (`client_secret_basic`), which remains the default for Keycloak.
 
-    - {{< call-out class="important" >}} All interaction with the IdP is secured exclusively over SSL/TLS, so NGINX must trust the certificate presented by the IdP. By default, this trust is validated against your system’s CA bundle (the default CA store for your Linux or FreeBSD distribution). If the IdP’s certificate is not included in the system CA bundle, you can explicitly specify a trusted certificate or chain with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#ssl_trusted_certificate) directive so that NGINX can validate and trust the IdP’s certificate. {{< /call-out >}}
+    - {{< call-out class="important" >}} NGINX Plus talks to the IdP only over TLS, so it must trust the certificate of the IdP. By default, it checks the certificate against the CA bundle of your operating system. If that bundle doesn't include the CA of the IdP, set a trusted certificate or chain with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#ssl_trusted_certificate) directive. {{< /call-out >}}
 
     ```nginx
     http {
@@ -229,7 +239,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
 
     Replace `<CLIENT_ID>` with the client ID of your application and `<CLIENT_SECRET>` with the client secret of your application.
 
-7.  Make sure you have configured a [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) that corresponds to `demo.example.com`, and there is a [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) that [points](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) to your application (see [Step 10](#oidc_app)) at `http://127.0.0.1:8080` that is going to be OIDC-protected:
+7.  Set up a [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) for `demo.example.com`, with a [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) that [proxies](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) requests to your application at `http://127.0.0.1:8080` (see [Step 11](#oidc_app)). OIDC protects this location:
 
     ```nginx
     http {
@@ -253,7 +263,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     }
     ```
 
-8.  Protect this [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) with Keycloak OIDC by specifying the [`auth_oidc`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#auth_oidc) directive that will point to the `keycloak` configuration specified in the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) context in [Step 5](#keycloak-setup-oidc-provider):
+8.  Protect this [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) with the [`auth_oidc`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#auth_oidc) directive. It names the `keycloak` provider from the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) block in [Step 5](#keycloak-setup-oidc-provider):
 
     ```nginx
     # ...
@@ -267,7 +277,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     # ...
     ```
 
-9.  Pass the OIDC claims as headers to the application ([Step 10](#oidc_app)) with the [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) directive. These claims are extracted from the ID token returned by Keycloak:
+9.  Pass the OIDC claims as headers to the application ([Step 11](#oidc_app)) with the [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) directive. These claims are extracted from the ID token returned by Keycloak:
 
     - [`$oidc_claim_sub`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#var_oidc_claim_) - a unique `Subject` identifier assigned for each user by Keycloak
 
@@ -291,7 +301,6 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     # ...
     ```
 
-    <span id="oidc_app"></span>
 10. Provide endpoint for completing logout:
 
     ```nginx
@@ -303,7 +312,7 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     # ...
     ```
 
-11. Create a simple test application referenced by the `proxy_pass` directive which returns the authenticated user's full name and email upon successful authentication:
+11. <span id="oidc_app"></span>Create a simple test application referenced by the `proxy_pass` directive which returns the authenticated user's full name and email upon successful authentication:
 
     ```nginx
     # ...
@@ -317,10 +326,10 @@ With Keycloak configured, you can enable OIDC on NGINX Plus. NGINX Plus serves a
     }
     ```
     
-12. Save the NGINX configuration file and reload the configuration:
+12. Save the configuration file, test it, and reload it:
 
-    ```nginx
-    nginx -s reload
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
     ```
 
 ### Complete Example
@@ -341,12 +350,12 @@ http {
         client_id <CLIENT_ID>;
         client_secret <CLIENT_SECRET>;
 
-        # RP‑initiated logout
+        # RP-initiated logout
         logout_uri /logout;
         post_logout_uri https://demo.example.com/post_logout/;
         logout_token_hint on;
 
-        # Front-channel logout (OP‑initiated single sign-out)
+        # Front-channel logout (OP-initiated single sign-out)
         frontchannel_logout_uri /front_logout;
 
         # Fetch userinfo claims
@@ -404,24 +413,50 @@ http {
 2. Enter valid Keycloak credentials for a user assigned to the `nginx-demo-app` client.
 Upon successful sign-in, Keycloak redirects you back to NGINX Plus, and you will see the proxied application content (for example, "Hello, Jane Doe!").
 
-3. Navigate to `https://demo.example.com/logout`. NGINX Plus initiates an RP‑initiated logout; Keycloak ends the session and redirects back to `https://demo.example.com/post_logout/`.
+3. Navigate to `https://demo.example.com/logout`. NGINX Plus initiates an RP-initiated logout; Keycloak ends the session and redirects back to `https://demo.example.com/post_logout/`.
 
-4. Refresh `https://demo.example.com/` again. You should be redirected to Keycloak for a fresh sign‑in, proving the session has been terminated.
+4. Refresh `https://demo.example.com/` again. You should be redirected to Keycloak for a fresh sign-in, proving the session has been terminated.
 
 ## Legacy njs-based Keycloak Solution {#legacy-njs-guide}
 
-If you are running NGINX Plus R33 and earlier or if you still need the njs-based solution, refer to the [Legacy njs-based Keycloak Guide]({{< ref "nginx/deployment-guides/single-sign-on/oidc-njs/keycloak.md" >}}) for details. The solution uses the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repository and NGINX JavaScript files.
+For NGINX Plus R33 and earlier, or if you still need the njs-based solution, see the [Legacy njs-based Keycloak Guide]({{< ref "nginx/deployment-guides/single-sign-on/oidc-njs/keycloak.md" >}}). The solution uses the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repository and NGINX JavaScript files.
 
-## See Also
+## Troubleshooting
+
+### Keycloak reports a redirect URI mismatch
+
+**Symptom**: After you sign in, Keycloak shows an error about the redirect URI.
+
+**Cause**: The redirect URI that NGINX Plus sends doesn't match a redirect URI registered in Keycloak. By default, NGINX Plus uses the path `/oidc_callback` on the host of the request.
+
+**Fix**: Register the exact URI, for example `https://demo.example.com/oidc_callback`, in Keycloak. Or set the registered path with the [`redirect_uri`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#redirect_uri) directive in the `oidc_provider` block.
+
+---
+
+### Sign-in fails before NGINX Plus redirects to Keycloak
+
+**Symptom**: Requests to the protected location fail, and the error log shows errors about the issuer or its metadata.
+
+**Cause**: NGINX Plus can't get the metadata of the issuer. The `resolver` directive is missing or wrong, a firewall blocks outbound HTTPS, or NGINX Plus doesn't trust the certificate of the IdP.
+
+**Fix**: Check the `resolver` directive and the network access to the issuer URL. If needed, set `ssl_trusted_certificate` in the `oidc_provider` block.
+
+---
+
+## References
+
+For more information, see:
 
 - [NGINX Plus Native OIDC Module Reference documentation](https://nginx.org/en/docs/http/ngx_http_oidc_module.html)
 
 - [Release Notes for NGINX Plus R36]({{< ref "nginx/releases.md#r36" >}})
 
-## Revision History
+## Revision history
+
+- Version 4 (November 2026): Restructured to the how-to template, with shorter sentences, a troubleshooting section, and a note on the NGINX Plus releases that this guide needs.
 
 - Version 3 (November 2025) – Updated for NGINX Plus R36; added front-channel logout support (`frontchannel_logout_uri`), PKCE configuration (`pkce` directive), and the `client_secret_post` token endpoint authentication method.
 
-- Version 2 (August 2025) – Updated for NGINX Plus R35; added RP‑initiated logout (`logout_uri`, `post_logout_uri`, `logout_token_hint`) and `userinfo` support.
+- Version 2 (August 2025) – Updated for NGINX Plus R35; added RP-initiated logout (`logout_uri`, `post_logout_uri`, `logout_token_hint`) and `userinfo` support.
 
 - Version 1 (March 2025) – Initial version (NGINX Plus Release 34).

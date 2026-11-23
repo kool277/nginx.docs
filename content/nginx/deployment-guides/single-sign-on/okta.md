@@ -4,18 +4,28 @@ description: Enable OpenID Connect-based single sign-on (SSO) for applications p
 toc: true
 weight: 700
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "single sign-on, SSO, OpenID Connect, OIDC, Okta, oidc_provider, auth_oidc, NGINX Plus"
+f5-summary: >
+  This guide shows how to set up single sign-on with OpenID Connect for applications that F5 NGINX Plus proxies, with Okta as the identity provider.
+  NGINX Plus uses its native OIDC module, so you need only a few directives.
+  It covers sign-in, RP-initiated and front-channel logout, and PKCE.
+f5-audience: operator
 ---
 
-This guide explains how to enable single sign-on (SSO) for applications being proxied by F5 NGINX Plus. The solution uses OpenID Connect as the authentication mechanism, with [Okta](https://www.okta.com/) as the Identity Provider (IdP), and NGINX Plus as the Relying Party, or OIDC client application that verifies user identity.
+## Overview
 
-{{< call-out class="note" >}} This guide applies to [NGINX Plus Release 36]({{< ref "nginx/releases.md#r36" >}}) and later. In earlier versions, NGINX Plus relied on an [njs-based solution](#legacy-njs-guide), which required NGINX JavaScript files, key-value stores, and advanced OpenID Connect logic. Starting from NGINX Plus version R34, the new [OpenID Connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html) simplifies this process to just a few directives.{{< /call-out >}}
+This guide explains how to enable single sign-on (SSO) for applications being proxied by F5 NGINX Plus. The solution uses OpenID Connect for authentication. [Okta](https://www.okta.com/) is the identity provider (IdP), and NGINX Plus is the relying party (RP): the OIDC client that checks the identity of users.
 
-## Prerequisites
+{{< call-out class="note" >}} This guide needs [NGINX Plus R36]({{< ref "nginx/releases.md#r36" >}}) or later. The [OpenID Connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html) is in NGINX Plus since R34, but R34 and R35 lack some of its directives in this guide, such as `pkce`. Earlier releases use an [njs-based solution](#legacy-njs-guide), with JavaScript files and key-value stores.{{< /call-out >}}
+
+## Before you begin
+
+Before you begin, make sure you have:
 
 - An [Okta](https://www.okta.com/) administrator account with privileges to create and manage applications.
 
-- An NGINX Plus [subscription](https://www.f5.com/products/nginx/nginx-plus) and NGINX Plus [Release 36]({{< ref "nginx/releases.md#r36" >}}) or later. For installation instructions, see [Installing NGINX Plus](https://docs.nginx.com/nginx/admin-guide/installing-nginx/installing-nginx-plus/).
+- An NGINX Plus [subscription](https://www.f5.com/products/nginx/nginx-plus) and NGINX Plus [Release 36]({{< ref "nginx/releases.md#r36" >}}) or later. For installation instructions, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
 
 - A domain name pointing to your NGINX Plus instance, for example, `demo.example.com`.
 
@@ -125,19 +135,20 @@ This feature is optional and requires NGINX Plus Release 36 or later, together w
 1. In the Okta Admin Console, go to **Settings** > **Features**.
 2. Locate **Front-channel Single Logout** and enable it for your org.
 3. Go to **Applications** > **Applications** and open your **Nginx Demo App** (or the OIDC app that you created earlier).
-4. On the **General** tab, click **Edit**.
+4. On the **General** tab, select **Edit**.
 5. In the **Logout** section, under **Single Logout**, enable **User logs out of other logout-initiating apps or Okta**. This option enables front-channel SLO for the app.
 6. In **Logout request URL**, enter the NGINX Plus front-channel logout endpoint, for example:
 
    ```text
    https://demo.example.com/front_logout
    ```
+
 7. Select **Include user session details**. With this option enabled, Okta includes the user session identifier (sid) and issuer (iss) in the front-channel logout request that it sends to NGINX Plus.
-8. Click **Save**.
+8. Select **Save**.
 
 ## Set up NGINX Plus {#nginx-plus-setup}
 
-With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as the Rely Party (RP) application &mdash; a client service that verifies user identity.
+With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as the Relying Party (RP) application &mdash; a client service that verifies user identity.
 
 1.  Ensure that you are using the latest version of NGINX Plus by running the `nginx -v` command in a terminal:
 
@@ -155,7 +166,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
 
 3.  In your preferred text editor, open the NGINX configuration file (`/etc/nginx/nginx.conf` for Linux or `/usr/local/etc/nginx/nginx.conf` for FreeBSD).
 
-4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, make sure your public DNS resolver is specified with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive: By default, NGINX Plus re‑resolves DNS records at the frequency specified by time‑to‑live (TTL) in the record, but you can override the TTL value with the `valid` parameter:
+4.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, set your public DNS resolver with the [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive. By default, NGINX Plus re-resolves DNS records when their time-to-live (TTL) ends. The `valid` parameter overrides the TTL:
 
     ```nginx
     http {
@@ -165,7 +176,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
     }
     ```
 
-5.  In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, define the Okta provider named `okta` by specifying the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) context:
+5.  <span id="okta-setup-oidc-provider"></span>In the [`http {}`](https://nginx.org/en/docs/http/ngx_http_core_module.html#http) context, define the Okta provider named `okta` by specifying the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) context:
 
     ```nginx
     http {
@@ -186,28 +197,28 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
 
     - your **Client Secret** obtained in [Okta Configuration](#okta-setup) with the [`client_secret`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
 
-    - the **Issuer** URL obtained in [Okta Configuration](#okta-setup) with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#client_secret) directive
+    - the **Issuer** URL obtained in [Okta Configuration](#okta-setup) with the [`issuer`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#issuer) directive
 
         The `issuer` is typically your Okta OIDC URL:
 
         `https://dev-123456.okta.com/oauth2/default`.
 
-    - The **logout_uri** is URI that a user visits to start an RP‑initiated logout flow.
+    - The **logout_uri** is the URI that a user visits to start an RP-initiated logout flow.
 
-    - The **post_logout_uri** is absolute HTTPS URL where Okta should redirect the user after a successful logout. This value **must also be configured** in the Okta application's Sign-out redirect URIs.
+    - The **post_logout_uri** is the absolute HTTPS URL where Okta should redirect the user after a successful logout. This value **must also be configured** in the Okta application's Sign-out redirect URIs.
 
-    - If the **logout_token_hint** directive set to `on`, NGINX Plus sends the user's ID token as a *hint* to Okta.
-      This directive is **optional**, however, if it is omitted the Okta may display an extra confirmation page asking the user to approve the logout request.
+    - If the **logout_token_hint** directive is set to `on`, NGINX Plus sends the user's ID token as a *hint* to Okta.
+      This directive is **optional**, however, if you omit it, Okta might display an extra confirmation page asking the user to approve the logout request.
 
-    - The **frontchannel_logout_uri** directive defines the URI that receives OpenID Connect front-channel logout requests from Okta. This URI must be an HTTPS path hosted by NGINX Plus and must match the *Front-channel logout URL* configured in the Okta application registration. When a front-channel logout GET request is received at this URI (typically in a hidden iframe), the OIDC module clears the local session for the affected user.
+    - The **frontchannel_logout_uri** directive defines the URI that receives OpenID Connect front-channel logout requests from Okta. This URI must be an HTTPS path hosted by NGINX Plus and must match the *Logout request URL* configured in the Okta application registration. When a front-channel logout GET request is received at this URI (typically in a hidden iframe), the OIDC module clears the local session for the affected user.
 
-    - If the **userinfo** directive is set to `on`, NGINX Plus will fetch `/oauth2/default/v1/userinfo` from the Okta and append the claims from userinfo to the `$oidc_claims_` variables.
+    - If the **userinfo** directive is set to `on`, NGINX Plus will fetch `/oauth2/default/v1/userinfo` from Okta and append the claims from userinfo to the `$oidc_claims_` variables.
 
-    - PKCE (Proof Key for Code Exchange) is automatically enabled when the provider metadata advertises the `S256` code challenge method in the `code_challenge_methods_supported` field of the discovery document. You can override this behavior with the [`pkce`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#pkce) directive: set `pkce off;` to disable PKCE even when `S256` is advertised, or `pkce on;` to force PKCE even if the IdP metadata does not list `S256`.
+    - NGINX Plus turns on PKCE (Proof Key for Code Exchange) when the discovery document of the IdP lists `S256` in `code_challenge_methods_supported`. The [`pkce`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#pkce) directive overrides this: `pkce off;` turns PKCE off, and `pkce on;` turns it on even if the metadata doesn't list `S256`.
 
     - The module automatically selects the client authentication method for the token endpoint based on the provider metadata `token_endpoint_auth_methods_supported`. When only `client_secret_post` is advertised, NGINX Plus uses the `client_secret_post` method and sends the client credentials in the POST body. When both `client_secret_basic` and `client_secret_post` are present, the module prefers HTTP Basic (`client_secret_basic`).
 
-    - {{< call-out class="important" >}} All interaction with the IdP is secured exclusively over SSL/TLS, so NGINX must trust the certificate presented by the IdP. By default, this trust is validated against your system’s CA bundle (the default CA store for your Linux or FreeBSD distribution). If the IdP’s certificate is not included in the system CA bundle, you can explicitly specify a trusted certificate or chain with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#ssl_trusted_certificate) directive so that NGINX can validate and trust the IdP’s certificate. {{< /call-out >}}
+    - {{< call-out class="important" >}} NGINX Plus talks to the IdP only over TLS, so it must trust the certificate of the IdP. By default, it checks the certificate against the CA bundle of your operating system. If that bundle doesn't include the CA of the IdP, set a trusted certificate or chain with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#ssl_trusted_certificate) directive. {{< /call-out >}}
 
     ```nginx
     http {
@@ -234,7 +245,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
 
     Replace `<CLIENT_ID>` with the client ID of your application and `<CLIENT_SECRET>` with the client secret of your application.
 
-7.  Make sure you have configured a [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) that corresponds to `demo.example.com`, and there is a [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) that [points](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) to your application (see [Step 10](#oidc_app)) at `http://127.0.0.1:8080` that is going to be OIDC-protected:
+7.  Set up a [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) for `demo.example.com`, with a [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) that [proxies](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass) requests to your application at `http://127.0.0.1:8080` (see [Step 11](#oidc_app)). OIDC protects this location:
 
     ```nginx
     http {
@@ -257,7 +268,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
     }
     ```
 
-8.  Protect this [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) with Okta OIDC by specifying the [`auth_oidc`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#auth_oidc) directive that will point to the `okta` configuration specified in the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) context in [Step 5](#okta-setup-oidc-provider):
+8.  Protect this [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location) with the [`auth_oidc`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#auth_oidc) directive. It names the `okta` provider from the [`oidc_provider {}`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#oidc_provider) block in [Step 5](#okta-setup-oidc-provider):
 
     ```nginx
     # ...
@@ -271,7 +282,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
     # ...
     ```
 
-9.  Pass the OIDC claims as headers to the application ([Step 10](#oidc_app)) with the [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) directive. These claims are extracted from the ID token returned by Okta:
+9.  Pass the OIDC claims as headers to the application ([Step 11](#oidc_app)) with the [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) directive. These claims are extracted from the ID token returned by Okta:
 
     - [`$oidc_claim_sub`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#var_oidc_claim_) - a unique `Subject` identifier assigned for each user by Okta
 
@@ -306,7 +317,7 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
     # ...
     ```
 
-11. Create a simple test application referenced by the `proxy_pass` directive which returns the authenticated user's full name and email upon successful authentication:
+11. <span id="oidc_app"></span>Create a simple test application referenced by the `proxy_pass` directive which returns the authenticated user's full name and email upon successful authentication:
 
     ```nginx
     # ...
@@ -320,10 +331,10 @@ With Okta configured, you can enable OIDC on NGINX Plus. NGINX Plus serves as th
     }
     ```
 
-12. Save the NGINX configuration file and reload the configuration:
+12. Save the configuration file, test it, and reload it:
 
-    ```nginx
-    nginx -s reload
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
     ```
 
 ### Complete Example
@@ -347,12 +358,12 @@ http {
         # Your Okta "Client Secret" from the application settings
         client_secret <CLIENT_SECRET>;
 
-        # RP‑initiated logout
+        # RP-initiated logout
         logout_uri /logout;
         post_logout_uri https://demo.example.com/post_logout/;
         logout_token_hint on;
 
-        # Front-channel logout (OP‑initiated single sign-out)
+        # Front-channel logout (OP-initiated single sign-out)
         frontchannel_logout_uri /front_logout;
 
         # Fetch userinfo claims
@@ -405,26 +416,52 @@ http {
 
 2. Enter valid Okta credentials of a user who has access the application. Upon successful sign-in, Okta redirects you back to NGINX Plus, and you will see the proxied application content (for example, "Hello, Jane Doe!").
 
-3. Navigate to `https://demo.example.com/logout`. NGINX Plus initiates an RP‑initiated logout; Okta ends the session and redirects back to `https://demo.example.com/post_logout/`.
+3. Navigate to `https://demo.example.com/logout`. NGINX Plus initiates an RP-initiated logout; Okta ends the session and redirects back to `https://demo.example.com/post_logout/`.
 
-4. Refresh `https://demo.example.com/` again. You should be redirected to Okta for a fresh sign‑in, proving the session has been terminated.
+4. Refresh `https://demo.example.com/` again. You should be redirected to Okta for a fresh sign-in, proving the session has been terminated.
 
 {{< call-out class="note" >}}If you restricted access to a group of users, be sure to select a user who has access to the application.{{< /call-out >}}
 
 ## Legacy njs-based Okta Solution {#legacy-njs-guide}
 
-If you are running NGINX Plus R33 and earlier or if you still need the njs-based solution, refer to the [Legacy njs-based Okta Guide]({{< ref "nginx/deployment-guides/single-sign-on/oidc-njs/okta.md" >}}) for details. The solution uses the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repository and NGINX JavaScript files.
+For NGINX Plus R33 and earlier, or if you still need the njs-based solution, see the [Legacy njs-based Okta Guide]({{< ref "nginx/deployment-guides/single-sign-on/oidc-njs/okta.md" >}}). The solution uses the [`nginx-openid-connect`](https://github.com/nginxinc/nginx-openid-connect) GitHub repository and NGINX JavaScript files.
 
-## See Also
+## Troubleshooting
+
+### Okta reports a redirect URI mismatch
+
+**Symptom**: After you sign in, Okta shows an error about the redirect URI.
+
+**Cause**: The redirect URI that NGINX Plus sends doesn't match a redirect URI registered in Okta. By default, NGINX Plus uses the path `/oidc_callback` on the host of the request.
+
+**Fix**: Register the exact URI, for example `https://demo.example.com/oidc_callback`, in Okta. Or set the registered path with the [`redirect_uri`](https://nginx.org/en/docs/http/ngx_http_oidc_module.html#redirect_uri) directive in the `oidc_provider` block.
+
+---
+
+### Sign-in fails before NGINX Plus redirects to Okta
+
+**Symptom**: Requests to the protected location fail, and the error log shows errors about the issuer or its metadata.
+
+**Cause**: NGINX Plus can't get the metadata of the issuer. The `resolver` directive is missing or wrong, a firewall blocks outbound HTTPS, or NGINX Plus doesn't trust the certificate of the IdP.
+
+**Fix**: Check the `resolver` directive and the network access to the issuer URL. If needed, set `ssl_trusted_certificate` in the `oidc_provider` block.
+
+---
+
+## References
+
+For more information, see:
 
 - [NGINX Plus Native OIDC Module Reference documentation](https://nginx.org/en/docs/http/ngx_http_oidc_module.html)
 
 - [Release Notes for NGINX Plus R36]({{< ref "nginx/releases.md#r36" >}})
 
-## Revision History
+## Revision history
+
+- Version 4 (November 2026): Restructured to the how-to template, with shorter sentences, a troubleshooting section, and a note on the NGINX Plus releases that this guide needs.
 
 - Version 3 (November 2025) – Updated for NGINX Plus R36; added front-channel logout support (`frontchannel_logout_uri`), PKCE configuration (`pkce` directive), and the `client_secret_post` token endpoint authentication method.
 
-- Version 2 (August 2025) – Updated for NGINX Plus R35; added RP‑initiated logout (`logout_uri`, `post_logout_uri`, `logout_token_hint`) and `userinfo` support.
+- Version 2 (August 2025) – Updated for NGINX Plus R35; added RP-initiated logout (`logout_uri`, `post_logout_uri`, `logout_token_hint`) and `userinfo` support.
 
 - Version 1 (March 2025) – Initial version (NGINX Plus Release 34).

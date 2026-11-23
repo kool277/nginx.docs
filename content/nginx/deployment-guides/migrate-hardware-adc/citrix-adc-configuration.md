@@ -1,87 +1,85 @@
 ---
-description: Migrate load-balancing configuration from Citrix ADC to F5 NGINX Plus
-  for equal performance at lower cost, using our syntax conversion examples.
 title: Migrating Load Balancer Configuration from Citrix ADC to NGINX Plus
+description: Convert Citrix ADC virtual servers, service groups, TLS, persistence, and monitors into equivalent F5 NGINX Plus configuration.
 toc: true
 weight: 100
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "migration, Citrix ADC, NetScaler, virtual server, service group, SSL termination, session persistence, monitor, health check, NGINX Plus"
+f5-summary: >
+  This guide shows how to convert the load balancing configuration of Citrix ADC into F5 NGINX Plus configuration.
+  For each Citrix ADC feature, it shows the CLI commands and the equivalent NGINX Plus directives.
+  It ends with a complete NGINX Plus configuration, and notes on high availability and logging.
+f5-audience: operator
 ---
 
-F5 NGINX Plus provides a flexible replacement for traditional hardware‑based [application delivery controllers](https://www.nginx.com/resources/glossary/application-delivery-controller/) (ADCs). As a software load balancer with a small footprint, NGINX Plus can be deployed just about anywhere – on bare metal, on a virtual machine, or in a container, and on‑premises or in public, private, and hybrid clouds. This guide explains how to migrate the Citrix ADC configuration for several common load‑balancer features to the NGINX Plus application delivery platform. It covers the most commonly used features to get you started quickly.
-
-**Note:** Citrix ADC was formerly called Citrix NetScaler.
-
-NGINX Plus and Citrix ADC both act as a full reverse proxy and load balancer, so that the client sees the load balancer as the application and the backend servers see the load balancer as the client. This allows for great control and fine‑grained manipulation of the traffic. This guide focuses on basic load balancing. For information on extending the configuration with Layer 7 logic and scripting, see the article on [migrating Layer 7 logic](https://www.nginx.com/blog/migrating-layer7-logic-f5-irules-citrix-policies-nginx-plus/) on the NGINX blog. It covers features such as content switching and request routing, rewriting, and redirection.
-
 <span id="about-nginx"></span>
-## About NGINX Open Source and NGINX Plus
 
-[NGINX Open Source](https://nginx.org/en) is an open source web server, reverse proxy, and load balancer that has grown in popularity in recent years due to its scalability. <span style="white-space: nowrap;">NGINX Open Source</span> was first created to solve the C10K problem (serving 10,000 simultaneous connections on a single web server). Its features and performance have made it the go‑to solution at high‑performance sites – it's [the #1 web server at the 100,000 busiest websites in the world](https://w3techs.com/technologies/cross/web_server/ranking).
+## Overview
 
-[NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) is the commercially supported version of <span style="white-space: nowrap;">NGINX Open Source</span>. NGINX Plus is a complete software load balancer and application delivery platform, extending the power of <span style="white-space: nowrap;">NGINX Open Source</span> with a host of enterprise‑ready capabilities that are instrumental to building web applications at scale:
+F5 NGINX Plus is a software replacement for hardware [application delivery controllers](https://www.f5.com/glossary/application-delivery-controller) (ADCs). It runs on bare metal, virtual machines, or containers, on premises or in the cloud. This guide shows how to move the load balancing configuration of Citrix ADC, formerly Citrix NetScaler, to NGINX Plus.
 
-- Full‑featured [HTTP]({{< ref "nginx/admin-guide/load-balancer/http-load-balancer.md" >}}), [TCP, and UDP]({{< ref "nginx/admin-guide/load-balancer/tcp-udp-load-balancer.md" >}}) load balancing
-- [Intelligent session persistence]({{< ref "nginx/admin-guide/load-balancer/http-load-balancer.md#session-persistence" >}})
-- [High‑performance reverse proxy]({{< ref "nginx/admin-guide/web-server/reverse-proxy.md" >}})
-- [Caching and offload of dynamic and static content]({{< ref "nginx/admin-guide/content-cache/content-caching.md" >}})
-- Adaptive streaming to deliver audio and video to any device
-- [Application-aware health checks]({{< ref "nginx/admin-guide/load-balancer/http-health-check.md" >}}) and [high availability]({{< ref "nginx/admin-guide/high-availability/ha-keepalived.md" >}})
-- Advanced activity monitoring available via a [Dashboard]({{< ref "nginx/admin-guide/monitoring/live-activity-monitoring.md#using-the-dashboard" >}}) or [REST API]({{< ref "nginx/admin-guide/monitoring/live-activity-monitoring.md#using-the-rest-api" >}})
-- [Management and real‑time configuration changes with DevOps‑friendly tools](https://www.nginx.com/products/nginx/load-balancing/#load-balancing-api)
+NGINX Plus and Citrix ADC are both full reverse proxies and load balancers. The client sees the load balancer as the application, and the back-end servers see the load balancer as the client. That gives both products fine-grained control over the traffic.
+
+[NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) adds features to [NGINX Open Source](https://nginx.org/en/), such as active health checks, the [NGINX Plus API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}), and [high availability]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}).
+
+---
 
 <span id="prereqs"></span>
-## Prerequisites
 
-This guide assumes you are familiar with Citrix ADC concepts and CLI configuration commands.
+## Before you begin
 
-Familiarity with basic NGINX software concepts and directives is also helpful; links to documentation are provided, but the guide does not explain NGINX Plus functioning in depth.
+Before you begin, make sure you have:
+
+- **Citrix ADC knowledge**: You know its concepts and its CLI commands.
+- **NGINX knowledge**: You can read NGINX configuration. The guide links to the documentation of each directive.
+- **NGINX Plus**: For the steps, see [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
+
+All IP addresses and object names in this guide are examples. Replace them with the values of your Citrix ADC configuration.
+
+---
 
 <span id="networking"></span>
-## Mapping Citrix ADC Networking Concepts to NGINX Plus
 
-The networking configuration for Citrix ADC defines three types of IP addresses, which can be easily mapped to NGINX Plus:
+## Map the Citrix ADC networking concepts
 
-- **Citrix ADC IP address (NSIP)** – Management IP address of a specific Citrix ADC appliance. The NGINX Plus equivalent is the host IP address of the NGINX Plus instance.
-- **Subnet IP address (SNIP)** – The source (client) IP address seen by backend servers in the load‑balancing configuration. By default, the NGINX Plus equivalent is the same as for the NSIP: the host IP address of the NGINX Plus instance.
+Citrix ADC defines three types of IP addresses:
 
-  Both NGINX Plus and Citrix ADC use a routing table to choose the best IP address to use. With Citrix ADC, you manage the routing table in the Citrix ADC CLI or GUI, but with NGINX Plus you need to edit the system‑level routing for your Linux or FreeBSD OS. You can also use the [proxy_bind](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_bind) directive in the NGINX Plus configuration to specify the source address used for a specific application.
+{{< table >}}
 
-- **Virtual IP address (VIP)** – Address advertised to clients for the service provided by the backend servers. The VIP functions in the same way for both Citrix ADC and NGINX Plus: if the primary device or instance fails, the VIP address is reassigned to the secondary.
+| Citrix ADC address | NGINX Plus equivalent |
+|---|---|
+| **Citrix ADC IP address (NSIP)**: the management address of an appliance | The IP address of the NGINX Plus host. |
+| **Subnet IP address (SNIP)**: the source address that the back-end servers see | By default, also the IP address of the NGINX Plus host. Citrix ADC manages its routing table in its CLI or GUI. For NGINX Plus, you change the routing of the Linux or FreeBSD host. To choose the source address yourself, use [`proxy_bind`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_bind). |
+| **Virtual IP address (VIP)**: the address that clients connect to | The same concept. If the primary device fails, the VIP moves to the backup. See [Set up high availability](#ha). |
+
+{{< /table >}}
+
+---
 
 <span id="convert-configuration"></span>
-## Converting Citrix ADC Load Balancer Configuration to NGINX Plus
 
-Citrix ADC uses a CLI for configuration. Even changes made in the GUI are translated internally to CLI commands, so we'll represent Citrix ADC configuration in the CLI format.
+## Convert the load balancer configuration
 
-NGINX Plus instead defines configuration with directives in a text file. The following sections explain how to convert Citrix ADC configuration to NGINX Plus for these entities and features:
-
-- [Virtual Servers](#virtual-servers)
-- [SSL/TLS Termination](#ssl)
-- [Service Group Entities](#service-group)
-- [Session Persistence](#session-persistence)
-- [Monitors (Health Checks)](#health-checks)
-- [Summary of Converted Load Balancer Configuration](#configuration-summary)
+Citrix ADC stores its configuration as CLI commands, even for changes that you make in the GUI. So this guide shows CLI commands. NGINX Plus keeps its configuration in text files with directives.
 
 <span id="virtual-servers"></span>
 
-### Virtual Servers
+### Virtual servers
 
-Citrix ADC uses only the combination of IP address and port to select the virtual server for a request. If you want to consider information in the `Host` header as well, you use AppExpert policies or a Content Switch Virtual Server to inspect it.
+Citrix ADC chooses a virtual server only by IP address and port. To use the `Host` header too, you need AppExpert policies or a content switching virtual server.
 
-In contrast, the NGINX Plus definition of a virtual server in a [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) block can include both IP address‑port combinations and values in the `Host` header. Include the [server_name](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) directive in that block to specify the values to match in the `Host` header.
+An NGINX Plus virtual server is a [`server`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server) block. Its [`listen`](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen) directives set the IP addresses and ports, and its [`server_name`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) directives match the `Host` header. Server names can be host names, wildcards, or regular expressions. For details, see [Server names](https://nginx.org/en/docs/http/server_names.html).
 
-The list of parameters to the `server_name` directive can include multiple hostnames, wildcards, and regular expressions. You can include multiple `server_name` directives and multiple listening IP address‑port combinations within one NGINX Plus `server` block. For more information on using `Host` and the `server_name` directive instead of IP addresses, see [Server names](https://nginx.org/en/docs/http/server_names.html) at **nginx.org**.
+This example is a virtual server for host names that end in `.example.com`.
 
-The following sample virtual server configuration is for a hostname that ends in **.example.com**.
-
-#### Citrix ADC
+Citrix ADC:
 
 ```none
 add lb vserver myvserver HTTP 10.0.0.99 80
 ```
 
-#### NGINX Plus
+NGINX Plus:
 
 ```nginx
 server {
@@ -91,17 +89,15 @@ server {
 }
 ```
 
-Directive documentation: [listen](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen), [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server), [server_name](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name)
+The `listen` address must exist on the NGINX Plus host. Otherwise, `nginx -t` fails with `bind() to 10.0.0.99:80 failed (99: Cannot assign requested address)`.
 
 <span id="ssl"></span>
 
-### SSL/TLS Termination
+### SSL/TLS termination
 
-Handling SSL/TLS termination is a common use case for ADC load balancers. Both Citrix ADC and NGINX Plus use OpenSSL libraries to perform the encryption/decryption. NGINX Plus uses the system‑level libraries, so the OpenSSL version is determined by the OS. Citrix ADC uses a modified version of OpenSSL included within its firmware.
+In these examples, the load balancer terminates TLS, so the back-end servers don't need to. NGINX Plus uses the OpenSSL library of the operating system. It reads the certificate and key from the [`ssl_certificate` and `ssl_certificate_key`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_certificate) directives.
 
-To define the SSL/TLS key and certificate, NGINX Plus uses the `ssl_certificate` and `ssl_certificate_key` directives. The following load‑balancer configuration examples offload SSL/TLS termination from the backend servers.
-
-#### Citrix ADC
+Citrix ADC:
 
 ```none
 add ssl certKey test.crt -cert test.crt -key test.key
@@ -109,7 +105,7 @@ add lb vserver mysslvserver SSL 10.0.0.98 443
 bind ssl vserver mysslvserver -certkeyName test.crt
 ```
 
-#### NGINX Plus
+NGINX Plus:
 
 ```nginx
 server {
@@ -120,23 +116,21 @@ server {
 }
 ```
 
-Directive documentation: [listen](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen), [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server), [ssl_certificate and ssl_certificate_key](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_certificate)
+Relative file names start in the configuration directory, for example `/etc/nginx`.
 
 <span id="service-group"></span>
 
-### Service Group Entities
+### Service group entities
 
-It is straightforward to migrate the Citrix ADC entities that make up Services and Service Groups to NGINX Plus. Citrix ADC uses three major entity types:
+Citrix ADC uses three entity types for back-end servers:
 
-- **Server** – IP address or hostname of a specific backend server
-- **Service** – Association of a server entity with a listening port and monitor
-- **Service Group** – Association of a pool of server entities and listening ports with a monitor
+- **Server**: the IP address or host name of a back-end server.
+- **Service**: a server with a port and a monitor.
+- **Service group**: a group of servers and ports with a monitor.
 
-NGINX Plus uses the `upstream` block to represent a pool of backend application servers. In the most basic configuration, there is a `server` directive in the `upstream` block for each server in the pool, specifying its IP address or hostname.
+NGINX Plus describes a group of back-end servers with an [`upstream`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream) block. It has a [`server`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server) directive for each server. These examples define the group `myapp` with three servers.
 
-The following load‑balancer configuration examples define a server pool called **myapp** with three servers in it.
-
-#### Citrix ADC
+Citrix ADC:
 
 ```none
 add serviceGroup myapp HTTP
@@ -145,7 +139,7 @@ bind serviceGroup myapp 10.0.0.101 80
 bind serviceGroup myapp 10.0.0.102 80
 ```
 
-#### NGINX Plus
+NGINX Plus:
 
 ```nginx
 upstream myapp {
@@ -155,27 +149,23 @@ upstream myapp {
 }
 ```
 
-Directive documentation: [server](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server), [upstream](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream)
-
 <span id="session-persistence"></span>
 
-### Session Persistence
+### Session persistence
 
-Session persistence is critical for stateless applications and is helpful for continuous delivery use cases. Citrix ADC and NGINX Plus handle session persistence in a similar way.
+Stateful applications need session persistence, and it also helps with continuous delivery. Citrix ADC sets session persistence on the virtual server. NGINX Plus sets it on the group of back-end servers, the `upstream` block, with the [`sticky`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) directive. That directive is also in NGINX Open Source since version 1.29.6.
 
-If NGINX Plus' [Sticky Cookie](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) method is compatible with the application, it's a good choice, as it is simple to configure and handles failover well. It works just like the _cookie insert_ method in Citrix ADC: the load balancer adds a session cookie to the first response from a backend server to a given client. The client then includes the cookie in subsequent requests and the load balancer uses it to route the request to the same server. This method doesn't require the load balancer to maintain information about session state, because the session data is stored in the client‑side cookie.
+#### Cookie persistence
 
-A logical difference between the products is that Citrix ADC defines session persistence in the configuration for a virtual server, whereas NGINX Plus defines it in the context of the backend server group (`upstream` block).
+The `sticky cookie` method works like the cookie insert method of Citrix ADC. The load balancer adds a cookie that names the server, and the client sends it back with later requests. It's simple to set up, and if that server fails, the load balancer chooses another one.
 
-The following load‑balancer configuration examples set up cookie‑based session persistence.
-
-#### Citrix ADC - Cookie-based
+Citrix ADC:
 
 ```none
 add lb vserver mysslvserver SSL 10.0.0.91 443 -persistenceType COOKIEINSERT -timeout 60 -cookieName mysession
 ```
 
-#### NGINX Plus - Cookie-based
+NGINX Plus:
 
 ```nginx
 upstream myapp {
@@ -186,19 +176,17 @@ upstream myapp {
 }
 ```
 
-Directive documentation: [server](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server), [`sticky cookie`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky), [upstream](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream)
+#### JSESSIONID persistence
 
-Another session persistence method available in both products takes advantage of a cookie or other token created by the session participants, such as a `JSESSIONID`. NGINX Plus calls this the [Sticky Learn](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) method. The load balancer maintains a table in memory to map each cookie to a specific backend server.
+Both products can also use a token that the server creates, such as the `JSESSIONID` cookie. NGINX Plus calls this method `sticky learn`.
 
-The following load‑balancer configuration examples set up session persistence based on the `JSESSIONID` found in an existing cookie.
-
-#### Citrix ADC - JSESSIONID-based
+Citrix ADC:
 
 ```none
 set lb vserver mysslvserver -persistencetype RULE -rule 'HTTP.REQ.COOKIE.VALUE("jsessionid")' -resRule 'HTTP.RES.SET_COOKIE.COOKIE("jsessionid")'
 ```
 
-#### NGINX Plus - JSESSIONID-based
+NGINX Plus:
 
 ```nginx
 upstream myapp {
@@ -211,26 +199,26 @@ upstream myapp {
 }
 ```
 
-Directive documentation: [server](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#server), [`sticky learn`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky), [upstream](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream)
-
-The third NGINX Plus session persistence method, [Sticky Route](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky), is comparable to Citrix ADC's [custom server ID persistence](https://docs.citrix.com/en-us/citrix-adc/12-1/load-balancing/load-balancing-persistence/custom-server-id-persistence.html). In this method a particular backend server is specified in each request.
+A third method, `sticky route`, is comparable to the [custom server ID persistence](https://docs.netscaler.com/us/en/citrix-adc/current-release/load-balancing/load-balancing-persistence/custom-server-id-persistence.html) of Citrix ADC.
 
 <span id="health-checks"></span>
 
-### Monitors (Health Checks)
+### Monitors and health checks
 
-Citrix ADC uses the term _monitor_ for what NGINX Plus calls a _health check_. You associate a monitor directly with a Citrix ADC service or service group, whereas an NGINX Plus health check is defined in a `location` block.
+Citrix ADC calls them monitors, and NGINX Plus calls them [health checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md" >}}). You attach a Citrix ADC monitor to a service or service group. An NGINX Plus health check goes in the `location` that proxies to the group. Active health checks are an NGINX Plus feature.
 
-With the following load‑balancer configuration examples, the load balancer sends a request for **/** to backend servers; by default, Citrix ADC sends `HEAD` requests and NGINX Plus sends `GET` requests. Citrix ADC marks the server as healthy if it returns response code `200`, while with this default configuration NGINX Plus accepts any `2xx` or `3xx` code.
+#### Default health check
 
-#### Citrix ADC - Default health check
+In these examples, the load balancer requests `/` from the servers. Citrix ADC sends a `HEAD` request and accepts only the status `200`. NGINX Plus sends a `GET` request, and by default accepts any `2xx` or `3xx` status.
+
+Citrix ADC:
 
 ```none
 add lb monitor httphealth HTTP -respCode 200 -httpRequest "HEAD /"
 bind serviceGroup myapp -monitorName httphealth
 ```
 
-#### NGINX Plus - Default health check
+NGINX Plus:
 
 ```nginx
 location / {
@@ -239,24 +227,25 @@ location / {
 }
 ```
 
-Directive documentation: [health_check](https://nginx.org/en/docs/http/ngx_http_upstream_hc_module.html#health_check), [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location), [proxy_pass](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
+#### Custom health check
 
-It's also possible with both products to define additional characteristics of the request or response. The following examples mark a backend server as healthy if it returns response code `200` and the message body includes the text `Welcome to nginx!`.
+Both products can also check the response in detail. These examples mark a server as healthy if it returns the status `200` and a body that contains `Welcome to nginx!`.
 
-#### Citrix ADC - Custom health check
+Citrix ADC:
 
 ```none
 add lb monitor httphealth-ecv HTTP-ECV -send "GET /" -recv "Welcome to nginx!"
 bind serviceGroup myapp -monitorName httphealth-ecv
 ```
 
-#### NGINX Plus - Custom health check
+NGINX Plus:
 
 ```nginx
 match server_ok {
     status 200;
     body ~ "Welcome to nginx!";
 }
+
 server {
     #...
     location / {
@@ -266,26 +255,22 @@ server {
 }
 ```
 
-Directive documentation: [health_check](https://nginx.org/en/docs/http/ngx_http_upstream_hc_module.html#health_check), [location](https://nginx.org/en/docs/http/ngx_http_core_module.html#location), [match](https://nginx.org/en/docs/http/ngx_http_upstream_hc_module.html#match), [proxy_pass](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass), [server](https://nginx.org/en/docs/http/ngx_http_core_module.html#server)
-
-For more information about NGINX Plus health checks, see the [NGINX Plus Admin Guide]({{< ref "nginx/admin-guide/load-balancer/http-health-check.md" >}}).
-
 <span id="configuration-summary"></span>
 
-### Summary of Converted Load Balancer Configuration
+### Review the complete configuration
 
-The following examples bring together the commands and directives from the preceding sections. The NGINX Plus configuration includes some additional directives not discussed above:
+These examples combine the commands and directives of the previous sections. The NGINX Plus configuration adds three directives:
 
-- [zone](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#zone) – Defines a shared memory zone used for health checks
-- [proxy_set_header](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) – Ensures that requests forwarded to the backend servers include the `Host` header, set to the value extracted from that header in the client request
-- [proxy_http_version](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_http_version) – Specifies HTTP version 1.1 for connections to the backend servers
+- [`zone`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#zone) keeps the state of the group in shared memory, which health checks need.
+- [`proxy_set_header`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) passes the `Host` header of the client request to the servers.
+- [`proxy_http_version`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_http_version) uses HTTP/1.1 for the connections to the servers. Since NGINX 1.29.7, HTTP/1.1 is the default.
 
-#### Citrix ADC
+Citrix ADC:
 
 ```none
 add ssl certKey test.crt -cert test.crt -key test.key
-add lb vserver myssl SSL 10.0.0.98 443 -persistenceType COOKIEINSERT -timeout 60 -cookieName mysession
-bind ssl vserver myssl -certkeyName test.crt
+add lb vserver mysslvserver SSL 10.0.0.98 443 -persistenceType COOKIEINSERT -timeout 60 -cookieName mysession
+bind ssl vserver mysslvserver -certkeyName test.crt
 add serviceGroup myapp HTTP
 bind serviceGroup myapp 10.0.0.100 80
 bind serviceGroup myapp 10.0.0.101 80
@@ -295,7 +280,7 @@ bind serviceGroup myapp -monitorName httphealth
 bind lb vserver mysslvserver myapp
 ```
 
-#### NGINX Plus
+NGINX Plus:
 
 ```nginx
 upstream myapp {
@@ -310,41 +295,68 @@ server {
     listen 10.0.0.98:443 ssl default_server;
     ssl_certificate     test.crt;
     ssl_certificate_key test.key;
-    proxy_set_header Host $host;
+    proxy_set_header    Host $host;
+
     location / {
-        proxy_pass http://myapp;
+        proxy_pass         http://myapp;
         health_check;
         proxy_http_version 1.1;
     }
 }
 ```
 
+---
+
 <span id="ha"></span>
-## Configuring High Availability
 
-NGINX Plus and Citrix ADC handle high availability (HA) in similar but slightly different ways.
+## Set up high availability
 
-Citrix ADC handles the monitoring and failover of the VIP in a proprietary way.
+NGINX Plus and Citrix ADC handle high availability (HA) in similar ways. Citrix ADC monitors the instances and moves the VIP in a proprietary way.
 
- For [on‑premises deployments]({{< ref "nginx/admin-guide/high-availability/ha-keepalived.md" >}}), NGINX Plus uses a separate software package called {{<nb>}}****nginx-ha-keepalived****{{</nb>}} to handle the VIP and the failover process for an active‑passive pair of NGINX Plus servers. The package implements the VRRP protocol to handle the VIP. Limited [active‑active]({{< ref "nginx/admin-guide/high-availability/ha-keepalived-nodes.md" >}}) scenarios are also possible with the {{<nb>}}**nginx-ha-keepalived**{{</nb>}} package.
+For [on-premises deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}), NGINX Plus uses the `nginx-ha-keepalived` package. It moves the VIP between an active-passive pair of NGINX Plus instances with the VRRP protocol. For pairs where both instances handle traffic, see [active-active HA with keepalived]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived-nodes.md" >}}). For cloud environments, see these guides:
 
-Solutions for high availability of NGINX Plus in cloud environments are also available, including these:
+- [Active-Active HA for NGINX Plus on AWS Using AWS Network Load Balancer]({{< ref "/nginx/deployment-guides/amazon-web-services/high-availability-network-load-balancer.md" >}})
+- [Active-Passive HA for NGINX Plus on AWS Using Elastic IP Addresses]({{< ref "/nginx/deployment-guides/amazon-web-services/high-availability-keepalived.md" >}})
+- [All-Active HA for NGINX Plus on the Google Cloud Platform]({{< ref "/nginx/deployment-guides/google-cloud-platform/high-availability-all-active.md" >}})
+- [Active-Active HA for NGINX Plus on Microsoft Azure Using the Azure Standard Load Balancer]({{< ref "/nginx/deployment-guides/microsoft-azure/high-availability-standard-load-balancer.md" >}})
 
-- [Active‑Active HA for NGINX Plus on AWS Using AWS Network Load Balancer]({{< ref "nginx/deployment-guides/amazon-web-services/high-availability-network-load-balancer.md" >}})
-- [Active‑Passive HA for NGINX Plus on AWS Using Elastic IP Addresses]({{< ref "nginx/deployment-guides/amazon-web-services/high-availability-keepalived.md" >}})
-- [All‑Active HA for NGINX Plus on the Google Cloud Platform]({{< ref "nginx/deployment-guides/google-cloud-platform/high-availability-all-active.md" >}})
+---
 
 <span id="logging"></span>
-## Logging in Citrix ADC and NGINX Plus
 
-Logging and monitoring are important supporting functionality for load balancing. Both NGINX Plus and Citrix ADC support logging.
+## Logging and monitoring
 
-Citrix ADC logs errors in its _event log_ and NGINX Plus in its [_error log_](https://nginx.org/en/docs/ngx_core_module.html#error_log). By default, Citrix ADC does not log individual requests, but can be configured to do so, using a separate weblog client. NGINX Plus has an [_access log_](https://nginx.org/en/docs/http/ngx_http_log_module.html) for which you can define customized formats to log many metrics (as captured in [variables](https://nginx.org/en/docs/varindex.html)) from both requests and responses.
+Citrix ADC logs errors in its event log, and NGINX Plus in its [error log](https://nginx.org/en/docs/ngx_core_module.html#error_log). By default, Citrix ADC doesn't log individual requests; it needs a separate web logging client for that. NGINX Plus logs each request in its [access log](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) by default.
 
-The [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html) module collects numerous statistics, which you can access via the API, display on the built‑in live activity monitoring dashboard, or pass to third‑party monitoring tools. For more detail on logging and monitoring see the [NGINX Plus Admin Guide]({{< ref "nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}).
+The [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html) collects many statistics. You can read them through the API, show them on the [dashboard]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}), or pass them to other monitoring tools.
 
-### Revision History
+---
 
-- Version 3 (April 2019) – Product name changed to Citrix ADC
-- Version 2 (April 2018) – Updated information about high availability and the NGINX Plus API (NGINX Plus R13, NGINX Open Source 1.13.4)
-- Version 1 (November 2016) – Initial version (<span style="white-space: nowrap;">NGINX Plus R11</span>, NGINX 1.11.5)
+## Troubleshooting
+
+### nginx -t can't bind to the virtual server address
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] bind() to 10.0.0.98:443 failed (99: Cannot assign requested address)`.
+
+**Cause**: The `listen` directive uses an IP address that the NGINX Plus host doesn't have.
+
+**Fix**: Add the address to an interface of the host, or change the `listen` directive to an address of the host.
+
+---
+
+## References
+
+For more information, see:
+
+- [HTTP load balancing]({{< ref "/nginx/admin-guide/load-balancer/http-load-balancer.md" >}})
+- [HTTP health checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md" >}})
+- [Migrating load balancer configuration from F5 BIG-IP LTM to F5 NGINX Plus]({{< ref "/nginx/deployment-guides/migrate-hardware-adc/f5-big-ip-configuration.md" >}})
+
+---
+
+## Revision history
+
+- Version 4 (November 2026): Rewritten to the how-to template. Fixes the name of the virtual server in the summary, and says that stateful applications need session persistence.
+- Version 3 (April 2019): Product name changed to Citrix ADC
+- Version 2 (April 2018): Updated information about high availability and the NGINX Plus API (NGINX Plus R13, NGINX Open Source 1.13.4)
+- Version 1 (November 2016): Initial version (NGINX Plus R11, NGINX 1.11.5)

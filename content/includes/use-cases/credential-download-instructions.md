@@ -7,7 +7,7 @@ f5-files:
 
 In order to obtain a container image, you will need the JSON Web Token file or SSL certificate and private key files provided with your NGINX Plus subscription. 
 
-These files grant access to the package repository from which the script will download the NGINX Plus package:
+These files grant access to the F5 Container Registry, `private-registry.nginx.com`, which has the images. To download the files:
 
 {{< tabs name="product_keys" >}}
 

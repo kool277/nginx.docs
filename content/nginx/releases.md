@@ -78,7 +78,6 @@ LTS patch versions follow the numbering format: `PLS.37.0.<PATCH>.<PACKAGE>`: th
 To switch from the default [CR track](#cr) to the LTS patch release track, update your repository configuration to point to the LTS package URL. See [Installing NGINX Plus LTS]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus-lts.md" >}}) for details.
 
 ### NGINX Plus PLS.37.0.7.1 LTS {#pls.37.0.7}
-
 _October 14, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -89,7 +88,6 @@ NGINX Plus PLS.37.0.7.1 LTS is a security release.
 {{< call-out class="note" title="Before you upgrade" >}} Before upgrading from NGINX Plus R36, review the [Upgrade Notes](#upgrade-notes) for breaking changes.{{< /call-out >}}
 
 ### NGINX Plus PLS.37.0.6.2 LTS {#pls.37.0.6}
-
 _September 15, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -97,8 +95,8 @@ NGINX Plus PLS.37.0.6.2 LTS is a security release.
 
 - Security fix in the [`ngx_http_v3_module`](https://nginx.org/en/docs/http/ngx_http_v3_module.html) module: when using HTTP/3 with OpenSSL versions 3.5.0 and earlier, a limited heap buffer overflow may occur during TLS handshake processing under certain configurations. The condition is non-deterministic and beyond an attacker's control. This may cause a heap buffer overflow in the NGINX worker process, potentially resulting in restart and/or limited data corruption. ([CVE-2026-90439](https://my.f5.com/manage/s/article/K000162604)).
 
-### NGINX Plus PLS.37.0.5.1 LTS {#pls.37.0.5}
 
+### NGINX Plus PLS.37.0.5.1 LTS {#pls.37.0.5}
 _September 2, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -112,8 +110,8 @@ NGINX Plus PLS.37.0.5.1 LTS is a bugfix release. We recommend that all users on 
 
 - Security fix in the [`ngx_http_core_module`](https://nginx.org/en/docs/http/ngx_http_core_module.html) module: when asynchronous file I/O ([`aio`](https://nginx.org/en/docs/http/ngx_http_core_module.html#aio)) is enabled in certain configurations, processing Server Side Includes (SSI) containing [`include virtual`](https://nginx.org/en/docs/http/ngx_http_ssi_module.html#commands) commands may trigger a use-after-free condition in the NGINX worker process. This may cause memory corruption or a worker process crash and, if Address Space Layout Randomization (ASLR) is disabled or bypassed, may allow code execution ([CVE-2026-97205](https://my.f5.com/manage/s/article/K000162608)).
 
-### NGINX Plus PLS.37.0.4.1 LTS {#pls.37.0.4}
 
+### NGINX Plus PLS.37.0.4.1 LTS {#pls.37.0.4}
 _July 22, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -124,7 +122,6 @@ NGINX Plus PLS.37.0.4.1 LTS is a bugfix release:
 - Restored compatibility with some third-party dynamic modules available in our repository, for example, [Set-Misc](https://docs.nginx.com/nginx/admin-guide/dynamic-modules/set-misc/) and [Lua](https://docs.nginx.com/nginx/admin-guide/dynamic-modules/lua/). The bug appeared in [NGINX Plus PLS.37.0.3.1 LTS](#pls.37.0.3).
 
 ### NGINX Plus PLS.37.0.3.1 LTS {#pls.37.0.3}
-
 _July 15, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -138,8 +135,8 @@ NGINX Plus PLS.37.0.3.1 LTS is a security release.
 
 - Security fix: when NGINX Plus is configured to use the MQTT filter module [(`ngx_stream_mqtt_filter_module`)](https://nginx.org/en/docs/stream/ngx_stream_mqtt_filter_module.html), unauthenticated attackers can send requests with conditions beyond the attacker's control to cause a heap buffer over-read in the NGINX worker process, leading to a restart ([CVE-2026-60065](https://my.f5.com/manage/s/article/K000162101)).
 
-### NGINX Plus PLS.37.0.2.1 LTS {#pls.37.0.2}
 
+### NGINX Plus PLS.37.0.2.1 LTS {#pls.37.0.2}
 _June 17, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -149,8 +146,8 @@ NGINX Plus PLS.37.0.2.1 LTS is a security release.
 
 - Security fix in the `ngx_http_proxy_v2_module` and [`ngx_http_grpc_module`](https://nginx.org/en/docs/http/ngx_http_grpc_module.html) modules: when NGINX Plus is configured to proxy HTTP/2 traffic by using [`proxy_http_version`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_http_version) `2` or [`grpc_pass`](https://nginx.org/en/docs/http/ngx_http_grpc_module.html#grpc_pass), [`ignore_invalid_headers`](https://nginx.org/en/docs/http/ngx_http_core_module.html#ignore_invalid_headers) set to `off`, and [`large_client_header_buffers size`](https://nginx.org/en/docs/http/ngx_http_core_module.html#large_client_header_buffers) is larger than `2M`, a remote unauthenticated attacker could send large headers while creating an upstream request. This may cause a heap-based buffer overflow in the NGINX worker process, leading to a restart. Additionally, attackers can execute code on systems with Address Space Layout Randomization (ASLR) disabled or when the attacker can bypass ASLR ([CVE-2026-42055](https://my.f5.com/manage/s/article/K000161584)).
 
-### NGINX Plus PLS.37.0.1.1 LTS {#pls.37.0.1}
 
+### NGINX Plus PLS.37.0.1.1 LTS {#pls.37.0.1}
 _May 22, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -158,8 +155,8 @@ NGINX Plus PLS.37.0.1.1 LTS is a security release.
 
 - Security fix in the [`ngx_http_rewrite_module`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html) module: when the [rewrite replacement string](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#rewrite) contained no variables but had overlapping captures, the length of the allocated buffer could be smaller than the escaped replacement string, which could result in a buffer overflow. ([CVE-2026-9256](https://my.f5.com/manage/s/article/K000161377)).
 
-### NGINX Plus PLS.37.0.0.1 LTS {#r37.0}
 
+### NGINX Plus PLS.37.0.0.1 LTS {#r37.0}
 _May 13, 2026_<br/>
 _Based on NGINX Open Source 1.29.8_
 
@@ -196,7 +193,6 @@ NGINX Plus PLS.37.0.0.1 LTS is the first LTS release. For more details on the [r
 NGINX Plus PLS.37.0.0.1 LTS is supported on:
 
 {{<table>}}
-
 | Distribution   | Versions                  | Architecture    |
 |----------------|---------------------------|-----------------|
 | AlmaLinux      | 8.1+, 9.7+, 10            | x86_64, aarch64 |
@@ -221,12 +217,12 @@ NGINX Plus PLS.37.0.0.1 LTS is supported on:
 - FreeBSD 15 is added
 - Ubuntu 26.04 is added
 
+
 ## NGINX Plus PLS.37 Continuous release (CR) track {#cr}
 
 Continuous Releases (CR) track includes the newest features and performance improvements as well as security fixes and CVE mitigations. CRs are never patched, security fixes are delivered as the next CR. Only latest CR is eligible for support within the release lifecycle: when a new CR is released, the previous CR immediately reaches End of Support.
 
 ### NGINX Plus PLS.37.2.0.1 CR {#pls.37.2.0}
-
 _October 14, 2026_<br/>
 _Based on NGINX Open Source 1.31.6_
 
@@ -246,12 +242,12 @@ NGINX Plus PLS.37.2.0.1 CR is a feature release.
 
 - Security fix in the [`ngx_http_v3_module`](https://nginx.org/en/docs/http/ngx_http_v3_module.html) module: when using HTTP/3 with the [`proxy_request_buffering`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering) directive enabled, an unauthenticated remote attacker may be able to inject data into a proxied request ([CVE-2026-95101](https://my.f5.com/manage/s/article/K000162613)).
 
+
 {{< call-out class="note" title="More info" >}} [Announcing NGINX Plus PLS.37.2.0.1 CR](https://community.f5.com/t/f5-nginx-plus-37-2-release-now-available/77548) blog post. {{< /call-out >}}
 
 NGINX Plus PLS.37.2.0.1 CR is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                        | Architecture    |
 |----------------------------------|---------------------------------|-----------------|
 | AlmaLinux                        | 8.1+, 9.7+, 10                  | x86_64, aarch64 |
@@ -271,8 +267,8 @@ NGINX Plus PLS.37.2.0.1 CR is supported on:
 - Alpine Linux 3.21 is deprecated
 - Debian 11 is removed
 
-### NGINX Plus PLS.37.1.1.2 CR {#pls.37.1.1}
 
+### NGINX Plus PLS.37.1.1.2 CR {#pls.37.1.1}
 _September 15, 2026_<br/>
 _Based on NGINX Open Source 1.31.3_
 
@@ -283,7 +279,6 @@ NGINX Plus PLS.37.1.1.2 CR is a security release.
 {{< call-out class="note" title="Before you upgrade" >}} Before upgrading from NGINX Plus R36, review the [Upgrade Notes](#upgrade-notes) for breaking changes.{{< /call-out >}}
 
 ### NGINX Plus PLS.37.1.0.1 CR {#pls.37.1.0}
-
 _September 2, 2026_<br/>
 _Based on NGINX Open Source 1.31.3_
 
@@ -346,7 +341,6 @@ NGINX Plus PLS.37.1.0.1 CR is a feature release.
 NGINX Plus PLS.37.1.0.1 CR is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                        | Architecture    |
 |----------------------------------|---------------------------------|-----------------|
 | AlmaLinux                        | 8.1+, 9.7+, 10                  | x86_64, aarch64 |
@@ -368,12 +362,12 @@ NGINX Plus PLS.37.1.0.1 CR is supported on:
 - Amazon Linux 2 is removed
 - Debian 11 is deprecated
 
+
 ## Other supported releases
 
 F5 offers 24 months of technical support for each NGINX Plus release, beginning from the initial release date as noted in the table. The release of a patch (for example, `NGINX Plus R36 P3`) does not reset the 24-month support period for the impacted version. Each release reaches End of Software Development (EoSD) when the next version is published, meaning no additional features or routine bug fixes will be applied to that version. However, critical bug patches and security updates are provided for the two most recent NGINX Plus releases.
 
 {{<table>}}
-
 | NGINX Plus Release | Release Date | End of Software Development | End of Security Updates | End of Technical Support |
 |--------------------|--------------|-----------------------------|-------------------------|--------------------------|
 | [R36](#r36)        | Dec 1, 2025  | May 13, 2026                | Sept 2, 2026            | Nov 30, 2027             |
@@ -385,7 +379,6 @@ F5 offers 24 months of technical support for each NGINX Plus release, beginning 
 We strongly recommend running the latest version of NGINX Plus [LTS](#lts) or [CR](#cr) to ensure you have the latest features, security updates, and critical patches.
 
 ### NGINX Plus Release 36 (R36) {#r36}
-
 _December 1, 2025_<br/>
 _Based on NGINX Open Source 1.29.3_
 
@@ -436,7 +429,6 @@ NGINX Plus R36 is a feature release:
 NGINX Plus R36 is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                 |
 |----------------------------------|--------------------------|
 | AlmaLinux                        | 8.1+, 9, 10              |
@@ -546,8 +538,8 @@ This is an improvement release for NGINX Plus R36.
 
 - The [`keepalive`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive) directive now accepts the `0` value, making upgrade to NGINX Plus PLS.37 LTS smoother, where HTTP 1.1 and keepalive to upstreams are enabled by default. See [this blog post](https://blog.nginx.org/blog/keep-alive-to-upstreams-is-now-default-in-nginx-1-29-7) for details.
 
-### NGINX Plus Release 35 (R35) {#r35}
 
+### NGINX Plus Release 35 (R35) {#r35}
 _August 13, 2025_<br/>
 _Based on NGINX Open Source 1.29.0_
 
@@ -571,10 +563,10 @@ NGINX Plus R35 is a feature release:
 
 {{< call-out class="note" title="Learn more" >}}For highlights of all new features and enhancements in this release, see the [NGINX Plus R35 release blog](https://community.f5.com/kb/technicalarticles/f5-nginx-plus-r35-release-now-available/342962).{{< /call-out >}}
 
+
 NGINX Plus R35 is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                          |
 |----------------------------------|-----------------------------------|
 | AlmaLinux                        | 8, 9, 10                          |
@@ -628,7 +620,6 @@ This is a security release for NGINX Plus R35.
 We strongly recommend running the latest version of NGINX Plus LTS or CR to ensure you have the latest features, security updates, and critical patches.
 
 ### NGINX Plus Release 34 (R34) {#r34}
-
 _April 01, 2025_<br/>
 _Based on NGINX Open Source 1.27.4_
 
@@ -652,7 +643,6 @@ NGINX Plus R34 is a feature release:
 NGINX Plus R34 is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                          |
 |----------------------------------|-----------------------------------|
 | AlmaLinux                        | 8, 9                              |
@@ -685,6 +675,7 @@ This is a bugfix release for NGINX Plus R34.
 
 - Fixed license expiration warning issue in the NGINX Plus live activity monitoring dashboard specifically for deployments utilizing marketplace images of NGINX Plus.
 
+
 NGINX Plus R34 P2<br/>
 _August 13, 2025_
 
@@ -692,8 +683,8 @@ This is a security release for NGINX Plus R34.
 
 - Security: SMTP Authentication process memory over-read. This vulnerability in the NGINX `ngx_mail_smtp_module` may allow an unauthenticated attacker to trigger buffer over-read, resulting in worker process memory disclosure to the authentication server ([CVE-2025-53859](https://www.cve.org/CVERecord?id=CVE-2025-53859)).
 
-### NGINX Plus Release 33 (R33) {#r33}
 
+### NGINX Plus Release 33 (R33) {#r33}
 _November 19, 2024_<br/>
 _Based on NGINX Open Source 1.27.2_
 
@@ -729,8 +720,8 @@ The argument is a file name in the `SSLKEYLOGFILE` format compatible with Wiresh
 
 {{< call-out class="note" title="Learn more" >}}For highlights of all new features and enhancements in this release, see the [NGINX Plus R33 release blog](https://community.f5.com/kb/technicalarticles/f5-nginx-plus-r33-release-now-available/336403).{{< /call-out >}}
 
-{{<table>}}
 
+{{<table>}}
 | Distribution                     | Versions                          |
 |----------------------------------|-----------------------------------|
 | AlmaLinux                        | 8, 9                              |
@@ -744,6 +735,7 @@ The argument is a file name in the `SSLKEYLOGFILE` format compatible with Wiresh
 | SUSE Linux Enterprise Server     | 12, 15 SP5+                       |
 | Ubuntu                           | 20.04 LTS, 22.04 LTS, 24.04 LTS   |
 {{</table >}}
+
 
 **Notes:**
 
@@ -766,12 +758,14 @@ This is a bugfix release for NGINX Plus R33.
 
 - Resolved an issue related to product code detection on Azure Marketplace VMs.
 
+
 NGINX Plus R33 P2<br/>
 _February 5, 2025_
 
 This is a security release for NGINX Plus R33.
 
 - Security Fix [CVE-2025-23419](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-23419) in SNI that adds a restriction for TLSv1.3 cross-SNI session resumption.
+
 
 NGINX Plus R33 P3<br/>
 _August 13, 2025_
@@ -780,12 +774,13 @@ This is a security release for NGINX Plus R33.
 
 - - Security: SMTP Authentication process memory over-read. This vulnerability in the NGINX `ngx_mail_smtp_module` may allow an unauthenticated attacker to trigger buffer over-read, resulting in worker process memory disclosure to the authentication server ([CVE-2025-53859](https://www.cve.org/CVERecord?id=CVE-2025-53859)).
 
+
 ## End-of-life (EoL) releases
 
 End-of-Life (EoL) releases are no longer receive security updates or technical support. Using EoL releases can pose security and compatibility risks. We strongly recommend running the latest version of NGINX Plus [LTS](#lts) or [CR](#cr) to ensure you have the latest features, security updates, and critical patches.
 
-{{<table>}}
 
+{{<table>}}
 | NGINX Plus Release | Release Date | End of Software Development | End of Security Updates | End of Technical Support |
 |--------------------|--------------|-----------------------------|-------------------------|--------------------------|
 | [R32](#r32)        | May 29, 2024 | Nov 19, 2024                | Apr 1, 2025             | May 28, 2026             |
@@ -795,7 +790,6 @@ End-of-Life (EoL) releases are no longer receive security updates or technical s
 {{</table >}}
 
 ### NGINX Plus Release 32 (R32) {#r32}
-
 _May 29, 2024_<br/>
 _Based on NGINX Open Source 1.25.5_
 
@@ -850,7 +844,6 @@ NGINX Plus R32 is a feature release:
 NGINX Plus R32 is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                          |
 |----------------------------------|-----------------------------------|
 | AlmaLinux                        | 8, 9                              |
@@ -878,6 +871,7 @@ NGINX Plus R32 is supported on:
 
 More information: [Announcing NGINX Plus R32](https://www.f5.com/company/blog/nginx/announcing-NGINX-plus-R32)
 
+
 #### NGINX Plus R32 Updates {#r32_p1}
 
 These are security releases for NGINX Plus R32.
@@ -893,6 +887,7 @@ _August 14, 2024_
 
 - Various fixes in SSL certificate caching
 
+
 NGINX Plus R32 P2<br/>
 _February 5, 2025_
 
@@ -900,12 +895,14 @@ _February 5, 2025_
 
 - Regression issue fix in SSL Certificate Caching.
 
+
 NGINX Plus R32 P3<br/>
 _August 13, 2025_
 
 This is a security release for NGINX Plus R32.
 
 - Security: SMTP Authentication process memory over-read. This vulnerability in the NGINX `ngx_mail_smtp_module` may allow an unauthenticated attacker to trigger buffer over-read, resulting in worker process memory disclosure to the authentication server ([CVE-2025-53859](https://www.cve.org/CVERecord?id=CVE-2025-53859)).
+
 
 NGINX Plus R32 P4<br/>
 _February 4, 2026_
@@ -952,8 +949,8 @@ This is a security release for NGINX Plus R32.
 
 - Security fix in the [`ngx_http_rewrite_module`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html) module: when the [rewrite replacement string](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#rewrite) contained no variables but had overlapping captures, the length of the allocated buffer could be smaller than the escaped replacement string, which could result in a buffer overflow. ([CVE-2026-9256](https://my.f5.com/manage/s/article/K000161377)).
 
-### NGINX Plus Release 31 (R31) {#r31}
 
+### NGINX Plus Release 31 (R31) {#r31}
 _December 19, 2023_<br/>
 _Based on NGINX Open Source 1.25.3_
 
@@ -1013,7 +1010,6 @@ of NGINX Plus installations to [NGINX Instance Manager]({{< ref "/nim/" >}})
 NGINX Plus R31 is supported on:
 
 {{<table>}}
-
 | Distribution                     | Versions                          |
 |----------------------------------|-----------------------------------|
 | AlmaLinux                        | 8, 9                              |
@@ -1039,6 +1035,7 @@ NGINX Plus R31 is supported on:
 
 More information: [Announcing NGINX Plus R31](https://www.nginx.com/blog/nginx-plus-r31-released/)
 
+
 #### NGINX Plus R31 Update {#r31_p1}
 
 This is an improvement release for NGINX Plus R31.
@@ -1051,6 +1048,7 @@ _February 14, 2024_
 - Management module: fixed a potential crash that might happen while using a system resolver
 
 More information: [Updating NGINX for the Vulnerabilities in the HTTP/3 Module](https://www.nginx.com/blog/updating-nginx-for-the-vulnerabilities-in-the-http-3-module/)
+
 
 NGINX Plus R31 P2<br/> {#r31_p2}
 _May 29, 2024_
@@ -1065,6 +1063,7 @@ _May 29, 2024_
 
   - Memory Disclosure during QUIC handshake ([CVE-2024-34161](https://my.f5.com/manage/s/article/K000139627)): When the network infrastructure supports a Maximum Transmission Unit (MTU) of 4096 or greater without fragmentation, undisclosed QUIC messages can cause NGINX worker processes to terminate or cause leakage of previously freed memory
 
+
 NGINX Plus R31 P3<br/> {#r31_p3}
 _August 14, 2024_
 
@@ -1074,8 +1073,8 @@ _August 14, 2024_
 
   - In the [MP4](https://nginx.org/en/docs/http/ngx_http_mp4_module.html) module, a specially crafted `mp4` file can cause NGINX worker memory over-read resulting in its termination by using a specially crafted `mp4` file ([CVE-2024-7347](https://my.f5.com/manage/s/article/K000140529))
 
-### NGINX Plus Release 30 (R30) {#r30}
 
+### NGINX Plus Release 30 (R30) {#r30}
 _August 15, 2023_<br/>
 _Based on NGINX Open Source 1.25.1_
 
@@ -1118,7 +1117,6 @@ required for troubleshooting are available as a separate download package
 NGINX Plus R30 is supported on:
 
 {{<table>}}
-
 | OS Distribution                    | Versions                      |
 |-----------------------------------|-------------------------------|
 | AlmaLinux                         | 8, 9                          |
@@ -1145,6 +1143,7 @@ NGINX Plus R30 is supported on:
 
 More information: [Announcing NGINX Plus R30](https://www.nginx.com/blog/nginx-plus-r30-released/)
 
+
 #### NGINX Plus R30 Update {#r30_p1}
 
 This is an improvement release for NGINX Plus R30.
@@ -1156,6 +1155,7 @@ _October 11, 2023_
 
 More information: [HTTP/2 Rapid Reset Attack Impacting NGINX Products](https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products/)
 
+
 NGINX Plus R30 P2<br/> {#r30_p2}
 _February 14, 2024_
 
@@ -1163,8 +1163,8 @@ _February 14, 2024_
 
 More information: [Updating NGINX for the Vulnerabilities in the HTTP/3 Module](https://www.nginx.com/blog/updating-nginx-for-the-vulnerabilities-in-the-http-3-module/)
 
-### NGINX Plus Release 29 (R29) {#r29}
 
+### NGINX Plus Release 29 (R29) {#r29}
 _May 2, 2023_<br/>
 _Based on NGINX Open Source 1.23.4_
 
@@ -1191,7 +1191,6 @@ NGINX Plus R29 is a feature release:
 NGINX Plus R29 is supported on:
 
 {{<table>}}
-
 | OS Distribution                    | Versions                      |
 |-----------------------------------|-------------------------------|
 | AlmaLinux                         | 8, 9                          |
@@ -1217,6 +1216,7 @@ NGINX Plus R29 is supported on:
 
 More information: [Announcing NGINX Plus R29](https://www.nginx.com/blog/nginx-plus-r29-released/)
 
+
 #### NGINX Plus R29 Update {#r29_p1}
 
 This is an improvement release for NGINX Plus R29.
@@ -1228,8 +1228,8 @@ _October 11, 2023_
 
 More information: [HTTP/2 Rapid Reset Attack Impacting NGINX Products](https://www.nginx.com/blog/http-2-rapid-reset-attack-impacting-f5-nginx-products/)
 
-### NGINX Plus Release 28 (R28) {#r28}
 
+### NGINX Plus Release 28 (R28) {#r28}
 _November 29, 2022_<br/>
 _Based on NGINX Open Source 1.23.2_
 
@@ -1264,7 +1264,6 @@ NGINX Plus R28 is a feature release:
 NGINX Plus R28 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                            |
 |-----------------------------------|-------------------------------------|
 | AlmaLinux                         | 8, 9                                |
@@ -1291,8 +1290,8 @@ NGINX Plus R28 is supported on:
 
 More information: [Announcing NGINX Plus R28](https://www.nginx.com/blog/nginx-plus-r28-released/)
 
-### NGINX Plus Release 27 (R27) {#r27}
 
+### NGINX Plus Release 27 (R27) {#r27}
 _June 28, 2022_<br/>
 _Based on NGINX Open Source 1.21.6_
 
@@ -1314,10 +1313,10 @@ during which requests can be processed through one keepalive connection
 
 - [kTLS](https://www.nginx.com/blog/improving-nginx-performance-with-kernel-tls/) is now also available on RHEL 9.0 and Ubuntu 22.04
 
+
 NGINX Plus R27 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                            |
 |-----------------------------------|-------------------------------------|
 | Alpine Linux                      | 3.13, 3.14, 3.15, 3.16              |
@@ -1343,6 +1342,7 @@ NGINX Plus R27 is supported on:
 
 More information: [Announcing NGINX Plus R27](https://www.nginx.com/blog/nginx-plus-r27-released/)
 
+
 #### NGINX Plus R27 Update {#r27_p1}
 
 This is a bug‑fix release for NGINX Plus R27.
@@ -1352,8 +1352,8 @@ _October 19, 2022_
 
 - In HLS ([CVE-2022-41743](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41743)) and MP4 ([CVE-2022-41741](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41741)) modules when processing specially crafted video files a memory corruption, or a memory disclosure in MP4 module ([CVE-2022-41742](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41742)) could happen.
 
-### NGINX Plus Release 26 (R26) {#r26}
 
+### NGINX Plus Release 26 (R26) {#r26}
 _February 15, 2022_<br/>
 _Based on NGINX Open Source 1.21.5_
 
@@ -1370,10 +1370,10 @@ NGINX Plus R26 is a feature release:
 
 - The [`mp4_start_key_frame`](https://nginx.org/en/docs/http/ngx_http_mp4_module.html#mp4_start_key_frame) directive in the MP4 module that forces a video to always start with a key frame
 
+
 NGINX Plus R26 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                            |
 |-----------------------------------|-------------------------------------|
 | Alpine Linux                      | 3.12, 3.13, 3.14, 3.15              |
@@ -1404,6 +1404,7 @@ NGINX Plus R26 is supported on:
 
 More information: [Announcing NGINX Plus R26](https://www.nginx.com/blog/nginx-plus-r26-released/)
 
+
 #### NGINX Plus R26 Update {#r26_p1}
 
 This is a bug‑fix release for NGINX Plus R26.
@@ -1413,8 +1414,8 @@ _October 19, 2022_
 
 - In HLS ([CVE-2022-41743](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41743)) and MP4 ([CVE-2022-41741](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41741)) modules when processing specially crafted video files a memory corruption, or a memory disclosure in MP4 module ([CVE-2022-41742](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-41742)) could happen.
 
-### NGINX Plus Release 25 (R25) {#r25}
 
+### NGINX Plus Release 25 (R25) {#r25}
 _September 28, 2021_<br/>
 _Based on NGINX Open Source 1.21.3_
 
@@ -1446,6 +1447,7 @@ NGINX Plus R25 is a feature release:
 
   - the `Auth-SSL-Protocol` and `Auth-SSL-Cipher` header lines are now [passed](https://nginx.org/en/docs/mail/ngx_mail_auth_http_module.html#protocol) to the mail proxy authentication server
 
+
 - Security hardening of HTTP request parsing. NGINX Plus will return an error if:
 
   - spaces or control characters are found in the request line, header names, or the `Host` request header line
@@ -1458,10 +1460,10 @@ NGINX Plus R25 is a feature release:
 
 - Support for dynamic SSL certificate loading for [http](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_certificate), [grpc](https://nginx.org/en/docs/http/ngx_http_grpc_module.html#grpc_ssl_certificate), and [uwsgi](https://nginx.org/en/docs/http/ngx_http_uwsgi_module.html#uwsgi_ssl_certificate) backends
 
+
 NGINX Plus R25 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                            |
 |-----------------------------------|-------------------------------------|
 | Alpine Linux                      | 3.11, 3.12, 3.13, 3.14              |
@@ -1486,6 +1488,7 @@ NGINX Plus R25 is supported on:
 
 More information: [Announcing NGINX Plus R25](https://www.nginx.com/blog/nginx-plus-r25-released/)
 
+
 #### NGINX Plus R25 Update {#r25_p1}
 
 This is a bug‑fix release for NGINX Plus R25.
@@ -1496,8 +1499,8 @@ _December 14, 2021_
 - Swagger UI updated to version 4.1.2
 - Fixed a crash that might happen when an upstream server was updated via the API
 
-### NGINX Plus Release 24 (R24) {#r24}
 
+### NGINX Plus Release 24 (R24) {#r24}
 _April 27, 2021_<br/>
 _Based on NGINX Open Source 1.19.10_
 
@@ -1521,7 +1524,6 @@ NGINX Plus R24 is a feature release:
 NGINX Plus R24 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                 |
 |-----------------------------------|------------------------------------------|
 | Alpine Linux                      | 3.10, 3.11, 3.12, 3.13                   |
@@ -1555,8 +1557,8 @@ NGINX Plus repositories have been separated into individual repositories based 
 
 More information: [Announcing NGINX Plus R24](https://www.nginx.com/blog/nginx-plus-r24-released/)
 
-#### NGINX Plus R24 Updates {#r24_p1}
 
+#### NGINX Plus R24 Updates {#r24_p1}
 These are bug‑fix releases for NGINX Plus R24.
 
 NGINX Plus R24 P1<br/>
@@ -1569,8 +1571,8 @@ _December 14, 2021_
 
 - Swagger UI updated to version 4.1.2
 
-### NGINX Plus Release 23 (R23) {#r23}
 
+### NGINX Plus Release 23 (R23) {#r23}
 _December 8, 2020_<br/>
 _Based on NGINX Open Source 1.19.5_
 
@@ -1599,7 +1601,6 @@ NGINX Plus R23 is a feature release:
 NGINX Plus R23 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                 |
 |-----------------------------------|------------------------------------------|
 | Alpine Linux                      | 3.10, 3.11, 3.12                         |
@@ -1623,6 +1624,7 @@ NGINX Plus R23 is supported on:
 
 More information: [Announcing NGINX Plus R23](https://www.nginx.com/blog/nginx-plus-r23-released/)
 
+
 #### NGINX Plus R23 Update {#r23_p1}
 
 This is a bug‑fix release for NGINX Plus R23.
@@ -1632,8 +1634,8 @@ _May 18, 2021_
 
 - Resolver: an [issue](https://support.f5.com/csp/article/K12331123) in NGINX resolver may allow an attacker who is able to forge UDP packets from the specified DNS server to cause a 1-byte memory overwrite, resulting in a worker process interruption or other unspecified impact ([CVE-2021-23017](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-23017))
 
-### NGINX Plus Release 22 (R22) {#r22}
 
+### NGINX Plus Release 22 (R22) {#r22}
 _June 9, 2020_<br/>
 _Based on NGINX Open Source 1.19.0_
 
@@ -1646,7 +1648,6 @@ NGINX Plus R22 is a feature release:
 NGINX Plus R22 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.9, 3.10, 3.11                                 |
@@ -1666,8 +1667,8 @@ NGINX Plus R22 is supported on:
 
 More information: [Announcing NGINX Plus R22](https://www.nginx.com/blog/nginx-plus-r22-released/)
 
-### NGINX Plus Release 21 (R21) {#r21}
 
+### NGINX Plus Release 21 (R21) {#r21}
 _April 7, 2020_<br/>
 _Based on NGINX Open Source 1.17.9_
 
@@ -1678,7 +1679,6 @@ NGINX Plus R21 is a feature release:
 NGINX Plus R21 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.8, 3.9, 3.10, 3.11                            |
@@ -1704,8 +1704,8 @@ NGINX Plus R21 is supported on:
 
 More information: [Announcing NGINX Plus R21](https://www.nginx.com/blog/nginx-plus-r21-released/)
 
-### NGINX Plus Release 20 (R20) {#r20}
 
+### NGINX Plus Release 20 (R20) {#r20}
 _December 3, 2019_<br/>
 _Based on NGINX Open Source 1.17.6_
 
@@ -1721,7 +1721,6 @@ NGINX Plus R20 is a feature release:
 NGINX Plus R20 R20 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.8, 3.9, 3.10                                  |
@@ -1744,8 +1743,8 @@ NGINX Plus R20 R20 is supported on:
 
 More information: [Announcing NGINX Plus R20](https://www.nginx.com/blog/nginx-plus-r20-released/)
 
-### NGINX Plus Release 19 (R19) {#r19}
 
+### NGINX Plus Release 19 (R19) {#r19}
 _August 13, 2019_<br/>
 _Based on NGINX Open Source 1.17.3_
 
@@ -1762,7 +1761,6 @@ NGINX Plus R19 is a feature release:
 NGINX Plus R19 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.8, 3.9, 3.10                                  |
@@ -1786,8 +1784,8 @@ NGINX Plus R19 is supported on:
 
 More information: [Announcing NGINX Plus R19](https://www.nginx.com/blog/nginx-plus-r19-released/)
 
-### NGINX Plus Release 18 (R18) {#r18}
 
+### NGINX Plus Release 18 (R18) {#r18}
 _April 9, 2019_<br/>
 _Based on NGINX Open Source 1.15.10_
 
@@ -1809,7 +1807,6 @@ NGINX Plus R18 is a feature release:
 NGINX Plus R18 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.8, 3.9                                        |
@@ -1841,8 +1838,8 @@ _August 6, 2019_
 
 - Security patch: When using HTTP/2 a client might cause excessive memory consumption and CPU usage ([CVE-2019-9511](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-9511), [CVE-2019-9513](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-9513), [CVE-2019-9516](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-9516))
 
-### NGINX Plus Release 17 (R17) {#r17}
 
+### NGINX Plus Release 17 (R17) {#r17}
 _December 11, 2018_<br/>
 _Based on NGINX Open Source 1.15.7_
 
@@ -1866,7 +1863,6 @@ NGINX Plus R17 is a feature release:
 NGINX Plus R17 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                        |
 |-----------------------------------|-------------------------------------------------|
 | Alpine Linux                      | 3.8, 3.9                                        |
@@ -1890,8 +1886,8 @@ NGINX Plus R17 is supported on:
 
 More information: [Announcing NGINX Plus R17](https://www.nginx.com/blog/nginx-plus-r17-released/)
 
-### NGINX Plus Release 16 (R16) {#r16}
 
+### NGINX Plus Release 16 (R16) {#r16}
 _September 5, 2018_<br/>
 _Based on NGINX Open Source 1.15.2_
 
@@ -1914,7 +1910,6 @@ NGINX Plus R16 is a feature release:
 NGINX Plus R16 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                       |
 |-----------------------------------|------------------------------------------------|
 | Amazon Linux                      | 2017.09, 2 LTS                                 |
@@ -1947,8 +1942,8 @@ _October 30, 2018_
 - Security patch: When using HTTP/2 a client might cause excessive memory consumption ([CVE-2018-16843](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-16843)) and CPU usage ([CVE-2018-16844](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-16844))
 - Security patch: Processing of a specially crafted MP4 file with the ngx\_http\_mp4\_module might result in worker process memory disclosure ([CVE-2018-16845](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-16845))
 
-### NGINX Plus Release 15 (R15) {#r15}
 
+### NGINX Plus Release 15 (R15) {#r15}
 _April 10, 2018_<br/>
 _Based on NGINX Open Source 1.13.10_
 
@@ -1971,7 +1966,6 @@ NGINX Plus R15 is a feature release:
 NGINX Plus R15 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                       |
 |-----------------------------------|------------------------------------------------|
 | Amazon Linux                      | 2017.09, 2 LTS                                 |
@@ -2008,8 +2002,8 @@ _April 12, 2018_
 
 - Third‑party modules might not be loaded due to signature incompatibility
 
-### NGINX Plus Release 14 (R14) {#r14}
 
+### NGINX Plus Release 14 (R14) {#r14}
 _December 12, 2017_
 _NGINX Open Source build 1.13.7_
 
@@ -2027,7 +2021,6 @@ NGINX Plus R14 is a feature release:
 NGINX Plus R14 is supported on:
 
 {{<table>}}
-
 | OS Distribution                   | Versions                                       |
 |-----------------------------------|------------------------------------------------|
 | Amazon Linux                      | 2016.09, 2 (2017.12)                           |
@@ -2058,8 +2051,8 @@ _January 25, 2018_
 - Live activity monitoring: Reinstated some missing tooltips for the dashboard
 - NGINX Plus API: HTTP Basic Authentication support for read‑write mode
 
-### NGINX Plus Release 13 (R13) {#r13}
 
+### NGINX Plus Release 13 (R13) {#r13}
 _August 29, 2017_<br/>
 _Based on NGINX Open Source 1.13.4_
 
@@ -2077,7 +2070,6 @@ NGINX Plus R13 is a feature release:
 NGINX Plus R13 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                |
 |------------------------|------------------------------------------|
 | Amazon Linux           | 2016.09+                                 |
@@ -2099,8 +2091,8 @@ NGINX Plus R13 is supported on:
 
 More information: [Announcing NGINX Plus R13](https://www.nginx.com/blog/nginx-plus-r13-released)
 
-### NGINX Plus Release 12 (R12) {#r12}
 
+### NGINX Plus Release 12 (R12) {#r12}
 _March 14, 2017_<br/>
 _Based on NGINX Open Source 1.11.10_
 
@@ -2127,7 +2119,6 @@ NGINX Plus R12 is a feature release:
 NGINX Plus R12 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | Amazon Linux           | 2016.09+                                             |
@@ -2168,8 +2159,8 @@ _March 14, 2017_
 
 - Live activity monitoring: Dashboard might hang with certain configurations
 
-### NGINX Plus Release 11 (R11) {#r11}
 
+### NGINX Plus Release 11 (R11) {#r11}
 _October 25, 2016_<br/>
 _Based on NGINX Open Source 1.11.5_
 
@@ -2185,7 +2176,6 @@ NGINX Plus R11 is a feature release:
 NGINX Plus R11 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | Amazon Linux           | 2016.03+                                             |
@@ -2206,8 +2196,8 @@ NGINX Plus R11 is supported on:
 
 More information: [Announcing NGINX Plus R11](https://www.nginx.com/blog/nginx-plus-r11-released/)
 
-### NGINX Plus Release 10 (R10) {#r10}
 
+### NGINX Plus Release 10 (R10) {#r10}
 _August 23, 2016_<br/>
 _Based on NGINX Open Source 1.11.3_
 
@@ -2232,7 +2222,6 @@ NGINX Plus R10 is a feature release:
 NGINX Plus R10 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | Amazon Linux           | 2016.03+                                             |
@@ -2252,8 +2241,8 @@ NGINX Plus R10 is supported on:
 
 More information: [Announcing NGINX Plus R10](https://www.nginx.com/blog/nginx-plus-r10-released/)
 
-### NGINX Plus Release 9 (R9) {#r9}
 
+### NGINX Plus Release 9 (R9) {#r9}
 _April 12, 2016_<br/>
 _Based on NGINX Open Source 1.9.13_
 
@@ -2290,7 +2279,6 @@ NGINX Plus R9 is a feature release:
 NGINX Plus R9 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | Amazon Linux           | 2016.03+                                             |
@@ -2319,8 +2307,8 @@ _May 25, 2016_
 - Segmentation fault might occur when writing a client request body to a temporary file
 - Specially crafted request might cause NGINX worker process to crash due to a NULL pointer dereference ([CVE-2016-4450](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-4450))
 
-### NGINX Plus Release 8 (R8) {#r8}
 
+### NGINX Plus Release 8 (R8) {#r8}
 _January 19, 2016_<br/>
 _Based on NGINX Open Source 1.9.9_
 
@@ -2343,7 +2331,6 @@ NGINX Plus R8 is a feature release:
 NGINX Plus R8 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | Amazon Linux           |                                                     |
@@ -2380,8 +2367,8 @@ _January 26, 2016_
 
 - Resolver: Limit `CNAME` resolutions to prevent remote attackers from causing a denial of service ([CVE-2016-0747](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-0747))
 
-### NGINX Plus Release 7 (R7) {#r7}
 
+### NGINX Plus Release 7 (R7) {#r7}
 _September 15, 2015_<br/>
 _Based on NGINX Open Source 1.9.4_
 
@@ -2418,7 +2405,6 @@ NGINX Plus R7 is a feature release:
 NGINX Plus R7 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                  |
 |------------------------|-------------------------------------------|
 | CentOS                 | 5.10+, 6.5+, 7.0+                         |
@@ -2440,8 +2426,8 @@ NGINX Plus R7 is supported on:
 
 More information and important upgrade information for users of the Phusion Passenger Open Source module: [Announcing NGINX Plus Release 7](https://www.nginx.com/blog/nginx-plus-r7-released/)
 
-### NGINX Plus Release 6 (R6) {#r6}
 
+### NGINX Plus Release 6 (R6) {#r6}
 _April 14, 2015_<br/>
 _Based on NGINX Open Source 1.7.11_
 
@@ -2463,7 +2449,6 @@ NGINX Plus R6 is a feature release:
 NGINX Plus R6 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | CentOS                 | 5.10+, 6.5+, 7.0                                     |
@@ -2479,8 +2464,8 @@ The `nginx-plus-extras` package has additional dependencies.
 
 More information: [Announcing NGINX Plus Release 6 with Enhanced Load Balancing, High Availability, and Monitoring Features](https://www.nginx.com/blog/nginx-plus-r6-released/)
 
-### NGINX Plus Release 5 (R5) {#r5}
 
+### NGINX Plus Release 5 (R5) {#r5}
 _December 2, 2014_<br/>
 _Based on NGINX Open Source 1.7.7_
 
@@ -2502,7 +2487,6 @@ NGINX Plus R5 is a feature release:
 NGINX Plus R5 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                             |
 |------------------------|------------------------------------------------------|
 | CentOS                 | 5.9, 6.5, 7.0                                        |
@@ -2518,8 +2502,8 @@ The `nginx-plus-extras` and `nginx-plus-lua` packages have additional dependenci
 
 More information: [NGINX Plus R5 Released](https://www.nginx.com/blog/nginx-plus-r5-released/)
 
-### NGINX Plus Release 4 (R4) {#r4}
 
+### NGINX Plus Release 4 (R4) {#r4}
 _July 24, 2014_<br/>
 _Based on NGINX Open Source 1.7.3_
 
@@ -2543,7 +2527,6 @@ NGINX Plus R4 is a feature release:
 NGINX Plus R4 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                       |
 |------------------------|------------------------------------------------|
 | CentOS                 | 5.9, 6.5, 7.0                                  |
@@ -2559,8 +2542,8 @@ The `nginx-plus-extras` and  `nginx-plus-lua` packages have additional dependenc
 
 More information: [NGINX Plus R4 Released](https://www.nginx.com/blog/nginx-plus-r4-released/)
 
-### NGINX Plus Release 3 (R3) {#r3}
 
+### NGINX Plus Release 3 (R3) {#r3}
 _April 2, 2014_<br/>
 _Based on NGINX Open Source 1.5.12‑1_
 
@@ -2576,7 +2559,6 @@ NGINX Plus R3 is a feature release:
 NGINX Plus R3 is supported on:
 
 {{<table>}}
-
 | OS Distribution        | Versions                                       |
 |------------------------|------------------------------------------------|
 | CentOS                 | 5.9, 6.5                                       |
@@ -2592,8 +2574,8 @@ The `nginx-plus-extras` and `nginx-plus-lua` packages have additional dependenci
 
 More information: [NGINX Plus R3 Released](https://www.nginx.com/blog/nginx-plus-r3-released/)
 
-### NGINX Plus Release 2 (R2) {#r2}
 
+### NGINX Plus Release 2 (R2) {#r2}
 _December 12, 2013_<br/>
 _Based on NGINX Open Source 1.5.7‑1_
 
@@ -2628,8 +2610,8 @@ _Based on NGINX Open Source 1.5.7‑2_
 - Updates to implementation of SPDY/2
 - Added **status.html** file for live activity monitoring, missing from some packages
 
-### NGINX Plus Initial Release (R1) {#r1}
 
+### NGINX Plus Initial Release (R1) {#r1}
 _August 22, 2013_<br/>
 _Based on NGINX Open Source 1.5.3‑1_
 

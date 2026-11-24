@@ -1,108 +1,136 @@
 ---
-description: Find what's new in version 2 of the NGINX and F5 NGINX Plus plug‑in for
-  New Relic – more convenience, more metrics, richer visualization.
+description: The retired NGINX plug-in for New Relic, version 2, and how to monitor NGINX Open Source and F5 NGINX Plus with New Relic today.
 title: Monitoring NGINX and NGINX Plus with the New Relic Plug-In
 toc: true
 weight: 500
-f5-content-type: how-to
-f5-product: NGINX Plus
+f5-content-type: reference
+f5-product: F5 NGINX Plus
+f5-keywords: "New Relic, plug-in, nginx-nr-agent, monitoring, stub_status, NGINX Plus API, infrastructure agent"
+f5-summary: >
+  This page describes version 2 of the NGINX plug-in for New Relic, which sent metrics of NGINX Open Source and F5 NGINX Plus to New Relic.
+  New Relic retired its plug-ins on June 16, 2021, so the plug-in no longer works.
+  To monitor NGINX with New Relic today, use the NGINX integration of the New Relic infrastructure agent.
+f5-audience: operator
 ---
 
-In March, 2013 we released the first version of the [“nginx web server” plug‑in](https://newrelic.com/instant-observability/nginx) for New Relic monitoring of the NGINX Open Source  software and F5 NGINX Plus. Since then, we’ve received lots of interest from users – we greatly appreciate it! The plug‑in continues to be one of the most popular New Relic plug‑ins, in spite of the few things that (we believe!) could be improved. If you don’t already have a New Relic account, [sign up](http://newrelic.com/).
+<span id="installation"></span><span id="whats-next"></span>
 
-We selected Ruby as the base language for the original plug‑in, because the New Relic platform itself is written in Ruby, the API was not yet published, and many things were changing quickly.
+## Overview
 
-Later, after the launch of the New Relic platform, we continued to work on adding a number of improvements based on users’ feedback and our own vision of how to improve the overall usability of the NGINX monitoring plug‑in, and realized the need for further changes.
+The NGINX plug-in for New Relic, `nginx-nr-agent`, sent the metrics of NGINX Open Source and F5 NGINX Plus to New Relic. Version 2.0 of the plug-in was written in Python, and came as packages for RHEL-based and Debian-based systems.
 
-## What’s New?
+{{< call-out class="caution" >}} New Relic retired its plug-ins on June 16, 2021, so this plug-in no longer sends data to New Relic. To monitor NGINX with New Relic today, use the [NGINX integration](https://docs.newrelic.com/install/nginx/) of the New Relic infrastructure agent. It reads the metrics of NGINX Open Source from [`stub_status`](https://nginx.org/en/docs/http/ngx_http_stub_status_module.html#stub_status), and the metrics of NGINX Plus from the [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html). {{< /call-out >}}
 
-Today, we are pleased to announce a major update of the NGINX plug‑in for New Relic, **version 2.0**, which includes the following changes:
+The rest of this page describes the retired plug-in, for reference.
 
-- The plug‑in is rewritten in Python. You no longer need to install Ruby.
-- The plug‑in is finally packaged. There are prebuilt packages for RHEL/CentOS‑based and Debian/Ubuntu‑based systems. An included init script enables you to easily set up autostart of the plug‑in.
-- There are two new sections in the live activity monitoring dashboard, for NGINX Plus customers:
+---
 
-  - **Servers** – Additional summary counters for virtual servers whose `server` configuration block includes the [status_zone](https://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directive
-  - **Cache** – Cumulative stats for all configured caches
-- Verbose logging is enabled by default.
+<span id="whats-new"></span>
 
-## Installation
+## What version 2 of the plug-in added
 
-Download the [plug‑in and installation instructions](https://docs.newrelic.com/install/nginx/).
+- The plug-in was rewritten in Python, so it no longer needed Ruby.
+- It came as packages for RHEL-based and Debian-based systems, with an init script that could start the plug-in at boot.
+- For NGINX Plus, it had two new tabs in the New Relic UI:
 
-## Configuring the Plug‑In
+    - **Servers**: Summary counters for the virtual servers whose `server` block has the [`status_zone`](https://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directive.
+    - **Cache**: Cumulative statistics for all configured caches.
 
-The configuration file for the NGINX plug‑in is {{<nb>}}**/etc/nginx-nr-agent/nginx-nr-agent.ini**{{</nb>}}. The minimal configuration includes:
+- It logged verbose messages by default.
 
-- Your New Relic license key in the `newrelic_license_key` statement in the `global` section.
+---
 
-- At least one `source` section. The name of the section is used in log entries only, and can contain almost any character string you want. Two parameters are required:
+<span id="configuring-the-plugin"></span>
 
-  - `name` – NGINX instance name in the New Relic UI.
-  - `url` – Full URL to the corresponding instance. The plug‑in accepts source data in the format generated when the [stub_status](https://nginx.org/en/docs/http/ngx_http_stub_status_module.html#stub_status) directive is included in the configuration of NGINX or NGINX Plus. It also supports the JSON‑formatted output generated when the [api](https://nginx.org/en/docs/http/ngx_http_api_module.html#api) directive is included in an NGINX Plus configuration.
+## Configure the plug-in
 
-You can include the optional `http_user` and `http_pass` statements to set HTTP basic authentication credentials in cases where the corresponding location is protected by the NGINX [auth_basic](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) directive.
+The configuration file of the plug-in is **/etc/nginx-nr-agent/nginx-nr-agent.ini**. The minimal configuration has:
 
-The default log file is {{<nb>}}**/var/log/nginx-nr-agent.log**{{</nb>}}.
+- Your New Relic license key, in the `newrelic_license_key` setting of the `global` section.
+- At least one `source` section. Its name appears only in log entries, and can be almost any string. It needs two settings:
 
-## Running the Plug‑In
+    - `name`: The name of the NGINX instance in the New Relic UI.
+    - `url`: The full URL of the status data of the instance. The plug-in reads the output of the [`stub_status`](https://nginx.org/en/docs/http/ngx_http_stub_status_module.html#stub_status) directive of NGINX Open Source and NGINX Plus. It also reads the JSON output of the [`api`](https://nginx.org/en/docs/http/ngx_http_api_module.html#api) directive of NGINX Plus.
 
-You can manage the plug‑in with an init script. Run the <span style="white-space: nowrap;">`service` `nginx-nr-agent`</span> command with the `start`, `stop`, or `status` argument to start, stop, or display the status of the plug‑in, respectively.
+If the location of the status data has HTTP basic authentication, set its credentials with the optional `http_user` and `http_pass` settings. For basic authentication in NGINX, see the [`auth_basic`](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) directive.
 
-When started from an init script, the plug‑in daemon runs as the `nobody` user.
+The default log file is **/var/log/nginx-nr-agent.log**.
 
-You can start the plug‑in directly by running <span style="white-space: nowrap;">`/usr/bin/nginx-nr-agent.py`</span>, with the following optional parameters:
+---
 
-- <span style="white-space: nowrap;">`-c`</span>, <span style="white-space: nowrap;">`--config`</span> – Path to configuration file
-- <span style="white-space: nowrap;">`-p`</span>, <span style="white-space: nowrap;">`--pidfile`</span>> – Path to PID file
-- <span style="white-space: nowrap;">`-f`</span>, <span style="white-space: nowrap;">`--foreground`</span> – Do not detach from terminal (useful for debugging)
+<span id="running-the-plugin"></span>
 
-If everything is working as expected, the plug‑in appears as a tab in the New Relic UI:
+## Run the plug-in
 
-[![image of NGINX instance in New Relic instances list](/nginx/images/0s-instances.png)](/nginx/images/0s-instances.png)
+The init script manages the plug-in. Run `service nginx-nr-agent` with `start`, `stop`, or `status` to start the plug-in, stop it, or show its status. When the init script starts the plug-in, its daemon runs as the `nobody` user.
 
-## Dashboard Examples
+To start the plug-in directly, run `/usr/bin/nginx-nr-agent.py`, with these optional parameters:
+
+- `-c`, `--config`: The path of the configuration file.
+- `-p`, `--pidfile`: The path of the PID file.
+- `-f`, `--foreground`: Don't detach from the terminal, which helps with debugging.
+
+When the plug-in worked, the NGINX instance appeared in the New Relic UI:
+
+<img src="/nginx/images/0s-instances.png" alt="An NGINX instance in the list of instances of the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
+
+---
+
+<span id="dashboard-examples"></span>
+
+## Dashboard tabs
+
+The plug-in showed the metrics of NGINX in these tabs of the New Relic UI.
 
 ### Overview
 
-The **Overview** tab displays the most basic metrics for the whole instance: number of active and idle connections, and request rate.
+The **Overview** tab showed the basic metrics of the instance: the numbers of active and idle connections, and the request rate.
 
-[![image of Overview tab in New Relic UI](/nginx/images/1s-overview.png)](/nginx/images/1s-overview.png)
+<img src="/nginx/images/1s-overview.png" alt="The Overview tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
 ### Connections
 
-The **Connections** tab displays various metrics about client connections.
+The **Connections** tab showed metrics of client connections.
 
-[![image of Connections tab in New Relic UI](/nginx/images/2s-connections.png)](/nginx/images/2s-connections.png)
+<img src="/nginx/images/2s-connections.png" alt="The Connections tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
 ### Requests
 
-The **Requests** tab displays the number of requests currently being processed and the overall request rate.
+The **Requests** tab showed the number of requests in progress, and the request rate.
 
-[![image of Requests tab in New Relic UI](/nginx/images/3s-requests.png)](/nginx/images/3s-requests.png)
+<img src="/nginx/images/3s-requests.png" alt="The Requests tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-### Upstreams (NGINX Plus only)
+<span id="upstreams-nginxplus-only"></span>
 
-The **Upstreams** tab displays detailed statistics about all configured upstream groups.
+### Upstreams (NGINX Plus only)
 
-[![image of Upstreams tab in New Relic UI](/nginx/images/4s-upstreams.png)](/nginx/images/4s-upstreams.png)
+The **Upstreams** tab showed detailed statistics of all configured upstream groups.
 
-### Servers (NGINX Plus only)
+<img src="/nginx/images/4s-upstreams.png" alt="The Upstreams tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-The **Servers** tab displays detailed statistics about all configured virtual server zones.
+<span id="servers-nginxplus-only"></span>
 
-[![image of Servers tab in New Relic UI](/nginx/images/5s-servers.png)](/nginx/images/5s-servers.png)
+### Servers (NGINX Plus only)
 
-### Cache (NGINX Plus only)
+The **Servers** tab showed detailed statistics of all configured virtual server zones.
 
-The **Cache** tab displays summary statistics for all configured caches.
+<img src="/nginx/images/5s-servers.png" alt="The Servers tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-[![image of Caches tab in New Relic UI](/nginx/images/6s-cache.png)](/nginx/images/6s-cache.png)
+<span id="cache-nginxplus-only"></span>
 
-## What’s Next?
+### Cache (NGINX Plus only)
 
-We plan to extend the plug‑in’s functionality with additional metrics for both NGINX and NGINX Plus, and your feedback is very important to us. Ideas, thoughts, questions? Let us know by commenting on this post.
+The **Cache** tab showed summary statistics of all configured caches.
 
-Thanks for using NGINX and NGINX Plus!
+<img src="/nginx/images/6s-cache.png" alt="The Cache tab of the NGINX plug-in in the New Relic UI" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-To try NGINX Plus, start your <span style="white-space: nowrap;">[free 30-day trial](https://www.nginx.com/free-trial-request/)</span> today or [contact us](https://www.nginx.com/contact-sales/) for a demo.
+---
+
+## References
+
+For more information, see:
+
+- [The NGINX integration of New Relic](https://docs.newrelic.com/install/nginx/)
+- [Live Activity Monitoring]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}})
+- [Module ngx_http_stub_status_module](https://nginx.org/en/docs/http/ngx_http_stub_status_module.html)
+- [Module ngx_http_api_module](https://nginx.org/en/docs/http/ngx_http_api_module.html)

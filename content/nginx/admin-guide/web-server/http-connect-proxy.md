@@ -1,179 +1,215 @@
 ---
-description: HTTP traffic tunneling via the HTTP CONNECT method, enabling centralized egress control through a trusted NGINX Plus server.
+description: Set up F5 NGINX Plus or NGINX Open Source as a forward proxy for HTTP CONNECT tunnels, with access control, basic authentication, and mTLS.
 title: HTTP CONNECT forward proxy
 toc: true
 weight: 600
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "forward proxy, HTTP CONNECT, tunnel_pass, tunnel_allow_upstream, num_map, egress control, proxy authentication, mTLS, port 3128"
+f5-summary: >
+  This guide shows how to set up F5 NGINX Plus or NGINX Open Source as a forward proxy that handles HTTP CONNECT tunnels.
+  Internal clients reach external resources through the proxy, which gives you one place to control and log outgoing traffic.
+  It covers access control by port, client address, and host name, and authentication with passwords or client certificates.
+f5-audience: operator
 ---
 
-In corporate networks, NGINX Plus R36 and later can be configured as a forward proxy server, facilitating client access to external resources. A forward proxy operates between internal clients and the global network, enabling centralized traffic control.
+## Overview
 
-Unlike a reverse proxy that protects servers, upstreams, or services, forward proxy serves client requests and regulates their access to the external resources. To enable this functionality, the HTTP `CONNECT` method is used to establish a secure tunnel between the client and the proxy server (NGINX Plus). This tunnel permits the transmission of HTTPS traffic and other protocols, such as SSH or FTP, through the proxy.
+A forward proxy sits between internal clients and external networks. It gives you one place to control the outgoing traffic of the clients. A reverse proxy works on the other side: it protects servers and services.
 
-## Enable HTTP CONNECT proxy
+The forward proxy of NGINX handles the HTTP `CONNECT` method. A client asks the proxy to open a TCP connection to a host and port. The proxy then passes the bytes in both directions, without reading them:
 
-To enable the HTTP `CONNECT` forward proxy, add the [`tunnel_pass`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_pass) directive that turns on the forward proxy functionality within the `server` or `location` blocks.
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant N as NGINX forward proxy
+    participant D as Destination server
+    C->>N: CONNECT example.com:443 HTTP/1.1
+    N->>D: Open a TCP connection to example.com:443
+    N-->>C: HTTP/1.1 200
+    C->>D: TLS handshake and HTTPS requests, through the tunnel
+    D-->>C: HTTPS responses, through the tunnel
+```
 
-The `tunnel_pass` directive can be used without any parameters. The default value is [`$host`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_host):[`$request_port`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_request_port) variables: all requests are automatically forwarded to external resources based on the host and the port which we are trying to access.
+The client sends a `CONNECT` request with the destination host and port. NGINX connects to the destination, and answers `200`. From then on, the client talks to the destination through the tunnel, for example with TLS. The tunnel can carry other TCP protocols too, such as SSH.
 
-The `tunnel_pass` directive is a content handling directive (similar to `proxy_pass`), and if specified for the `server` block, will not be inherited by corresponding `location` blocks. If you have a location that implements any other NGINX Plus capabilities within the forward proxy, you will need to enable the `tunnel_pass` for this `location` as well. See [Disable other HTTP methods](#disable-other-http-methods).
+---
+
+## Before you begin
+
+Before you begin, make sure you have:
+
+- **NGINX Plus R36 or later, or NGINX Open Source 1.31.0 or later**. Both include the [tunnel module](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html) by default. The [`tunnel_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_allow_upstream) directive and the [`num_map`](https://nginx.org/en/docs/http/ngx_http_num_map_module.html) module need NGINX Plus. NGINX Open Source can use [`if` blocks](#restrict-access-with-nginx-open-source) for access control instead.
+- **For basic authentication**: NGINX Plus PLS.37.0.0.1 LTS or later, or NGINX Open Source 1.31.0 or later.
+- **A DNS server** that the proxy can use to resolve the destination hosts.
+
+---
+
+<span id="enable-http-connect-proxy"></span>
+
+## Turn on the forward proxy
+
+Add the [`tunnel_pass`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_pass) directive to a `server` or `location` block, and a [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) for the destination hosts:
 
 ```nginx
 server {
     listen 10.10.1.11:3128;
 
+    resolver 10.10.1.53;
     tunnel_pass;
 }
 ```
 
-In this basic configuration, the client establishes a tunnel with NGINX Plus, sends the HTTP `CONNECT` method to the specified port `3128` which is standard for forward proxying, and if successful, responds with `200 OK`. The tunnel is established and the client can perform the TLS handshake and get the response.
+- Port 3128 is a common port for forward proxies.
+- Without parameters, `tunnel_pass` connects to the host and port of the request, the [`$host`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_host) and [`$request_port`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_request_port) variables.
+- NGINX resolves the destination hosts when the requests arrive, so it needs the `resolver` directive. Replace `10.10.1.53` with the address of your DNS server. Without a `resolver`, every request to a host name fails with `502 Bad Gateway`.
 
+`tunnel_pass` is a content handler, like `proxy_pass`. A `location` block doesn't inherit it from its `server` block, so add `tunnel_pass` to each `location` that handles `CONNECT` requests.
 
-## Disable other HTTP methods
+<span id="disable-other-http-methods"></span>
 
-As soon as the `CONNECT` method is enabled, all other methods such as `GET`, `POST` are not applicable in this mode. Rejecting them ensures that only tunnel requests are allowed thus improving security.
+### Reject other HTTP methods
 
-You can create a rule with the [`if`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if) directive to deny all HTTP methods except `CONNECT`, If a client uses any other method, NGINX Plus returns the `403` error code:
+The forward proxy handles only `CONNECT` requests over HTTP/1.1. `tunnel_pass` rejects all other methods, such as `GET` and `POST`, with `405 Not Allowed`. A server without `tunnel_pass` rejects `CONNECT` requests the same way.
+
+To return another status code or a message, add an [`if`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if) block. `CONNECT` requests match `location /`:
 
 ```nginx
 server {
     listen 10.10.1.11:3128;
 
-    # Handle other methods
+    resolver 10.10.1.53;
+
     location / {
         if ($request_method != CONNECT) {
             return 403 "Forbidden: allows only CONNECT method";
         }
 
-    # allow CONNECT requests
-    tunnel_pass;
+        tunnel_pass;
     }
 }
 ```
 
-Note that in the example the [`tunnel_pass`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_pass) directive is specified inside the `location` block. Since `tunnel_pass` is a content handling directive, when it is specified for the `server` block, it is not inherited by nested locations.
+---
 
+<span id="enable-logging"></span>
 
-## Enable logging 
+## Log the tunnels
 
-For testing, debugging and monitoring purposes you can configure error and access logs.
+To log the tunnels, add a [`log_format`](https://nginx.org/en/docs/http/ngx_http_log_module.html#log_format) in the `http` block, and the [`access_log`](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) and [`error_log`](https://nginx.org/en/docs/ngx_core_module.html#error_log) directives where `tunnel_pass` is:
 
-1. On the `http` level, specify the [`log_format`](https://nginx.org/en/docs/http/ngx_http_log_module.html#log_format) directive, give the log a name (for example, `http_connect`), and include the metrics:
+```nginx
+log_format http_connect '$remote_addr [$time_local] '
+                        '$request_method $host:$request_port $status '
+                        '$upstream_addr $bytes_sent $upstream_connect_time '
+                        '$request_time "$http_user_agent"';
 
-   ```nginx
-   log_format http_connect  '$remote_addr [$time_local] '
-                            '$request_method $host:$request_port $status '
-                            '$upstream_addr $bytes_sent $upstream_connect_time '
-                            '$request_time "$http_user_agent"';
-   ```
+server {
+    listen 10.10.1.11:3128;
 
-   See the [NGINX variables index](https://nginx.org/en/docs/varindex.html) for the list of all supported variables.
+    resolver 10.10.1.53;
 
-2. Specify the [`error_log`](https://nginx.org/en/docs/ngx_core_module.html#error_log) and [`access_log`](https://nginx.org/en/docs/http/ngx_http_log_module.html#access_log) directives on the same configuration level where the [`tunnel_pass`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_pass) directive is defined:
+    location / {
+        if ($request_method != CONNECT) {
+            return 403 "Forbidden: allows only CONNECT method";
+        }
 
-   ```nginx
-   access_log logs/connect_access.log http_connect;
-   error_log  logs/connect_error.log;
-   ```
+        tunnel_pass;
 
-## Test the configuration
+        access_log /var/log/nginx/connect_access.log http_connect;
+        error_log  /var/log/nginx/connect_error.log;
+    }
+}
+```
 
- This example sums up the steps above: it enables logging for the `location` block which denies all HTTP methods except `CONNECT` and where the `tunnel_pass` directive is specified:
+For all the variables that you can log, see the [NGINX variables index](https://nginx.org/en/docs/varindex.html).
 
-   ```nginx
-   log_format http_connect  '$remote_addr [$time_local] '
-                            '$request_method $host:$request_port $status '
-                            '$upstream_addr $bytes_sent $upstream_connect_time '
-                            '$request_time "$http_user_agent"';
-   server {
-       listen 10.10.1.11:3128;
+---
 
-       location / {
-           if ($request_method != CONNECT) {
-               return 403 "Forbidden: allows only CONNECT method";
-           }
+<span id="test-the-configuration"></span>
 
-       tunnel_pass;
+## Test the proxy
 
-       access_log logs/connect_access.log http_connect;
-       error_log  logs/connect_error.log;
-       }
-   }
-   ```
+1. Test the configuration, and reload NGINX:
 
-1. Test NGINX configuration for syntax validity and apply the changes:
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
+    ```
 
-   ```nginx
-   nginx -t && nginx -s reload
-   ```
+1. Send a request through the proxy with `curl`:
 
-2. Send a test request with the `curl` command:
+    ```shell
+    curl -v -x 10.10.1.11:3128 https://example.com
+    ```
 
-   ```shell
-   curl -v -x 10.10.1.11:3128 https://example.com
-   ```
+    In the output, the response of the proxy to the `CONNECT` request is `HTTP/1.1 200 OK`. Then the response of example.com follows.
 
-3. Check the access log to see the result of the command: 
+1. Check the access log:
 
-   ```shell
-   tail -n 100 /logs/connect_access.log
-   ```
+    ```shell
+    tail -n 100 /var/log/nginx/connect_access.log
+    ```
 
-   The result of the command:
+    The log has a line such as:
 
-   ```none
-   logs > connect_access.log
-     1    10.10.1.240 [01/Dec/2025:10:46:27 +0000] CONNECT example.com:443 200 127.456.789.0:443 4275 0.014 0.258 "curl/8.7.1"
-   ```
-   The result shows that the client (`10.10.1.240`) successfully established a connection (`200`) to the destination server (`example.com:443` resolved to `127.456.789.0:443`).
+    ```none
+    10.10.1.240 [01/Dec/2025:10:46:27 +0000] CONNECT example.com:443 200 203.0.113.10:443 4275 0.014 0.258 "curl/8.7.1"
+    ```
 
+    The client `10.10.1.240` opened a tunnel (`200`) to `example.com:443`, which resolved to `203.0.113.10:443`.
 
-## Access control
+---
 
-It is highly recommended to restrict access to the proxy servers. Access control can be managed in several ways:
+<span id="access-control"></span>
 
-- by ports and port ranges with the [`num_map`](https://nginx.org/en/docs/http/ngx_http_num_map_module.html) module (NGINX Plus R36)
-- by IP addresses with the [`geo`](https://nginx.org/en/docs/http/ngx_http_geo_module.html) module
-- by hostnames with the [`map`](https://nginx.org/en/docs/http/ngx_http_map_module.html) module
+## Control access
 
-All of these access methods can be used together and combined with the the [`proxy_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_allow_upstream) directive (NGINX Plus R36).
+Restrict access to the proxy. You can allow tunnels by:
 
-### Restrict by ports and port ranges
+- **Port**, with the [`num_map`](https://nginx.org/en/docs/http/ngx_http_num_map_module.html) module of NGINX Plus.
+- **Client address**, with the [`geo`](https://nginx.org/en/docs/http/ngx_http_geo_module.html) module, or the [`allow` and `deny`](https://nginx.org/en/docs/http/ngx_http_access_module.html#allow) directives.
+- **Host name**, with the [`map`](https://nginx.org/en/docs/http/ngx_http_map_module.html) module.
 
-The [`num_map`](https://nginx.org/en/docs/http/ngx_http_num_map_module.html) module introduced in NGINX Plus R36 allows defining ports and port ranges and uses the same approach as the `map` block. For example, if the value of the [`$request_port`](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_request_port) variable is `443`, the `$allowed_port` variable is assigned the value `ssl`. It also restricts the allowed port range for the upstream connections or proxy requests:
+The [`tunnel_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_allow_upstream) directive of NGINX Plus combines these checks. It allows a tunnel only if all its parameters are non-empty and not `0`. So each variable should be `1` for allowed values, and `0` otherwise.
+
+<span id="restrict-by-ports-and-port-ranges"></span>
+
+### Restrict by port
+
+The `num_map` module of NGINX Plus works like `map`, but it matches numbers and number ranges. In this example, `$allowed_port` is `1` for port 443 and the ports 8080 to 8090, and `0` for the other ports:
 
 ```nginx
 num_map $request_port $allowed_port {
-    default    0;
-
-    443        ssl;
-    <=1023     less-eq;
-    8080-8090  range;
-    >8092      more;
+    default   0;
+    443       1;
+    8080-8090 1;
 }
 ```
 
-### Restrict by IP addresses
+`num_map` also accepts comparisons, such as `<=1023`.
 
-Access by IP addresses can be restricted with the [`geo`](https://nginx.org/en/docs/http/ngx_http_geo_module.html) module:
+<span id="restrict-by-ip-addresses"></span>
+
+### Restrict by client address
+
+The `geo` module sets a variable from the address of the client. In this example, `$allowed_network` is `1` for two internal networks:
 
 ```nginx
-geo $allowed_networks {
-        10.10.1.0/24  allow;
-        10.20.11.0/24 allow;
-        default       deny;
+geo $allowed_network {
+    default       0;
+    10.10.1.0/24  1;
+    10.20.11.0/24 1;
 }
 ```
 
-### Restrict by hostnames
+<span id="restrict-by-hostnames"></span>
 
-Restriction by hostnames can be configured with the [`map`](https://nginx.org/en/docs/http/ngx_http_map_module.html) module, which works mainly with strings and regular expressions. Although it is possible to match port numbers using `map`, it is recommended to use the [`num_map`](https://nginx.org/en/docs/http/ngx_http_num_map_module.html) module for more port-based restrictions, as it provides additional functionality such as defining ranges. 
+### Restrict by host name
 
-In this example, access is allowed to `example.com` and its subdomains only:
+The `map` module sets a variable from the destination host. In this example, `$allowed_host` is `1` for `example.com` and its subdomains. The `hostnames` parameter allows names with wildcards:
 
 ```nginx
-map $host  $allowed_host {
+map $host $allowed_host {
     hostnames;
     default       0;
     example.com   1;
@@ -181,34 +217,28 @@ map $host  $allowed_host {
 }
 ```
 
-### Combine access control methods
+`map` can match ports too, but `num_map` is better for ports, because it supports ranges.
 
-These access methods can be combined in the [`tunnel_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_allow_upstream) directive, which performs access checks when the upstream server to which the request will be sent is selected. If any variable passed to [`tunnel_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_allow_upstream) evaluates to non-zero or non-empty value, it will be calculated as `1` and access is granted. If all variables evaluate to `0` or an empty value, access is denied.
+<span id="combine-access-control-methods"></span><span id="access-control-example"></span>
 
-### Access control example
+### Combine the checks with NGINX Plus
+
+This configuration allows a tunnel only from the two networks. The tunnel must go to port 443 or ports 8080 to 8090, on `example.com` or its subdomains:
 
 ```nginx
-log_format connect_debug '$remote_addr [$time_local] '
-                         '$request_method $host:$request_port $status '
-                         '$upstream_addr $bytes_sent $upstream_connect_time '
-                         '$request_time "$http_user_agent"';
-
 num_map $request_port $allowed_port {
-    default    0;
-
-    443        ssl;
-    <=1023     less-eq;
-    8080-8090  range;
-    >8092      more;
+    default   0;
+    443       1;
+    8080-8090 1;
 }
 
-geo $allowed_networks {
-        10.10.1.0/24  allow;
-        10.20.11.0/24 allow;
-        default       deny;
+geo $allowed_network {
+    default       0;
+    10.10.1.0/24  1;
+    10.20.11.0/24 1;
 }
 
-map $host  $allowed_host {
+map $host $allowed_host {
     hostnames;
     default       0;
     example.com   1;
@@ -218,154 +248,203 @@ map $host  $allowed_host {
 server {
     listen 10.10.1.11:3128;
 
-    #Allow CONNECT only to certain ports/nets/hosts
-    tunnel_allow_upstream $allowed_networks $allowed_port $allowed_host;
+    resolver 10.10.1.53;
 
-    error_page 403;
-
-    satisfy all;
-
-    allow 10.10.0.0/16;
-    allow 127.0.0.1;
-    deny  all;
-
+    # Allow CONNECT only from certain networks, to certain ports and hosts
+    tunnel_allow_upstream $allowed_network $allowed_port $allowed_host;
     tunnel_pass;
-
-    location ^~ /errors/ {
-        internal;
-        root  html;
-        allow all;
-    }
-
-    access_log logs/connect_access.log connect_debug;
-    error_log  logs/connect_debug.log debug;
 }
 ```
 
-Access can also be limited using other modules, for example with the [`satisfy`](https://nginx.org/en/docs/http/ngx_http_core_module.html#satisfy) directive, or the [`allow`/`deny`](https://nginx.org/en/docs/http/ngx_http_access_module.html#allow) directives.
+`tunnel_allow_upstream` checks its parameters each time before NGINX connects to a destination.
 
+### Restrict access with NGINX Open Source
 
-## mTLS authentication
+NGINX Open Source has no `tunnel_allow_upstream` or `num_map`. Use `map` variables, and `if` blocks that reject the request:
 
-Mutual TLS (mTLS) ensures that both the client and server authenticate each other by exchanging and validating trusted certificates. Once the authentication succeeds, a secure, encrypted connection is established.
+```nginx
+map $request_port $allowed_port {
+    default 0;
+    443     1;
+}
 
-For an HTTP CONNECT proxy, mutual TLS (mTLS) is currently the only supported authentication method. Other methods, such as [basic authentication](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html) are currently not supported because NGINX Plus processes only the `Authorization` header, not the `Proxy-Authorization` header.
+map $host $allowed_host {
+    hostnames;
+    default       0;
+    example.com   1;
+    *.example.com 1;
+}
 
-To enable mTLS, you need:
+server {
+    listen 10.10.1.11:3128;
 
-- a server certificate and private key, used by NGINX Plus to authenticate itself to clients
-- a client Certificate Authority (CA) certificate, used by NGINX Plus to verify client certificates
-- one or more client certificates, signed by the trusted client CA, used by clients to authenticate to the proxy
-- NGINX Plus configuration that enables TLS and enforces client certificates verification
+    resolver 10.10.1.53;
 
-Certificates can be created using tools such as OpenSSL or obtained from certificate providers such as Let's Encrypt.
+    allow 10.10.1.0/24;
+    allow 10.20.11.0/24;
+    deny  all;
+
+    if ($allowed_port != 1) {
+        return 502;
+    }
+
+    if ($allowed_host != 1) {
+        return 502;
+    }
+
+    tunnel_pass;
+}
+```
+
+The `allow` and `deny` directives reject other clients with `403 Forbidden`. The `if` blocks run first. So a client outside the allowed networks gets `502` for a disallowed port or host.
+
+---
+
+<span id="basic-authentication"></span>
+
+## Require a password
+
+Since NGINX Plus PLS.37.0.0.1 LTS and NGINX Open Source 1.31.0, the forward proxy supports basic authentication. For `CONNECT` requests, the [`auth_basic`](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) directive reads the credentials from the `Proxy-Authorization` header. Without valid credentials, NGINX answers `407 Proxy Authentication Required`.
+
+1. Create a password file, for example with the `htpasswd` tool or `openssl passwd -apr1`. For details, see [Restricting Access with HTTP Basic Authentication]({{< ref "/nginx/admin-guide/security-controls/configuring-http-basic-authentication.md" >}}).
+
+1. Add the [`auth_basic`](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic) and [`auth_basic_user_file`](https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic_user_file) directives where `tunnel_pass` is:
+
+    ```nginx
+    server {
+        listen 10.10.1.11:3128;
+
+        resolver 10.10.1.53;
+
+        auth_basic           "Forward proxy";
+        auth_basic_user_file /etc/nginx/proxy.htpasswd;
+
+        tunnel_pass;
+    }
+    ```
+
+1. Test the proxy with a user name and password:
+
+    ```shell
+    curl -x 10.10.1.11:3128 --proxy-user user1:password https://example.com
+    ```
+
+Over a plain HTTP connection to the proxy, the password is only Base64-encoded, not encrypted. To protect it, also turn on TLS for the proxy, as described in [Configure mTLS](#configure-mtls).
+
+---
+
+<span id="mtls-authentication"></span>
+
+## Authenticate clients with mTLS
+
+With mutual TLS (mTLS), the client and NGINX check each other's certificates. You need:
+
+- A server certificate and private key, which NGINX uses to authenticate itself to clients.
+- The certificate of a client certificate authority (CA), which NGINX uses to check the client certificates.
+- Client certificates that the client CA signed, which the clients use to authenticate to the proxy.
+
+You can create the certificates with tools such as OpenSSL, or get them from a certificate authority.
 
 ### Configure mTLS
 
-In your NGINX Plus configuration file:
+In the `server` block of the proxy:
 
-1. Enable the TLS layer on proxy listener by adding the `ssl` parameter to the `listen` directive, port `3128` is a commonly used port for forward proxies:
-
-   ```nginx
-   listen 10.10.1.11:3128 ssl;
-   #...
-   ```
-
-2. Specify the proxy server SSL certificate and private key (the certificate that NGINX Plus presents to clients):
-
-   ```nginx
-   #...
-   ssl_certificate     /etc/ssl/certs/forward_proxy_server.crt;
-   ssl_certificate_key /etc/ssl/certs/forward_proxy_server.key;
-   #...
-   ```
-
-3. Configure client certificate verification. Specify the trusted Client CA certificate used to validate client certificates with the [`ssl_client_certificate`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_client_certificate) directive. With [`ssl_verify_client`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_verify_client) set to on, every client is required to present a valid certificate during the TLS handshake, otherwise the connection will be rejected:
-
-   ```nginx
-   #...
-   ssl_client_certificate /etc/ssl/certs/forward_proxy_client_ca.crt;
-
-   ssl_verify_client      on;
-   ssl_verify_depth       1;
-
-   ssl_protocols             TLSv1.2 TLSv1.3;
-   ssl_prefer_server_ciphers on;
-   #...
-   ```
-
-### Conditional forward proxy access based on mTLS
-
-Based on the result of client certificate verification, you can implement different access policies.
-
-This scenario enables conditional access: if a client provides a valid certificate, access is granted to all resources through the proxy. If not, access is limited to particular resources or blocked.
-
-1. Set the [`ssl_verify_client`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_verify_client) directive value to `optional` to allow clients to connect with or without a client certificate, making conditional access possible:
-
-   ```nginx
-   #...
-   ssl_client_certificate /etc/ssl/certs/forward_proxy_client_ca.crt;
-   ssl_verify_client      optional;
-   #...
-   ```
-
-2. Verify the status of the client certificate using the [`map`](https://nginx.org/en/docs/http/ngx_http_map_module.html#map) block and the [`$ssl_client_verify`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#var_ssl_client_verify) variable. The result will be saved to the `$ssl_ok` variable:
-
-   ```nginx
-   map $ssl_client_verify $ssl_ok {
-       default 0;
-       SUCCESS 1;
-   }
-   ```
-
-   In the `map` block, the value of the `$ssl_ok` variable depends on the status of [`$ssl_client_verify`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#var_ssl_client_verify) variable. If the result of client certificate verification is “SUCCESS”, the `$ssl_ok` variable gets the value `1`.
-
-3. Check the hostname the client is going to access based on the `Host` header of the request (the [$host](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_host) variable). Access will be allowed only for `example.com` and its subdomains. The `hostnames` parameter of the [`map`](https://nginx.org/en/docs/http/ngx_http_map_module.html#map) directive is required to recognize hostnames and wildcards in the hostnames: 
-
-   ```nginx
-   map $host  $allowed_host {
-       hostnames;
-       default       0;
-       example.com   1;
-       *.example.com 1;
-   }
-   ```
-
-4. Define access rules by combining the results of client certificate verification (`$ssl_ok`) and hostname validation (`$allowed_host`). To allow access to all websites, the client must present a valid client certificate. If no client certificate is provided, access is restricted to `example.com` and its subdomains. The result is stored in the `$connect_ok` variable:
-
-   ```nginx
-   map "$ssl_ok:$allowed_host" $connect_ok {
-       default 0;
-       "1:0"   1;
-       "1:1"   1;
-       "0:1"   1;
-   }
-   ```
-
-5. Restrict upstream connections to valid `CONNECT` requests using the [`tunnel_allow_upstream`](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html#tunnel_allow_upstream) directive based on the result in the `$connect_ok` variable:
+1. Turn on TLS for the proxy: add the `ssl` parameter to the `listen` directive.
 
     ```nginx
-      tunnel_allow_upstream $connect_ok;
-      tunnel_pass;
+    listen 10.10.1.11:3128 ssl;
     ```
 
-### Complete example
+1. Set the certificate and private key that NGINX shows to clients:
 
-This configuration sums up the steps and enables authorization based on client certificate verification result. Clients with valid client certificates are granted full access through the proxy. Clients without a certificate are restricted to `example.com` and its subdomains, all other `CONNECT` requests are denied.
+    ```nginx
+    ssl_certificate     /etc/ssl/certs/forward_proxy_server.crt;
+    ssl_certificate_key /etc/ssl/certs/forward_proxy_server.key;
+    ```
+
+1. Set the client CA with the [`ssl_client_certificate`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_client_certificate) directive. With [`ssl_verify_client`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_verify_client) set to `on`, every client must show a valid certificate. A client without one completes the TLS handshake, but NGINX answers its `CONNECT` request with `400 Bad Request`:
+
+    ```nginx
+    ssl_client_certificate /etc/ssl/certs/forward_proxy_client_ca.crt;
+
+    ssl_verify_client      on;
+    ssl_verify_depth       1;
+
+    ssl_protocols             TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ```
+
+<span id="conditional-forward-proxy-access-based-on-mtls"></span>
+
+### Allow access by client certificate
+
+You can give clients with a valid certificate more access. In this example, clients with a valid certificate can reach all hosts. Clients without one can reach only `example.com` and its subdomains.
+
+1. Set `ssl_verify_client` to `optional`, so that clients can connect with or without a certificate:
+
+    ```nginx
+    ssl_client_certificate /etc/ssl/certs/forward_proxy_client_ca.crt;
+    ssl_verify_client      optional;
+    ```
+
+1. Set `$ssl_ok` to `1` when the client certificate is valid, from the [`$ssl_client_verify`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#var_ssl_client_verify) variable:
+
+    ```nginx
+    map $ssl_client_verify $ssl_ok {
+        default 0;
+        SUCCESS 1;
+    }
+    ```
+
+1. Set `$allowed_host` to `1` for the hosts that clients without a certificate can reach:
+
+    ```nginx
+    map $host $allowed_host {
+        hostnames;
+        default       0;
+        example.com   1;
+        *.example.com 1;
+    }
+    ```
+
+1. Combine both results in `$connect_ok`. It's `1` for a valid certificate, or for an allowed host:
+
+    ```nginx
+    map "$ssl_ok:$allowed_host" $connect_ok {
+        default 0;
+        "1:0"   1;
+        "1:1"   1;
+        "0:1"   1;
+    }
+    ```
+
+1. Allow tunnels only when `$connect_ok` is `1`. With NGINX Plus, use `tunnel_allow_upstream`:
+
+    ```nginx
+    tunnel_allow_upstream $connect_ok;
+    tunnel_pass;
+    ```
+
+    With NGINX Open Source, use `if ($connect_ok = 0) { return 502; }` before `tunnel_pass` instead.
+
+<span id="complete-example"></span>
+
+### Complete mTLS example
+
+Clients with a valid certificate can reach all hosts through this proxy. Clients without a certificate can reach only `example.com` and its subdomains. The proxy denies all other `CONNECT` requests.
 
 ```nginx
-log_format http_connect  '$remote_addr [$time_local] '
-                         '$request_method $host:$request_port $status '
-                         '$upstream_addr $bytes_sent $upstream_connect_time '
-                         '$request_time "$http_user_agent"';
-
+log_format http_connect '$remote_addr [$time_local] '
+                        '$request_method $host:$request_port $status '
+                        '$upstream_addr $bytes_sent $upstream_connect_time '
+                        '$request_time "$http_user_agent"';
 
 map $ssl_client_verify $ssl_ok {
     default 0;
     SUCCESS 1;
 }
 
-map $host  $allowed_host {
+map $host $allowed_host {
     hostnames;
     default       0;
     example.com   1;
@@ -392,64 +471,99 @@ server {
     ssl_protocols             TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
+    resolver 10.10.1.53;
+
     tunnel_allow_upstream $connect_ok;
     tunnel_pass;
 
-    access_log logs/connect_access.log http_connect;
-    error_log  logs/connect_error.log;
+    access_log /var/log/nginx/connect_access.log http_connect;
+    error_log  /var/log/nginx/connect_error.log;
 }
 ```
 
-The first `map` block checks if the client passed the mTLS verification. It sets the `$ssl_ok` variable to `1` if NGINX Plus successfully verified the client certificate during the TLS handshake, and to `0` otherwise.
+<span id="testing"></span>
 
-The second `map` block checks if the requested host is allowlisted: if the `CONNECT` target hostname is `example.com` or any of its subdomains, the `$allowed_host` variable is set to `1` and to `0` otherwise.
+### Test mTLS
 
-The third `map` block builds the final decision variable, `$connect_ok`. Its result will be evaluated by the `tunnel_allow_upstream` directive: if it has a non-empty value, access will be granted, with restrictions above implemented. If the client cert is valid (`$ssl_ok`=`1`), access is allowed regardless of host. If the client cert is not valid (`$ssl_ok`=`0`), access is allowed only if the host is allowlisted. Otherwise access is denied (default is `0`).
+1. Test the configuration, and reload NGINX:
 
-The [`ssl_verify_client`](https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_verify_client) directive is set to `optional` which allows clients to connect with or without client certificate, making conditional access possible.
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
+    ```
 
-#### Testing
+1. Connect without a client certificate. Replace `myproxy` with the name in the server certificate of the proxy, and `ca.crt` with the CA that signed it:
 
-1. Test the nginx configuration for syntax validity and apply the configuration:
+    ```shell
+    curl -v -x https://myproxy:3128 \
+         --proxy-cacert ./ca.crt \
+         https://www.example.com
+    ```
 
-   ```nginx
-   nginx -t && \
-   nginx -s reload
-   ```
+    Requests to `example.com` and its subdomains succeed. The proxy denies requests to other hosts, for example with `502 Bad Gateway`.
 
-2. Test the proxy authentication layer for requests to verify that the proxy is protected as expected under different scenarios.
+1. Connect with a valid client certificate, set with the `--proxy-cert` and `--proxy-key` options:
 
-   - Client certificate is not provided:
+    ```shell
+    curl -v -x https://myproxy:3128 \
+         --proxy-cacert ./ca.crt \
+         --proxy-cert ./client.crt \
+         --proxy-key ./client.key \
+         https://www.example.com
+    ```
 
-     ```shell
-     curl -v -x https://myproxy:3128    \
-                https://www.example.com \
-                --proxy-cacert ./conf/tls/ca.crt
-     ```
-     where:
+    Requests to all hosts succeed.
 
-     - `myproxy:3128` is the proxy address and port
-     - `https://www.example.com` is the destination URL requested through the proxy
-     -  `--proxy-cacert ./conf/tls/ca.crt` - the CA used to verify the proxy’s server certificate.
+---
 
-     Expected result: requests to `example.com` and its subdomains succeed (for example, `301 Moved Permanently`), requests to other domains are denied (for example, `502 Bad Gateway`).
+## Troubleshooting
 
+### The proxy returns 502 Bad Gateway for host names
 
-   - Correct client certificate is provided (the `--proxy-cert` and `--proxy-key` parameters):
+**Symptom**: `curl` reports that the proxy answered `CONNECT` with `502`, for any destination given by name. The error log has a line such as `no resolver defined to resolve example.com`.
 
-     ```shell
-     curl -v -x https://myproxy:3128    \
-                https://www.example.com \
-                --proxy-cert ./conf/tls/client.crt \
-                --proxy-key ./conf/tls/client.key  \
-                --proxy-cacert ./conf/tls/ca.crt
-     ```
-     For requests to all resources, the request should succeed (for example, `301 Moved Permanently`).
+**Cause**: The configuration has no `resolver` directive, so NGINX can't resolve the destination host.
 
-## See also
+**Fix**: Add a `resolver` directive with the address of your DNS server, where `tunnel_pass` is.
 
+---
+
+### The proxy returns 405 Not Allowed
+
+**Symptom**: The proxy answers `405 Not Allowed`.
+
+**Cause**: The request isn't a `CONNECT` request over HTTP/1.1, or the `server` that received it has no `tunnel_pass`. For example, `curl -x` sends a plain `GET` request to the proxy for `http://` URLs.
+
+**Fix**: Send `CONNECT` requests, for example for `https://` URLs. To make `curl` tunnel `http://` URLs too, add the `-p` (`--proxytunnel`) option.
+
+---
+
+### The proxy returns 407 Proxy Authentication Required
+
+**Symptom**: The proxy answers `407 Proxy Authentication Required`.
+
+**Cause**: The proxy requires basic authentication, and the request has no valid credentials in the `Proxy-Authorization` header.
+
+**Fix**: Send the user name and password, for example with the `--proxy-user` option of `curl`.
+
+---
+
+### The proxy returns 400 Bad Request to CONNECT over TLS
+
+**Symptom**: `curl` reports `CONNECT tunnel failed, response 400` for a proxy with TLS.
+
+**Cause**: The proxy has `ssl_verify_client on`, and the client sent no valid client certificate.
+
+**Fix**: Send the client certificate and key, for example with the `--proxy-cert` and `--proxy-key` options of `curl`.
+
+---
+
+<span id="see-also"></span>
+
+## References
+
+For more information, see:
+
+- [Module ngx_http_tunnel_module](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html)
+- [Module ngx_http_num_map_module](https://nginx.org/en/docs/http/ngx_http_num_map_module.html)
 - [Secure and harden forward proxies in NGINX Plus](https://community.f5.com/kb/technicalarticles/secure-and-harden-forward-proxies-in-nginx-plus/344989)
-
-- [F5 NGINX Plus R36 release blogpost](https://community.f5.com/kb/technicalarticles/f5-nginx-plus-r36-release-now-available/344514)
-
-- [`ngx_http_tunnel_module` module reference](https://nginx.org/en/docs/http/ngx_http_tunnel_module.html)
+- [F5 NGINX Plus R36 release blog post](https://community.f5.com/kb/technicalarticles/f5-nginx-plus-r36-release-now-available/344514)

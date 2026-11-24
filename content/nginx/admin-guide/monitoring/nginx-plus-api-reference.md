@@ -1,5 +1,5 @@
 ---
-description: ''
+description: "Reference for the NGINX Plus REST API, which reports statistics and changes runtime state such as upstream servers and key-value pairs."
 f5-content-type: redoc
 doctypes:
   - reference
@@ -10,5 +10,5 @@ title: NGINX Plus REST API reference
 toc: false
 weight: null
 f5-api-reference: "./nginx/admin-guide/yaml/v9/nginx_api.yaml"
-f5-product: NGINX One Console
+f5-product: F5 NGINX Plus
 ---

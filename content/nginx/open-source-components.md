@@ -1,15 +1,17 @@
 ---
-description: License information for open source components included in the NGINX
-  Plus software.
+description: "License information for the open source components in F5 NGINX Plus."
 title: Open Source Components
 toc: true
 weight: 500
 f5-content-type: reference
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "open source components, licenses, BSD license, MIT license, nginx-plus package, third-party software"
+f5-summary: >
+  This page lists the open source components in the F5 NGINX Plus package, with their licenses and copyright notices.
+f5-audience: any
 ---
 
 Open source components included in the F5 NGINX Plus (package name is `nginx-plus`) are:
-
 
 - nginx/OSS 1.29.3, distributed under 2-clause BSD license.
 
@@ -74,7 +76,6 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - Components used in status monitoring dashboard v2 only
 (`dashboard.html` in `nginx-plus` package) and distributed under MIT license:
 
-
   - `@babel-core`, Babel compiler core (7.23.2)
 
     Homepage: <https://github.com/babel/babel/tree/master/packages/babel-core>
@@ -108,7 +109,6 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     Homepage: <https://github.com/babel/babel-loader>
 
     Copyright © 2014-2019 Luís Couto <hello@luiscouto.pt>
-
 
   - `babel-plugin-istanbul`, a babel plugin that adds istanbul instrumentation to ES6 code (6.1.1).
 
@@ -316,7 +316,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 
 Optional add-on and third-party modules provided with NGINX Plus may include
 additional open-source components. The licenses for these components are included in the installation package

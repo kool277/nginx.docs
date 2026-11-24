@@ -1,42 +1,87 @@
 ---
-description: Enable high availability of F5 NGINX Plus instances in on-premises deployments,
-  configuring an active-passive pair in a solution based on keepalived and VRRP.
+description: Set up an active-passive pair of F5 NGINX Plus instances on premises, with keepalived moving a virtual IP address between them with VRRP.
 title: High Availability Support for NGINX Plus in On-Premises Deployments
 toc: true
 weight: 100
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "high availability, active-passive, keepalived, VRRP, virtual IP address, VIP, nginx-ha-keepalived, nginx-ha-setup, failover"
+f5-summary: >
+  This guide shows how to make two F5 NGINX Plus instances highly available with the nginx-ha-keepalived package.
+  keepalived gives a virtual IP address to the primary instance, and moves it to the backup instance when NGINX Plus or the primary fails.
+  It works where the operating system controls IP addresses, which isn't the case in most cloud environments.
+f5-audience: operator
 ---
 
-This article explains how to configure high availability of NGINX Plus instances in on‑premises deployment with a solution based on [keepalived](https://www.keepalived.org/).
+<span id="ha_support"></span><span id="high-availability-support-based-on-keepalived"></span>
 
-> **Note:** This solution is designed to work in environments where IP addresses can be controlled through standard operating system calls, and often does not work in cloud environments where IP addresses are controlled through interfacing with the cloud infrastructure. For information about making NGINX Plus highly available in cloud environments, see the [Deployment Guides]({{< ref "/nginx/deployment-guides/_index.md" >}}).
+## Overview
 
-<span id="ha_support"></span>
-## High Availability Support Based on keepalived
+F5 NGINX Plus R6 and later support an active-passive high availability (HA) setup on premises, based on [keepalived](https://www.keepalived.org/). Two nodes share a virtual IP address (VIP). The primary node holds the VIP and handles the traffic. If the primary node fails, the backup node takes over the VIP.
 
-NGINX Plus [Release 6]({{< ref "nginx/releases.md#r6" >}}) and later supports a solution for fast and easy configuration of NGINX Plus in an active‑passive high‑availability (HA) setup, based on [keepalived](https://www.keepalived.org/).
+{{< call-out class="note" >}} This solution works where the operating system controls IP addresses. Most cloud environments assign IP addresses through their own infrastructure, so it often doesn't work there. For cloud environments, see the [deployment guides]({{< ref "/nginx/deployment-guides/_index.md" >}}). {{< /call-out >}}
 
-The [keepalived open source project](http://www.keepalived.org/) includes three components:
+The solution has three parts:
 
-- The `keepalived` daemon for Linux servers.
-- An implementation of the [Virtual Router Redundancy Protocol](https://tools.ietf.org/html/rfc5798) (VRRP) to manage virtual routers (virtual IP addresses, or _VIPs_).
+- **The keepalived daemon**, which runs on both nodes.
+- **The [Virtual Router Redundancy Protocol](https://datatracker.ietf.org/doc/html/rfc5798) (VRRP)**. The primary node sends VRRP advertisements to the backup node, every second in this guide. If the backup node gets no advertisement for three intervals and a short skew time, it takes over the VIP ([RFC 5798, section 6.1](https://datatracker.ietf.org/doc/html/rfc5798#section-6.1)).
+- **Health-check scripts**. keepalived runs them regularly, and changes the priority of the node with their results. The node with the higher priority holds the VIP.
 
-   VRRP ensures that there is a primary node at all times. The backup node listens for VRRP advertisement packets from the primary node. If it does not receive an advertisement packet for a period longer than three times the configured advertisement interval, the backup node takes over as primary and assigns the configured VIPs to itself.
-- A health‑check facility to determine whether a service (for example, a web server, PHP backend, or database server) is up and operational.
+The **nginx-ha-keepalived** package of NGINX Plus sets up all three parts.
 
-   If a service on the primary node fails the configured number of health checks, `keepalived` reassigns the virtual IP address from the primary node to the backup (passive) node.
+---
 
+## Before you begin
 
-<span id="ha_configure"></span>
-## Configuring High Availability
+Before you begin, make sure you have:
 
-Run the <span style="white-space: nowrap;">`nginx-ha-setup`</span> script on both nodes as the `root` user (the script is distributed in the <span style="white-space: nowrap;">**nginx-ha-keepalived**</span> package, which must be installed in addition to the base NGINX Plus package). The script configures a highly available NGINX Plus environment with an active‑passive pair of nodes acting as primary and backup. It prompts for the following data:
+- **Two NGINX Plus nodes**: Both run NGINX Plus in the same subnet, with the same NGINX Plus configuration. To keep the configuration the same, see [Synchronizing NGINX Configuration in a Cluster]({{< ref "/nginx/admin-guide/high-availability/configuration-sharing.md" >}}).
+- **A free IP address for the VIP**: An unused address in the subnet of the nodes. Clients connect to this address.
+- **VRRP allowed between the nodes**: VRRP uses IP protocol 112. If a firewall blocks it, both nodes take the VIP, as described in [Both nodes hold the VIP](#both-nodes-hold-the-vip).
+- **Root access**: You need `sudo` on both nodes.
 
-- IP address of the local and remote nodes (one of which will be configured as the primary, the other as the backup)
-- One additional free IP address to be used as the cluster endpoint’s (floating) VIP
+---
 
-The configuration of the `keepalived` daemon is recorded in <span style="white-space: nowrap;">**/etc/keepalived/keepalived.conf**</span>. The configuration blocks in the file control notification settings, the VIPs to manage, and the health checks to use to test the services that rely on VIPs. Following is the configuration file created by the <span style="white-space: nowrap;">`nginx-ha-setup`</span> script on a CentOS 7 machine. Note that this is not an NGINX Plus configuration file, so the syntax is different (semicolons are not used to delimit directives, for example).
+<span id="ha_configure"></span><span id="configuring-high-availability"></span>
+
+## Set up the active-passive pair
+
+1. On both nodes, install the **nginx-ha-keepalived** package from the NGINX Plus repository, in addition to the **nginx-plus** package. The package is available for RHEL-based systems, Debian, Ubuntu, and SLES, as listed in the [technical specifications]({{< ref "/nginx/technical-specs.md" >}}):
+
+    - RHEL and its derivatives:
+
+        ```shell
+        sudo dnf install nginx-ha-keepalived
+        ```
+
+    - Debian and Ubuntu:
+
+        ```shell
+        sudo apt install nginx-ha-keepalived
+        ```
+
+    - SLES:
+
+        ```shell
+        sudo zypper install nginx-ha-keepalived
+        ```
+
+1. On both nodes, run the `nginx-ha-setup` script:
+
+    ```shell
+    sudo nginx-ha-setup
+    ```
+
+    The script asks for:
+
+    - The IP addresses of the local node and the remote node. One node becomes the primary node, and the other the backup node.
+    - One free IP address for the VIP.
+
+1. Check that the VIP is on the primary node, as described in [Show the state of a node](#show-the-state-of-a-node).
+
+### The keepalived configuration
+
+The script writes the configuration of keepalived to **/etc/keepalived/keepalived.conf**. It isn't an NGINX configuration file, so its syntax is different. For example, its directives don't end with semicolons. The script created this file on the primary node of a CentOS 7 pair:
 
 ```none
 global_defs {
@@ -80,113 +125,158 @@ vrrp_instance VI_1 {
 
     notify "/usr/libexec/keepalived/nginx-ha-notify"
 }
-
 ```
 
-Describing the entire configuration is beyond the scope of this article, but a few items are worth noting:
+Each node has its own copy of the file. These directives differ between the nodes:
 
-- Each node in the HA setup needs its own copy of the configuration file, with values for the `priority`, `unicast_src_ip`, and `unicast_peer` directives that are appropriate to the node’s role (primary or backup).
-- The `priority` directive controls which host becomes the primary, as explained in the [next section](#ha_scripts).
-- The `notify` directive names the notification script included in the distribution, which can be used to generate syslog messages (or other notifications) when a state transition or fault occurs.
-- The value `51` for the `virtual_router_id` directive in the `vrrp_instance VI_1` block is a sample value; change it as necessary to be unique in your environment.
-- If you have multiple pairs of `keepalived` instances (or other VRRP instances) running in your local network, create a `vrrp_instance` block for each one, with a unique name (like `VI_1` in the example) and `virtual_router_id` number.
+{{< table >}}
 
-See [keepalived manpage](https://www.keepalived.org/manpage.html) for more information about `keepalived` directives.
+| Directive | Primary node | Backup node | Meaning |
+|---|---|---|---|
+| `priority` | `101` | `100` | The base priority of the node |
+| `unicast_src_ip` | `192.168.100.100` | `192.168.100.101` | The address of the node |
+| `unicast_peer` | `192.168.100.101` | `192.168.100.100` | The address of the other node |
 
+{{< /table >}}
 
-<span id="ha_scripts"></span>
-## Using a Health-Check Script to Control Which Server Is Primary
+These directives are the same on both nodes:
 
-There is no fencing mechanism in `keepalived`. If the two nodes in a pair are not aware of each other, each assumes it is the primary and assigns the VIP to itself. To prevent this situation, the configuration file defines a script‑execution mechanism called `chk_nginx_service` that runs a script regularly to check whether NGINX Plus is operational, and adjusts the local node’s priority based on the script’s return code. Code `0` (zero) indicates correct operation, and code `1` (or any nonzero code) indicates an error.
+- `virtual_router_id`: The ID of the VRRP instance. `51` is a sample value. Each VRRP instance on your network needs its own ID, and each `vrrp_instance` block on a node needs its own name, such as `VI_1`.
+- `advert_int`: The interval of the advertisements, in seconds.
+- `virtual_ipaddress`: The VIP.
+- `track_script`: The health-check scripts that change the priority of the node.
+- `notify`: The notification script of the package. keepalived runs it on each state change, and it logs the change to syslog.
 
-In the sample configuration of the script, the `weight` directive is set to `50`, which means that when the check script succeeds (and by implication returns code `0`):
+For all directives, see the [keepalived configuration synopsis](https://keepalived.readthedocs.io/en/latest/configuration_synopsis.html).
 
-- The priority of the first node (which has a base priority of `101`) is set to `151`.
-- The priority of the second node (which has a base priority of `100`) is set to `150`.
+<span id="ha_scripts"></span><span id="using-a-health-check-script-to-control-which-server-is-primary"></span>
 
-The first node has higher priority (`151` in this case) and becomes primary.
+### How the health checks choose the primary node
 
-The `interval` directive specifies how often the check script executes, in seconds (3 seconds in the sample configuration file). Note that the check fails if the timeout is reached (by default, the timeout is the same as the check interval).
+keepalived runs each `vrrp_script` every `interval` seconds. A script that exits with code `0` succeeds, and any other code is a failure. A script that runs longer than its timeout fails too. The timeout is the same as the interval, unless you set `timeout`. To act only on several results in a row, set `rise` and `fall`.
 
-The `rise` and `fall` directives (not used in the sample configuration file) specify how many times the script must succeed or fail before action is taken.
+Both scripts have a `weight` of `50`. keepalived adds the weight of each script that succeeds to the base priority of the node:
 
-The <span style="white-space: nowrap;">`nginx-ha-check`</span> script provided with the <span style="white-space: nowrap;">**nginx-ha-keepalive**</span> package checks if NGINX Plus is up. We recommend creating additional scripts as appropriate for your local setup.
+- `chk_nginx_service` runs the **nginx-ha-check** script of the package every 3 seconds. It succeeds when NGINX Plus is up.
+- `chk_manual_failover` runs every 10 seconds. It succeeds unless you start a [manual failover](#force-a-state-change).
 
+When both nodes are healthy, the primary node has priority 201 (101 + 50 + 50), and the backup node has 200. The node with the higher priority holds the VIP:
 
-<span id="ha_status"></span>
-## Displaying Node State
+{{< table >}}
 
-To see which node is currently the primary for a given VIP, run the `ip addr show` command for the interface on which the VRRP instance is defined (in the following commands, interface **eth0** on nodes **centos7-1** and **centos7-2**):
+| Situation | Primary node | Backup node | VIP on |
+|---|---|---|---|
+| Both nodes are healthy | 201 | 200 | Primary node |
+| NGINX Plus fails on the primary node | 151 | 200 | Backup node |
+| Manual failover on the primary node | 151 | 200 | Backup node |
+| keepalived stops on the primary node | Sends priority 0 | 200 | Backup node |
 
-```shell
-centos7-1 $ ip addr show eth0
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state
-     UP qlen 1000
-    link/ether 52:54:00:33:a5:a5 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.100.100/24 brd 192.168.122.255 scope global dynamic eth0
-       valid_lft 3071sec preferred_lft 3071sec
-    inet 192.168.100.150/32 scope global eth0
-       valid_lft forever preferred_lft forever
-```
+{{< /table >}}
 
-```shell
-centos7-2 $ ip addr show eth0
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state
-     UP qlen 1000
-    link/ether 52:54:00:33:a5:87 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.100.101/24 brd 192.168.122.255 scope global eth0
-       valid_lft forever preferred_lft forever
-```
+When the primary node recovers, its priority is higher again, and it takes the VIP back.
 
-In this output, the second `inet` line for **centos7-1** indicates that it is primary – the defined VIP (192.168.100.150) is assigned to it. The other `inet` lines show the primary node's real IP address (192.168.100.100) and the backup node’s IP address (192.168.100.101).
+The **nginx-ha-check** script checks only that NGINX Plus is up. To check more, such as your applications, add scripts of your own.
 
-A node’s current state is recorded in the local <span style="white-space: nowrap;">**/var/run/nginx-ha-keepalived.state**</span> file. You can use the `cat` command to display it:
+keepalived has no fencing. If the nodes don't receive each other's advertisements, both nodes take the VIP. The health checks don't prevent this.
 
-```shell
-centos7-1 $ cat /var/run/nginx-ha-keepalived.state
-STATE=MASTER
-centos7-2 $ cat /var/run/nginx-ha-keepalived.state
-STATE=BACKUP
-```
+---
 
-In version 1.1 and later of the <span style="white-space: nowrap;">**nginx-ha-keepalived**</span> package, it is possible to dump VRRP extended statistics and data to the filesystem with the following command:
+<span id="ha_status"></span><span id="displaying-node-state"></span>
 
-```shell
-centos7-1 $ service keepalived dump
-```
+## Show the state of a node
 
-This command sends signals to the running `keepalived` proccess to write the current state to **/tmp/keepalived.stats** and **/tmp/keepalived.data**.
+- To see which node holds the VIP, list the IPv4 addresses of the interface of the VRRP instance, **eth0** in this guide:
 
+    ```shell
+    ip -4 -brief address show eth0
+    ```
 
-<span id="ha_state"></span>
-## Forcing a State Change
+    On the primary node, the output includes the VIP:
 
-To force the primary node to become the backup, run the following command on it:
+    ```none
+    eth0             UP             192.168.100.100/24 192.168.100.150/32
+    ```
 
-```shell
-service keepalived stop
-```
+    On the backup node, it doesn't:
 
-As it shuts down, `keepalived` sends a VRRP packet with priority `0` to the backup node, which causes the backup node to take over the VIP.
+    ```none
+    eth0             UP             192.168.100.101/24
+    ```
 
-If your cluster is using version 1.1 of the <span style="white-space: nowrap;">**nginx-ha-keepalived**</span> package, this is a simpler way to force the state change:
+- The package records the state of each node in **/var/run/nginx-ha-keepalived.state**:
 
-```shell
-touch /var/run/keepalived-manual-failover
-```
+    ```shell
+    cat /var/run/nginx-ha-keepalived.state
+    ```
 
-This command creates a file checked by the script defined in a `vrrp_script
-chk_manual_failover` block. If the file exists, `keepalived` lowers the priority of the primary node, which causes the backup node to take over the VIP.
+    The output is `STATE=MASTER` on the primary node, and `STATE=BACKUP` on the backup node.
 
+- In version 1.1 and later of the **nginx-ha-keepalived** package, this command writes VRRP statistics to **/tmp/keepalived.stats**, and the configuration and state of keepalived to **/tmp/keepalived.data**:
 
-<span id="ha_addresses"></span>
-## Adding More Virtual IP Addresses
+    ```shell
+    sudo service keepalived dump
+    ```
 
-The configuration created by the <span style="white-space: nowrap;">`nginx-ha-setup`</span> script is very basic, and makes a single IP address highly available.
+    The command sends signals to keepalived. Only `root` can read the files:
 
-To make more than one IP address highly available:
+    ```shell
+    sudo cat /tmp/keepalived.stats
+    ```
 
-1. Add each new IP address to the `virtual_ipaddress` block in the <span style="white-space: nowrap;">**/etc/keepalived/keepalived.conf**</span> file on both nodes:
+    The statistics start like this:
+
+    ```none
+    VRRP Instance: VI_1
+      Advertisements:
+        Received: 0
+        Sent: 43
+      Became master: 1
+      Released master: 0
+    ```
+
+---
+
+<span id="ha_state"></span><span id="forcing-a-state-change"></span>
+
+## Force a state change
+
+To move the VIP to the backup node, use one of these methods on the primary node:
+
+- Stop keepalived:
+
+    ```shell
+    sudo systemctl stop keepalived
+    ```
+
+    As it stops, keepalived sends an advertisement with priority 0. The backup node then takes over the VIP within about a second, without waiting for the advertisements to time out. To take the VIP back, start keepalived again:
+
+    ```shell
+    sudo systemctl start keepalived
+    ```
+
+- In version 1.1 and later of the **nginx-ha-keepalived** package, create the manual failover file:
+
+    ```shell
+    sudo touch /var/run/keepalived-manual-failover
+    ```
+
+    The `chk_manual_failover` script then fails, and the priority of the primary node drops to 151, below the 200 of the backup node. The backup node discards advertisements with a lower priority, as if the primary node had stopped sending them. It takes over after three advertisement intervals. So the VIP moves within about 13 seconds: up to 10 seconds until the script runs, and about 3 more. To move the VIP back, delete the file:
+
+    ```shell
+    sudo rm /var/run/keepalived-manual-failover
+    ```
+
+    Delete the file when you no longer need it. Left on a node, it keeps the priority of that node low, as described in [The VIP doesn't move when NGINX Plus stops](#the-vip-doesnt-move-when-nginx-plus-stops).
+
+---
+
+<span id="ha_addresses"></span><span id="adding-more-virtual-ip-addresses"></span>
+
+## Add more virtual IP addresses
+
+The `nginx-ha-setup` script makes one IP address highly available. To add more:
+
+1. On both nodes, add each address to the `virtual_ipaddress` block in **/etc/keepalived/keepalived.conf**:
 
     ```none
     virtual_ipaddress {
@@ -195,51 +285,49 @@ To make more than one IP address highly available:
     }
     ```
 
-    The syntax in the `virtual_ipaddress` block replicates the syntax of the `ip` utility.
+    The lines take the syntax of the `ip address` command, so you can add options such as `dev eth1`.
 
-2. Run the `service keepalived reload` command on both nodes to reload the keepalived service:
+1. Reload keepalived on both nodes:
 
     ```shell
-    centos7-1 $ service keepalived reload
-    centos7-2 $ service keepalived reload
+    sudo systemctl reload keepalived
     ```
 
+1. Check that the primary node holds all the VIPs:
 
-<span id="ha_addresses_ipv6"></span>
-## Dual-Stack Configuration of IPv4 and IPv6
+    ```shell
+    ip -4 -brief address show eth0
+    ```
 
-In `keepalived` version 1.2.20 and later (and version 1.1 and later of the <span style="white-space: nowrap;">**nginx-ha-keepalived**</span> package), `keepalived` no longer supports mixing IPv4 and IPv6 addresses in one VRRP instance (`virtual_ipaddress` block), because that violates the [VRRP standard](https://tools.ietf.org/html/rfc5798#section-7.4).
+---
 
-There are two ways to configure dual‑stack HA with VRRP:
+<span id="ha_addresses_ipv6"></span><span id="dual-stack-configuration-of-ipv4-and-ipv6"></span>
 
-- Add the `virtual_ipaddress_excluded` block with the addresses of one family.
+## Make IPv4 and IPv6 addresses highly available
+
+A VRRP instance manages addresses of one family only ([RFC 5798, section 3](https://datatracker.ietf.org/doc/html/rfc5798#section-3)). Since keepalived 1.2.20 and version 1.1 of the **nginx-ha-keepalived** package, keepalived ignores addresses of the other family in a `virtual_ipaddress` block. It logs a message such as `address family must match VRRP instance [2001:db8:100::1] - ignoring`.
+
+To make addresses of both families highly available, use one of these methods:
+
+- Add the addresses of the other family to a `virtual_ipaddress_excluded` block:
 
     ```none
     vrrp_instance VI_1 {
-        ...
-        unicast_src_ip 192.168.100.100
-
-        unicast_peer {
-            192.168.100.101
-        }
-
+        # ...
         virtual_ipaddress {
             192.168.100.150
         }
-        ...
 
         virtual_ipaddress_excluded {
-            1234:5678:9abc:def::1
+            2001:db8:100::1
         }
-        ...
+        # ...
     }
     ```
 
-    The addresses are excluded from VRRP advertisements, but are still managed by `keepalived` and added or removed when there is a state change.
+    The advertisements don't include these addresses, but keepalived still adds and removes them on each state change.
 
-- Add another VRRP instance for IPv6 addresses.
-
-    The VRRP configuration for IPv6 addresses on the primary node is:
+- Add a second VRRP instance for the IPv6 addresses. On the primary node, it's:
 
     ```none
     vrrp_instance VI_2 {
@@ -248,14 +336,14 @@ There are two ways to configure dual‑stack HA with VRRP:
         virtual_router_id 51
         advert_int        1
         accept
-        unicast_src_ip    1234:5678:9abc:def::3
+        unicast_src_ip    2001:db8:100::3
 
         unicast_peer {
-            1234:5678:9abc:def::2
+            2001:db8:100::2
         }
 
         virtual_ipaddress {
-            1234:5678:9abc:def::1
+            2001:db8:100::1
         }
 
         track_script {
@@ -267,77 +355,114 @@ There are two ways to configure dual‑stack HA with VRRP:
     }
     ```
 
-    Note that VRRP instances can both use the same `virtual_router_id` since the VRRP IPv4 and IPv6 instances are completely independent of each other.
+    On the backup node, swap the two addresses and use priority `100`. The IPv4 and IPv6 instances are independent of each other, so they can use the same `virtual_router_id`.
 
-<span id="ha_troubleshoot"></span>
-## Troubleshooting keepalived and VRRP
+---
 
-The `keepalived` daemon uses the `syslog` utility for logging. On CentOS, RHEL, and SLES‑based systems, the output is typically written to **/var/log/messages**, whereas on Ubuntu and Debian‑based systems it is written to **/var/log/syslog**. Log entries record events such as startup of the `keepalived` daemon and state transitions.
+<span id="ha_misc"></span><span id="keeping-f5-nginx-plus-configuration-files-in-sync"></span>
 
-Here are a few sample entries that show the `keepalived` daemon starting up and the node transitioning a VRRP instance to the primary state (for easier reading, the **centos7-1** hostname has been removed from each line after the first):
+## Keep the NGINX Plus configuration in sync
+
+Both nodes must have the configuration of the services that you make highly available. For a way to keep the NGINX Plus configuration of the nodes the same, see [Synchronizing NGINX Configuration in a Cluster]({{< ref "/nginx/admin-guide/high-availability/configuration-sharing.md" >}}).
+
+---
+
+<span id="ha_troubleshoot"></span><span id="troubleshooting-keepalived-and-vrrp"></span>
+
+## Troubleshooting
+
+keepalived logs to syslog. To read its messages on a system with systemd:
+
+```shell
+sudo journalctl -u keepalived
+```
+
+Systems that write syslog to files have the messages in **/var/log/messages** (RHEL and SLES) or **/var/log/syslog** (Debian and Ubuntu).
+
+In these messages of keepalived 2.3, a node starts as backup, adds the weights of both scripts, and becomes the primary node:
 
 ```none
-Feb 27 14:42:04 centos7-1 systemd: Starting LVS and VRRP High Availability Monitor...
-Feb 27 14:42:04 Keepalived [19242]: Starting Keepalived v1.2.15 (02/26,2015)
-Feb 27 14:42:04 Keepalived [19243]: Starting VRRP child process, pid=19244
-Feb 27 14:42:04 Keepalived_vrrp [19244]: Registering Kernel netlink reflector
-Feb 27 14:42:04 Keepalived_vrrp [19244]: Registering Kernel netlink command channel
-Feb 27 14:42:04 Keepalived_vrrp [19244]: Registering gratuitous ARP shared channel
-Feb 27 14:42:05 systemd: Started LVS and VRRP High Availability Monitor.
-Feb 27 14:42:05 Keepalived_vrrp [19244]: Opening file '/etc/keepalived/keepalived.conf '.
-Feb 27 14:42:05 Keepalived_vrrp [19244]: Truncating auth_pass to 8 characters
-Feb 27 14:42:05 Keepalived_vrrp [19244]: Configuration is using: 64631 Bytes
-Feb 27 14:42:05 Keepalived_vrrp [19244]: Using LinkWatch kernel netlink reflector...
-Feb 27 14:42:05 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) Entering BACKUP STATE
-Feb 27 14:42:05 Keepalived_vrrp [19244]: VRRP sockpool: [ifindex(2), proto(112), unicast(1), fd(14,15)]
-Feb 27 14:42:05 nginx-ha-keepalived: Transition to state 'BACKUP ' on VRRP instance 'VI_1 '.
-Feb 27 14:42:05 Keepalived_vrrp [19244]: VRRP_Script(chk_nginx_service) succeeded
-Feb 27 14:42:06 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) forcing a new MASTER election
-Feb 27 14:42:06 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) forcing a new MASTER election
-Feb 27 14:42:07 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) Transition to MASTER STATE
-Feb 27 14:42:08 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) Entering MASTER STATE
-Feb 27 14:42:08 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) setting protocol VIPs.
-Feb 27 14:42:08 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) Sending gratuitous ARPs on eth0 for 192.168.100.150
-Feb 27 14:42:08 nginx-ha-keepalived: Transition to state 'MASTER ' on VRRP instance 'VI_1 '.
-Feb 27 14:42:13 Keepalived_vrrp [19244]: VRRP_Instance(VI_1) Sending gratuitous ARPs on eth0 for 192.168.100.150
+Nov 23 08:57:15 node-1 Keepalived_vrrp[239]: (VI_1) Entering BACKUP STATE (init)
+Nov 23 08:57:15 node-1 Keepalived_vrrp[239]: VRRP_Script(chk_manual_failover) succeeded
+Nov 23 08:57:15 node-1 Keepalived_vrrp[239]: (VI_1) Changing effective priority from 101 to 151
+Nov 23 08:57:15 node-1 Keepalived_vrrp[239]: VRRP_Script(chk_nginx_service) succeeded
+Nov 23 08:57:15 node-1 Keepalived_vrrp[239]: (VI_1) Changing effective priority from 151 to 201
+Nov 23 08:57:18 node-1 Keepalived_vrrp[239]: (VI_1) Receive advertisement timeout
+Nov 23 08:57:18 node-1 Keepalived_vrrp[239]: (VI_1) Entering MASTER STATE
+Nov 23 08:57:18 node-1 Keepalived_vrrp[239]: (VI_1) setting VIPs.
+Nov 23 08:57:18 node-1 Keepalived_vrrp[239]: (VI_1) Sending/queueing gratuitous ARPs on eth0 for 192.168.100.150
 ```
 
-If the system log does not explain the source of a problem, run the `tcpdump` command with the following parameters to display the VRRP advertisements that are sent on the local network:
+Older versions of keepalived word some messages differently. The **nginx-ha-notify** script of the package also logs each transition, for example `Transition to state 'MASTER ' on VRRP instance 'VI_1 '.`
+
+### Capture VRRP advertisements
+
+If the log doesn't explain a problem, capture the VRRP advertisements with `tcpdump`. To see only the traffic with the other node, add its address from the `unicast_peer` block:
 
 ```shell
-tcpdump -vvv -ni eth0 proto vrrp
+sudo tcpdump -vvv -ni eth0 vrrp and host 192.168.100.101
 ```
 
-If you have multiple VRRP instances on the local network and want to filter the output to include only traffic between the node and its peer for a given service, include the `host` parameter and specify the peer’s IP address as defined by the `unicast_peer` block in the **keepalived.conf** file, as in the following example:
+Use `vrrp` or `ip proto 112` as the filter. `vrrp` is itself a filter keyword, so `proto vrrp` fails with `can't parse filter expression: syntax error`.
 
-```shell
-centos7-1 $ tcpdump -vvv -ni eth0 proto vrrp and host 192.168.100.101
-tcpdump: listening on eth0, link-type EN10MB (Ethernet), capture size 65535 bytes
-14:48:27.188100 IP (tos 0xc0, ttl 255, id 382, offset 0, flags [none],
-    proto VRRP (112), length 40)
-    192.168.100.100 > 192.168.100.101: vrrp 192.168.100.100 >
-        192.168.100.101: VRRPv2 , Advertisement , vrid 51, prio 151,
-        authtype simple , intvl 1s, length 20, addrs: 192.168.100.150 auth
-        "f8f0e511"
+On the primary node, the output shows its advertisements:
+
+```none
+tcpdump: listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+08:55:19.377184 IP (tos 0xc0, ttl 255, id 28, offset 0, flags [none], proto VRRP (112), length 32)
+    192.168.100.100 > 192.168.100.101: VRRPv3, Advertisement, vrid 51, prio 201, intvl 100cs, length 12, addrs: 192.168.100.150
 ```
 
-Several fields in the output are useful for debugging:
+These fields help with debugging:
 
+- `vrid`: The `virtual_router_id` of the instance.
+- `prio`: The priority of the sender, with the weights of its scripts.
+- `intvl`: The advertisement interval, `advert_int`, in centiseconds.
+- `addrs`: The VIPs.
 
-- `vrid` – Virtual router ID (set by the `virtual_router_id` directive)
-- `prio` – Node’s priority (set by the `priority` directive)
-- `authtype` – Type of authentication in use (set by the `authentication` directive)
-- `intvl` – Frequency at which advertisements are sent (set by the `advert_int` directive)
-- `auth` – Authentication token sent (set by the `auth_pass` directive)
+VRRP version 3 has no authentication, so the output has no authentication fields ([RFC 5798, section 9](https://datatracker.ietf.org/doc/html/rfc5798#section-9)).
 
+---
 
-<span id="ha_misc"></span>
-## Keeping F5 NGINX Plus Configuration Files in Sync
+### Both nodes hold the VIP
 
-The NGINX Plus configuration files on the nodes must both define the services that are being made highly available. For information about synchronizing NGINX Plus configuration, see [Synchronizing NGINX Configuration in a Cluster]({{< ref "configuration-sharing.md" >}}).
+**Symptom**: `ip -4 -brief address show eth0` shows the VIP on both nodes, and the logs of both nodes have `Entering MASTER STATE`.
 
+**Cause**: The nodes don't receive each other's advertisements. For example, a firewall drops IP protocol 112, or `unicast_peer` has a wrong address. keepalived has no fencing, so each node assumes that the other one failed.
 
-<span id="ha_examples"></span>
-## Additional Configuration Examples
+**Fix**: Allow IP protocol 112 between the nodes, and check the `unicast_src_ip` and `unicast_peer` addresses on both nodes. To see which advertisements arrive, [capture them](#capture-vrrp-advertisements). When the nodes see each other again, the node with the lower priority becomes the backup node.
 
-The <span style="white-space: nowrap;">**nginx-ha-keepalived**</span> package includes more configuration examples in the <span style="white-space: nowrap;">**/usr/share/doc/nginx-ha-keepalived**</span> directory.
+---
+
+### The VIP doesn't move when NGINX Plus stops
+
+**Symptom**: NGINX Plus stops on the primary node, but the VIP stays there.
+
+**Cause**: The backup node doesn't have a higher priority. For example, a manual failover file left on the backup node lowers its priority to 150. That's below the 151 of the failed primary node.
+
+**Fix**: On the backup node, delete **/var/run/keepalived-manual-failover**. Then check that the log of the primary node shows `VRRP_Script(chk_nginx_service) failed`.
+
+---
+
+### keepalived logs a SECURITY VIOLATION warning
+
+**Symptom**: The log has the line `SECURITY VIOLATION - scripts are being executed but script_security not enabled.`
+
+**Cause**: keepalived runs the health-check scripts as `root`, and the configuration doesn't turn on script security. The scripts still run.
+
+**Fix**: No fix is needed. To run the scripts in secure mode, add `enable_script_security` and `script_user root` to the `global_defs` block on both nodes, and reload keepalived. keepalived then refuses scripts that users other than `root` can change, and logs `Disabling track script ... due to insecure` for them.
+
+---
+
+<span id="ha_examples"></span><span id="additional-configuration-examples"></span>
+
+## References
+
+The **nginx-ha-keepalived** package has more configuration examples in the **/usr/share/doc/nginx-ha-keepalived** directory.
+
+For more information, see:
+
+- [Configuring Active-Active High Availability and Additional Passive Nodes with keepalived]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived-nodes.md" >}})
+- [Synchronizing NGINX Configuration in a Cluster]({{< ref "/nginx/admin-guide/high-availability/configuration-sharing.md" >}})
+- [Keepalived configuration synopsis](https://keepalived.readthedocs.io/en/latest/configuration_synopsis.html)
+- [RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3](https://datatracker.ietf.org/doc/html/rfc5798)

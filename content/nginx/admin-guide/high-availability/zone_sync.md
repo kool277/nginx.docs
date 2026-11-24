@@ -1,284 +1,235 @@
 ---
-description: This article describes how to use F5 NGINX Plus to synchronize shared
-  memory zones across NGINX cluster nodes including sticky learn session persistence,
-  requests limiting, and key-value store data.
+description: Share the runtime state of F5 NGINX Plus nodes in a cluster, such as sticky learn sessions, rate limits, and key-value pairs, with zone synchronization.
 title: Runtime State Sharing in a Cluster
 toc: true
 weight: 400
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "zone synchronization, zone_sync, cluster, shared memory zone, sticky learn, limit_req_zone, keyval_zone, sync, NGINX Plus API"
+f5-summary: >
+  This guide shows how to share runtime state between the F5 NGINX Plus nodes of a cluster with the zone_sync module.
+  The nodes can share the sessions of sticky learn, the state of rate limits, and the key-value store.
+  It also covers TLS for the cluster traffic, adding and removing nodes, and checking the state of the cluster with the NGINX Plus API.
+f5-audience: operator
 ---
 
-<span id="intro"></span>
-## Introduction
+<span id="intro"></span><span id="introduction"></span>
 
-If several F5 NGINX Plus instances are organized in a cluster, they can share some state data between them, including:
+## Overview
 
-- [sticky learn](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/#sticky) session persistence
-- [requests limiting](https://docs.nginx.com/nginx/admin-guide/security-controls/controlling-access-proxied-http/#limit_req)
-- [key-value storage](https://nginx.org/en/docs/http/ngx_http_keyval_module.html#keyval_zone)
+The F5 NGINX Plus nodes of a cluster can share the contents of these shared memory zones:
 
-All NGINX Plus instances can exchange state data with all other members in a cluster, provided that the shared memory zone has the same name on all cluster members.
+- The sessions of [sticky learn]({{< ref "/nginx/admin-guide/load-balancer/http-load-balancer.md#sticky" >}}) session persistence
+- The state of [request rate limits]({{< ref "/nginx/admin-guide/security-controls/controlling-access-proxied-http.md#limit_req" >}})
+- The [key-value store](https://nginx.org/en/docs/http/ngx_http_keyval_module.html#keyval_zone)
 
+The [`zone_sync`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html) module sends the changes of these zones to the other nodes, over TCP connections in the `stream` context. Each node exchanges state with all other nodes, for each zone that has the same name on all of them. For how the synchronization works, see [How NGINX Plus Performs Zone Synchronization]({{< ref "/nginx/admin-guide/high-availability/zone_sync_details.md" >}}).
+
+The shared state is eventually consistent. Latency, low bandwidth, and packet loss make it less consistent. Use data center networks for the cluster traffic. Don't stretch a cluster over the internet, or across regions or availability zones.
+
+---
 
 <span id="prerequisites"></span>
-## Prerequisites
 
-- NGINX Plus [R16]({{< ref "nginx/releases.md#r16" >}}) for sharing limits of requests processing and key-value data across the cluster
-- NGINX Plus [R15]({{< ref "nginx/releases.md#r15" >}}) for sharing limits of sticky learn data across the cluster
+## Before you begin
 
-State sharing across a cluster is eventually consistent by nature. It is strongly recommended using data-center grade networks for clustering traffic, as latency, low bandwidth, and packet loss will have a significant negative impact on state consistency. We do not recommend stretching clusters over the Internet, regions, or availability zones.
+Before you begin, make sure you have:
 
-<span id="config"></span>
-## Configuring zone synchronization
+- **NGINX Plus R15 or later**, to share sticky learn sessions. To share rate limits and the key-value store, you need NGINX Plus R16 or later. For details, see the [release notes]({{< ref "/nginx/releases.md#r16" >}}).
+- **A port for the cluster traffic**: Every node must reach the other nodes on it. This guide uses port 9000.
+- **The same zone names on all nodes**: A zone is shared only with the zones of the same name on the other nodes.
 
-For each NGINX instance in a cluster, open the NGINX configuration file and perform the following steps:
+---
 
-1. Enable synchronization between cluster nodes: in the top-level [`stream`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#stream) block, create a [`server`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#server) with the [`zone_sync`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync) directive:
+<span id="config"></span><span id="configuring-zone-synchronization"></span>
 
-   ```nginx
+## Set up zone synchronization
+
+Repeat these steps on every node of the cluster. Use the same configuration on all nodes.
+
+1. In the top-level [`stream`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#stream) block, add a [`server`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#server) that [listens](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#listen) on the cluster port, and turn on synchronization with the [`zone_sync`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync) directive. Then list the nodes of the cluster with [`zone_sync_server`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_server) directives, one for each node:
+
+    ```nginx
     stream {
-       #...
-
         server {
-            zone_sync;
-            #...
-        }
-    }
-   ```
+            listen 9000;
 
-2. Specify all other NGINX instances in a cluster with the [`zone_sync_server`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_server) directive. Cluster nodes can be  added dynamically using the DNS service if the [`resolver`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#resolver) is used:
-
-   ```nginx
-    stream {
-
-        resolver 10.0.0.53 valid=20s;
-
-        server {
-            zone_sync;
-            zone_sync_server nginx-cluster.example.com:9000 resolve;
-        }
-    }
-   ```
-
-   Otherwise, each cluster node can be added statically as a separate line of the [`zone_sync_server`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_server) directive:
-
-   ```nginx
-    stream {
-
-        server {
             zone_sync;
             zone_sync_server nginx-node1.example.com:9000;
             zone_sync_server nginx-node2.example.com:9000;
             zone_sync_server nginx-node3.example.com:9000;
         }
     }
-   ```
+    ```
 
-3. Enable SSL by specifying the `ssl` parameter of the [`listen`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#listen) directive for the TCP server:
-
-   ```nginx
-   stream {
-
-       resolver 10.0.0.53 valid=20s;
-
-       server {
-           listen 10.0.0.1:9000 ssl;
-           #...
-
-           zone_sync;
-           zone_sync_server nginx-cluster.example.com:9000 resolve;
-           #...
-       }
-   }
-   ```
-
-4. Specify the path to the certificates with the [`ssl_certificate`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_certificate) directive, and to the private key with the [`ssl_certificate_key`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_certificate_key) directive. Both the certificate and key must be in the PEM format:
+    Instead, you can find the nodes with DNS. Use one `zone_sync_server` directive with the `resolve` parameter, and a [`resolver`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#resolver) in the `stream` block. NGINX Plus then follows the addresses of the DNS name, so you can add and remove nodes without a reload:
 
     ```nginx
     stream {
-
         resolver 10.0.0.53 valid=20s;
 
         server {
-            listen 10.0.0.1:9000 ssl;
-
-            ssl_certificate     /etc/ssl/nginx-1.example.com.server_cert.pem;
-            ssl_certificate_key /etc/ssl/nginx-1.example.com.key.pem;
+            listen 9000;
 
             zone_sync;
-            zone_sync_server    nginx-cluster.example.com:9000 resolve;
-            #...
-
+            zone_sync_server nginx-cluster.example.com:9000 resolve;
         }
     }
     ```
 
-5. Enable SSL connections between cluster servers with the [`zone_sync_ssl`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl) directive, and enable verification of another cluster server certificate with [`zone_sync_ssl_verify`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_verify) and [`zone_sync_ssl_trusted_certificate`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_trusted_certificate) directives:
+1. Test the configuration, and reload NGINX Plus:
 
-   ```nginx
-    stream {
+    ```shell
+    sudo nginx -t && sudo nginx -s reload
+    ```
 
-        resolver 10.0.0.53 valid=20s;
+1. Share the zones that you need, as described in [Share zones](#sync).
 
-        server {
-            listen 10.0.0.1:9000 ssl;
+### Protect the cluster traffic with TLS
 
-            ssl_certificate        /etc/ssl/nginx-1.example.com.server_cert.pem;
-            ssl_certificate_key    /etc/ssl/nginx-1.example.com.key.pem;
+To encrypt the cluster traffic, and to check the certificates of the nodes, add these directives to the `server` block of each node:
 
-            zone_sync;
-            zone_sync_server    nginx-cluster.example.com:9000 resolve;
+- On the listening side, the `ssl` parameter of [`listen`](https://nginx.org/en/docs/stream/ngx_stream_core_module.html#listen), and the certificate and key of the node in PEM format, with [`ssl_certificate`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_certificate) and [`ssl_certificate_key`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_certificate_key).
+- On the connecting side, [`zone_sync_ssl`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl) to use TLS for the connections to other nodes, and [`zone_sync_ssl_verify`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_verify) with [`zone_sync_ssl_trusted_certificate`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_trusted_certificate) to check their certificates.
+- Optionally, certificate-based authentication between the nodes: [`zone_sync_ssl_certificate`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_certificate) and [`zone_sync_ssl_certificate_key`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_certificate_key) send a client certificate on outgoing connections. [`ssl_verify_client`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_verify_client) and [`ssl_trusted_certificate`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_trusted_certificate) require a client certificate on incoming connections.
 
-            zone_sync_ssl                     on;
-            zone_sync_ssl_verify              on;
-            zone_sync_ssl_trusted_certificate /etc/ssl/server_ca.pem;
-            #...
-        }
-    }
-   ```
-
-6. Set up certificate-based authentication across cluster nodes.
-
-   Add the [`zone_sync_ssl_certificate`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_certificate) and [`zone_sync_ssl_certificate_key`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_certificate_key`) directives to send the client certificate for outgoing connections.
-
-   Then configure NGINX to require client certificates by setting the [`ssl_verify_client`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_verify_client) directive to `on` and specifying the location of your client certificates CA with the [`ssl_trusted_certificate`](https://nginx.org/en/docs/stream/ngx_stream_ssl_module.html#ssl_trusted_certificate) directive:
-
-   ```nginx
-    stream {
-
-        resolver 10.0.0.53 valid=20s;
-
-        server {
-            listen 10.0.0.1:9000 ssl;
-
-            ssl_certificate        /etc/ssl/nginx-1.example.com.server_cert.pem;
-            ssl_certificate_key    /etc/ssl/nginx-1.example.com.key.pem;
-
-            zone_sync;
-            zone_sync_server    nginx-cluster.example.com:9000 resolve;
-
-            zone_sync_ssl                     on;
-            zone_sync_ssl_verify              on;
-            zone_sync_ssl_trusted_certificate /etc/ssl/server_ca.pem;
-
-            zone_sync_ssl_certificate     localhost.crt;
-            zone_sync_ssl_certificate_key localhost.key;
-
-            ssl_verify_client       on;
-            ssl_trusted_certificate /etc/ssl/client_ca.pem;
-            #...
-       }
-   }
-   ```
-
-<span id="config_finetune"></span>
-### Fine-tuning Synchronization
-
-Generally you do not have to tune sync options, but in some cases it can be useful to adjust some of these values:
+With all of them, the `server` block of the first node is:
 
 ```nginx
-#...
-zone_sync;
-zone_sync_server nginx-cluster.example.com:9000 resolve;
+stream {
+    resolver 10.0.0.53 valid=20s;
 
-zone_sync_buffers                256 4k;
-zone_sync_connect_retry_interval 1s;
-zone_sync_connect_timeout        5s;
-zone_sync_interval               1s;
-zone_sync_timeout                5s;
-#...
+    server {
+        listen 10.0.0.1:9000 ssl;
+
+        ssl_certificate     /etc/ssl/nginx-1.example.com.server_cert.pem;
+        ssl_certificate_key /etc/ssl/nginx-1.example.com.key.pem;
+
+        zone_sync;
+        zone_sync_server nginx-cluster.example.com:9000 resolve;
+
+        zone_sync_ssl                     on;
+        zone_sync_ssl_verify              on;
+        zone_sync_ssl_trusted_certificate /etc/ssl/server_ca.pem;
+        zone_sync_ssl_name                nginx-cluster.example.com;
+
+        zone_sync_ssl_certificate     /etc/ssl/nginx-1.example.com.client_cert.pem;
+        zone_sync_ssl_certificate_key /etc/ssl/nginx-1.example.com.client_key.pem;
+
+        ssl_verify_client       on;
+        ssl_trusted_certificate /etc/ssl/client_ca.pem;
+    }
+}
 ```
 
-[`zone_sync_buffers`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_buffers) - controls the number of buffers and their size. Increasing the number of buffers will increase the number of information stored in them.
+With `zone_sync_ssl_verify`, each node checks the certificates of the other nodes against a name. By default, this is the host part of the `zone_sync_server` address. With the `resolve` parameter, it's the resolved IP address of each node. So the example sets [`zone_sync_ssl_name`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_ssl_name) to the cluster name. Each node certificate must then contain that name, for example as a subject alternative name.
 
-[`zone_sync_connect_retry_interval`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_connect_retry_interval) - sets the timeout between connection attempts to a cluster node.
+<span id="config_finetune"></span><span id="fine-tuning-synchronization"></span>
 
-[`zone_sync_connect_timeout`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_connect_timeout) - sets the time required to connect to a cluster node.
+### Fine-tune the synchronization
 
-[`zone_sync_interval`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_interval) - sets an interval for polling updates in a shared memory zone. Increasing this value may result in data inconsistency between cluster nodes, decreasing the value may lead to high consumption of cpu and memory resources.
+You usually don't need to change these settings. They go in the same `server` block:
 
-[`zone_sync_timeout`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_timeout) - sets the lifetime of a TCP stream between cluster nodes. If a TCP stream is idle for longer than the value, the connection will be closed.
+{{< table >}}
 
+| Directive | Default | Description |
+|---|---|---|
+| [`zone_sync_buffers`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_buffers) | `8 4k` or `8 8k` | The number and size of the buffers of each zone for pushing its contents. The size is one memory page by default. One buffer must be large enough for any entry of each zone. |
+| [`zone_sync_connect_retry_interval`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_connect_retry_interval) | `1s` | The interval between connection attempts to another node. |
+| [`zone_sync_connect_timeout`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_connect_timeout) | `5s` | The timeout for establishing a connection with another node. |
+| [`zone_sync_interval`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_interval) | `1s` | The interval for polling updates in a shared memory zone. A higher value can make the nodes less consistent. A lower value uses more CPU and memory. |
+| [`zone_sync_recv_buffer_size`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_recv_buffer_size) | The size of one `zone_sync_buffers` buffer times their number | The size of the receive buffer of each connection, for parsing the incoming messages. It must be at least as large as one buffer of `zone_sync_buffers`. |
+| [`zone_sync_timeout`](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html#zone_sync_timeout) | `5s` | The timeout between two successive reads or writes on a connection to another node. If no data moves within this time, NGINX Plus closes the connection. |
 
-<span id="manage"></span>
-## Managing Cluster Nodes
+{{< /table >}}
 
-<span id="manage_start"></span>
-### Starting a Node
+---
 
-To start a new node:
+<span id="manage"></span><span id="managing-cluster-nodes"></span>
 
-- in case of DNS, update a DNS record of a cluster hostname with the IP address of the new node and start an instance
-- in case of statically added nodes, add the node's address to nginx configuration file and reload all other nodes
+## Manage the nodes of the cluster
 
-When the node is started, it discovers other nodes from DNS or static configuration and starts sending updates. Other nodes eventually discover the new node using DNS and start pushing updates to it.
+<span id="manage_start"></span><span id="starting-a-node"></span>
 
+### Add a node
 
-<span id="manage_stop"></span>
-### Stopping a Node
+- With DNS, add the IP address of the new node to the DNS record of the cluster. Then start NGINX Plus on the new node.
+- With a static list, add the address of the new node to the `zone_sync_server` directives on all nodes. Then reload NGINX Plus on the other nodes.
 
-To stop a node, send the 'QUIT' signal:
+The new node finds the other nodes from DNS or its configuration, and starts to send them updates. The other nodes find the new node through DNS, or after the reload, and push updates to it.
+
+<span id="manage_stop"></span><span id="stopping-a-node"></span>
+
+### Stop a node
+
+To stop a node, send NGINX Plus the `QUIT` signal:
 
 ```shell
-nginx -s quit
+sudo nginx -s quit
 ```
 
-As soon as the node receives the signal, it finishes zone synchronization and gracefully closes open connections.
+The node finishes the zone synchronization, and closes its connections gracefully.
 
+<span id="manage_remove"></span><span id="removing-a-node"></span>
 
-<span id="manage_remove"></span>
-### Removing a Node
+### Remove a node
 
-To remove a node:
+- With DNS, remove the IP address of the node from the DNS record of the cluster.
+- With a static list, remove the address of the node from the `zone_sync_server` directives on all nodes. Then reload NGINX Plus on each node.
 
-- in case of DNS, update a DNS record of a cluster hostname and remove the node's IP address
-- in case of statically added nodes, remove the node's address from nginx configuration file on each node and reload each node.
+The other nodes close their connections to the removed node, and no longer connect to it. Then you can [stop the node](#manage_stop).
 
-When the node is removed, other nodes close connections to the removed node and will no longer try to connect to it. After the node is removed, it can be stopped.
+---
 
+<span id="sync"></span><span id="using-synchronization-in-a-cluster"></span>
 
-<span id="sync"></span>
-## Using synchronization in a cluster
+## Share zones
 
-<span id="sync_sticky_learn"></span>
-### Sticky learn zone synchronization
+To share a zone, add the `sync` parameter to the directive that defines it, on every node. The zone must have the same name on all nodes.
 
-If your existing configuration already uses the [sticky learn](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/#sticky) feature, existing state can be simply shared across a cluster by adding the [`sync`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_learn_sync) parameter to the existing `sticky` directive in the configuration file of each NGINX instance in a cluster.
-Note that the zone name must be the same in all other NGINX nodes in the cluster:
+<span id="sync_sticky_learn"></span><span id="sticky-learn-zone-synchronization"></span>
+
+### Share sticky learn sessions
+
+Add the [`sync`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_learn_sync) parameter to the `sticky learn` directive:
 
 ```nginx
+resolver 10.0.0.53 valid=20s;
+
 upstream my_backend {
     zone my_backend 64k;
 
-		server backends.example.com resolve;
-			sticky learn zone=sessions:1m
-			create=$upstream_cookie_session
-			lookup=$cookie_session
-			sync;
+    server backends.example.com resolve;
+
+    sticky learn zone=sessions:1m
+                 create=$upstream_cookie_session
+                 lookup=$cookie_session
+                 sync;
 }
 
 server {
     listen 80;
-		location / {
-		    proxy_pass http://my_backend;
-		}
+
+    location / {
+        proxy_pass http://my_backend;
+    }
 }
 ```
 
-See [Enabling Session Persistence](https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/#sticky) for information how to configure the "sticky learn" session persistence method.
+The `resolve` parameter of `server` needs a [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver). For how sticky learn works, see [Enabling Session Persistence]({{< ref "/nginx/admin-guide/load-balancer/http-load-balancer.md#sticky" >}}).
 
+<span id="sync_limit_req"></span><span id="request-limits-zone-synchronization"></span>
 
-<span id="sync_limit_req"></span>
-### Request limits zone synchronization
+### Share rate limits
 
-If your existing configuration already uses rate limiting, these limits can be applied across a cluster by simply adding the [`sync`](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req_zone) parameter to the [`limit_req_zone`](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req_zone) directive in the configuration file of each NGINX instance in a cluster:
+Add the [`sync`](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req_zone) parameter to the `limit_req_zone` directive. The nodes then share the state of the zone. This example reuses the `my_backend` upstream group of the previous example:
 
 ```nginx
-limit_req_zone $remote_addr zone=req:1M rate=100r/s sync;
+limit_req_zone $remote_addr zone=req:1m rate=100r/s sync;
 
 server {
     listen 80;
+
     location / {
         limit_req zone=req;
 
@@ -287,22 +238,20 @@ server {
 }
 ```
 
-The zone name also must be the same in all other NGINX nodes in the cluster.
+For how rate limiting works, see [Limiting the Request Rate]({{< ref "/nginx/admin-guide/security-controls/controlling-access-proxied-http.md#limit_req" >}}).
 
-See [Limiting the Request Rate](https://docs.nginx.com/nginx/admin-guide/security-controls/controlling-access-proxied-http/#limit_req) for more information.
+<span id="sync_keyval"></span><span id="key-value-storage-zone-synchronization"></span>
 
+### Share the key-value store
 
-<span id="sync_keyval"></span>
-### Key-value storage zone synchronization
-
-Similar to rate limiting and sticky learn, the contents of the key-value shared memory zone can be shared across NGINX machines in a cluster with the `sync` parameter of the [`keyval_zone`](https://nginx.org/en/docs/http/ngx_http_keyval_module.html#keyval_zone) directive:
+Add the `sync` parameter to the [`keyval_zone`](https://nginx.org/en/docs/http/ngx_http_keyval_module.html#keyval_zone) directive. Synchronization needs the `timeout` parameter of the zone too:
 
 ```nginx
-keyval_zone zone=one:32k state=/var/lib/nginx/state/one.keyval sync;
-keyval $arg_text $text zone=one;
-#...
+keyval_zone zone=one:32k state=/var/lib/nginx/state/one.keyval timeout=1h sync;
+keyval      $arg_text $text zone=one;
+
 server {
-    #...
+    # ...
     location / {
         return 200 $text;
     }
@@ -313,73 +262,59 @@ server {
 }
 ```
 
-See [Dynamic Denylisting of IP Addresses]({{< ref "/nginx/admin-guide/security-controls/denylisting-ip-addresses.md" >}}) for information how to configure and manage the key-value storage.
+With synchronization, deleting a key-value pair through the API removes it only on the node that receives the request. The other nodes remove the pair when its timeout expires. For how to manage the key-value store, see [Dynamic Denylisting of IP Addresses]({{< ref "/nginx/admin-guide/security-controls/denylisting-ip-addresses.md" >}}).
 
+---
 
-<span id="monitor"></span>
-## Monitoring Cluster State
+<span id="monitor"></span><span id="monitoring-cluster-state"></span>
 
-Cluster state data can be monitored with [NGINX Plus API metrics](https://nginx.org/en/docs/http/ngx_http_api_module.html#stream_zone_sync_):
+## Check the state of the cluster
 
-- names of shared memory zones
-- total number of records on node
-- number of records that needs to be sent
-- sync status per each node in the cluster
+The [NGINX Plus API](https://nginx.org/en/docs/http/ngx_http_api_module.html#stream_zone_sync_) shows the state of the synchronization on each node:
 
+- The names of the shared zones
+- The number of records of each zone on the node
+- The number of records that the node still needs to send
+- The number of nodes that the node is connected to
 
-<span id="monitor_api_config"></span>
-## Configuring the API
+<span id="monitor_api_config"></span><span id="configuring-the-api"></span>
 
-In order to get access to API metrics, you will need to configure the API:
+### Turn on the NGINX Plus API
 
-1. Enable the NGINX Plus API in read‑write mode with the [`api`](https://nginx.org/en/docs/http/ngx_http_api_module.html#api) directive:
+Add a `location` with the [`api`](https://nginx.org/en/docs/http/ngx_http_api_module.html#api) directive. [Restrict access]({{< ref "/nginx/admin-guide/security-controls/controlling-access-proxied-http.md" >}}) to it. This example allows only the local host, and asks for a password for methods other than `GET`, such as `PATCH`, `POST`, and `DELETE`:
 
-   ```nginx
-   # ...
-    server {
-        listen 80;
-        server_name www.example.com;
+```nginx
+server {
+    listen 80;
+    server_name www.example.com;
 
-        location /api {
-            api write=on;
+    location /api {
+        limit_except GET {
+            auth_basic           "NGINX Plus API";
+            auth_basic_user_file /etc/nginx/api.htpasswd;
         }
+
+        api write=on;
+
+        allow 127.0.0.1;
+        deny  all;
     }
-    ```
-
-2. It is highly recommended to [restrict access]({{< ref "/nginx/admin-guide/security-controls/controlling-access-proxied-http.md" >}}) to this location, for example by allowing access only from localhost (`127.0.0.1`), and by restricting access to `PATCH`, `POST`, and `DELETE` methods to some users with HTTP basic authentication:
-
-   ```nginx
-   # ...
-    server {
-        listen 80;
-        server_name www.example.com;
-
-        location /api {
-            limit_except GET {
-                auth_basic "NGINX Plus API";
-                auth_basic_user_file /path/to/passwd/file;
-            }
-
-            api   write=on;
-
-            allow 127.0.0.1;
-            deny  all;
-        }
-    }
-    ```
-
-See [Using the API for Dynamic Configuration](https://docs.nginx.com/nginx/admin-guide/load-balancer/dynamic-configuration-api/#api_use) for instructions how to configure and use NGINX Plus API.
-
-
-<span id="monitor_api_use"></span>
-## Polling Sync Status with the API
-To get the synchronization status of the shared memory zone, send the API command, for example, with `curl`:
-
-```shell
-curl -s '127.0.0.1/api/9/stream/zone_sync' | jq
+}
 ```
 
-The output will be:
+For more about the API, see [Using the API for Dynamic Configuration]({{< ref "/nginx/admin-guide/load-balancer/dynamic-configuration-api.md#api_use" >}}).
+
+<span id="monitor_api_use"></span><span id="polling-sync-status-with-the-api"></span>
+
+### Check the synchronization status
+
+On a node, request the status of the synchronization from the API:
+
+```shell
+curl -s http://127.0.0.1/api/9/stream/zone_sync | jq
+```
+
+The output is similar to:
 
 ```json
 {
@@ -403,4 +338,46 @@ The output will be:
 }
 ```
 
-If all nodes have approximately the same number of records ([`records_total`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_zone_sync_zone)) and almost empty outgoing queue ([`records_pending`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_zone_sync_zone)), the cluster may be considered healthy.
+[`records_total`](https://nginx.org/en/docs/http/ngx_http_api_module.html#def_nginx_stream_zone_sync_zone) is the number of records in a zone. `records_pending` is the number of records that the node still needs to send to the cluster. `nodes_online` is the number of other nodes that the node is connected to. The cluster is healthy when all nodes have about the same number of records, and few pending records.
+
+---
+
+## Troubleshooting
+
+### nginx -t reports that no listen is defined
+
+**Symptom**: `nginx -t` fails with `nginx: [emerg] no "listen" is defined for server`.
+
+**Cause**: The `stream` `server` block with `zone_sync` has no `listen` directive.
+
+**Fix**: Add `listen` with the cluster port, as described in [Set up zone synchronization](#config).
+
+---
+
+### nginx -t reports that no resolver is defined
+
+**Symptom**: `nginx -t` fails with a message such as `nginx: [emerg] no resolver defined to resolve names at run time in upstream "my_backend"`.
+
+**Cause**: A `server` directive in an `upstream` block has the `resolve` parameter, but no `resolver` is defined.
+
+**Fix**: Add a [`resolver`](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) directive to the `http` block or the `upstream` block. For `zone_sync_server ... resolve`, add it to the `stream` block.
+
+---
+
+### nodes_online is lower than expected
+
+**Symptom**: `nodes_online` in the API output is lower than the number of other nodes, and their records differ.
+
+**Cause**: The node can't connect to some nodes. For example, a firewall blocks the cluster port, an address in `zone_sync_server` is wrong, or a TLS certificate check fails.
+
+**Fix**: Check the error log of the node for failed connections to the other nodes. Then check the port, the addresses, and the certificates.
+
+---
+
+## References
+
+For more information, see:
+
+- [How NGINX Plus Performs Zone Synchronization]({{< ref "/nginx/admin-guide/high-availability/zone_sync_details.md" >}})
+- [Module ngx_stream_zone_sync_module](https://nginx.org/en/docs/stream/ngx_stream_zone_sync_module.html)
+- [High Availability Support for NGINX Plus in On-Premises Deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}})

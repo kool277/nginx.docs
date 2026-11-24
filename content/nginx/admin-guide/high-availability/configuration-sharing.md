@@ -1,145 +1,149 @@
 ---
-description: Sychronize configuration across a cluster of F5 NGINX Plus instances.
-  Though designed for high-availability deployments, the solution works for any cluster.
+description: Synchronize the configuration of a cluster of F5 NGINX Plus instances with nginx-sync. It's designed for high availability, but works for any cluster.
 title: Synchronizing NGINX Configuration in a Cluster
 toc: true
 weight: 300
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "configuration synchronization, cluster, nginx-sync, nginx-sync.sh, high availability, rsync, SSH, primary node, peer"
+f5-summary: >
+  This guide shows how to push the configuration of one F5 NGINX Plus node, the primary node, to the other nodes of a cluster with the nginx-sync package.
+  The nginx-sync.sh script checks the configuration, backs it up on each peer, copies it, and reloads NGINX Plus on the peers.
+  If a step fails on a peer, the script restores the backup there.
+f5-audience: operator
 ---
 
-<span id="overview"></span>
 ## Overview
 
-NGINX Plus is often deployed in a high‑availability (HA) cluster of two or more devices. The configuration sharing feature enables you to push configuration from one machine in the cluster (the primary) to its peers:
+F5 NGINX Plus often runs in a cluster of two or more nodes, for example for [high availability]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}). The nodes need the same configuration. The **nginx-sync** package pushes the configuration from one node, the primary node, to the other nodes, its peers:
 
-![nginx-sync.sh](/nginx/images/nginx-plus-config-synchronization.png)
+<img src="/nginx/images/nginx-plus-config-synchronization.png" alt="The primary node runs nginx-sync.sh, which copies its NGINX Plus configuration to each peer node" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
+The `nginx-sync.sh` script of the package:
 
-To configure this feature:
+- Checks the prerequisites of the system.
+- Tests the configuration of the primary node with `nginx -t`, and stops if the test fails.
+- Backs up the configuration on each peer.
+- Copies the configuration to the peers with `rsync`, tests it on each peer with `nginx -t`, and then reloads NGINX Plus on the peer with `service nginx reload`.
+- Restores the backup on a peer if a step fails there.
 
-1. [Install](#in_detail1) the **nginx-sync** package on the primary machine
-2. [Grant](#in_detail2) the primary machine ssh access as `root` to the peer machines
-3. [Create](#in_detail3) the configuration file **/etc/nginx-sync.conf** on the primary machine:
+The script copies configuration files only. To share runtime state, such as session persistence data, see [Runtime State Sharing in a Cluster]({{< ref "/nginx/admin-guide/high-availability/zone_sync.md" >}}).
 
-    ```none
-    NODES="node2.example.com node3.example.com node4.example.com"
-    CONFPATHS="/etc/nginx/nginx.conf /etc/nginx/conf.d"
-    EXCLUDE="default.conf"
-    ```
+---
 
-4. [Run](#in_detail4) the `nginx-sync.sh` command on the primary node to push the configuration files name in `CONFPATHS` to the specified `NODES`, omitting configuration files named in `EXCLUDE`.
+## Before you begin
 
-`nginx-sync.sh` includes a number of safety checks:
+Before you begin, make sure you have:
 
-- Verifies system prerequisites before proceeding
-- Validates the local (primary) configuration (`nginx -t`) and exits if that fails
-- Creates remote backup of the configuration on each peer
-- Pushes the primary configuration to the peers using `rsync`, validates configuration on the peers (`nginx -t`), and if successful reloads NGINX Plus on the peers (`service nginx reload`)
-- If any step fails, rolls back to the backup on the peers
+- **NGINX Plus on all nodes**: On an operating system that supports the **nginx-sync** package: a RHEL-based system, Amazon Linux 2023, Debian, Ubuntu, or SLES. For details, see the [technical specifications]({{< ref "/nginx/technical-specs.md" >}}).
+- **rsync on all nodes**: The script copies the files with `rsync` over SSH, which also runs `rsync` on each peer.
+- **Root access**: You need `sudo` on all nodes.
 
+---
 
-<span id="instructions"></span>
-## Instructions
+<span id="instructions"></span><span id="in_detail1"></span><span id="installing-nginx-sync-on-the-primary-machine"></span>
 
-<span id="in_detail1"></span>
-### Installing nginx-sync on the Primary Machine
+## Install nginx-sync on the primary node
 
-Install the NGINX Synchronization module package `nginx-sync` on the Primary machine. Check the [Technical Specifications]({{< ref "nginx/technical-specs.md" >}}) page to verify that the module is supported by your operating system.
+On the primary node, install the **nginx-sync** package from the NGINX Plus repository:
 
-- For Amazon Linux 2, CentOS, Oracle Linux, and RHEL:
-
-    ```shell
-    sudo yum install nginx-sync
-    ```
-
-- For Amazon Linux 2023, AlmaLinux, Rocky Linux:
+- RHEL and its derivatives, and Amazon Linux 2023:
 
     ```shell
     sudo dnf install nginx-sync
     ```
 
-- For Ubuntu or Debian:
+- Debian and Ubuntu:
 
     ```shell
-    sudo apt-get install nginx-sync
+    sudo apt install nginx-sync
     ```
 
-- For SLES:
+- SLES:
 
     ```shell
     sudo zypper install nginx-sync
     ```
 
-<span id="in_detail2"></span>
-### Configuring root SSH Access to the Peers
+---
 
-This procedure enables the `root` user on the primary node to ssh to the `root` account on each peer, which is required to `rsync` files to the peers and run commands on the peers to validate the  configuration, reload NGINX Plus, and so on.
+<span id="in_detail2"></span><span id="configuring-root-ssh-access-to-the-peers"></span>
 
-1. On the primary node, generate an SSH authentication key pair for `root` and view the public part of the key:
+## Set up root SSH access to the peers
 
-   ```shell
-   sudo ssh-keygen -t rsa -b 2048
-   sudo cat /root/.ssh/id_rsa.pub
+The script runs as `root` on the primary node. It connects to each peer as `root` over SSH. There it copies files that `root` owns, such as the files in **/etc/nginx**, and runs commands such as `service nginx reload`.
 
-   ssh-rsa AAAAB3Nz4rFgt...vgaD root@node1
-   ```
+<span id="faq1"></span><span id="why-do-i-need-to-grant-ssh-access-to-root"></span>
 
-2. Get the IP address of the primary node (in the following example, `192.168.1.2`):
+{{< call-out class="caution" >}} After these steps, anyone with `root` access on the primary node also has `root` access on the peers. Any process that can change the NGINX Plus configuration of a node and reload NGINX Plus can gain `root` access to that node anyway. Protect the primary node accordingly. {{< /call-out >}}
 
-   ```shell
-   ip addr
+1. On the primary node, create an SSH key pair for `root`, and show its public key. Accept the default file name, and leave the passphrase empty, so that the script can use the key without a prompt:
 
-   1: lo:  mtu 65536 qdisc noqueue state UNKNOWN group default
-      link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-      inet 127.0.0.1/8 scope host lo
-         valid_lft forever preferred_lft forever
-      inet6 ::1/128 scope host
-         valid_lft forever preferred_lft forever
+    ```shell
+    sudo ssh-keygen -t rsa -b 2048
+    sudo cat /root/.ssh/id_rsa.pub
+    ```
 
-   2: eth0:  mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
-      link/ether 52:54:00:34:6c:35 brd ff:ff:ff:ff:ff:ff
-      inet 192.168.1.2/24 brd 192.168.1.255 scope global eth0
-         valid_lft forever preferred_lft forever
-      inet6 fe80::5054:ff:fe34:6c35/64 scope link
-         valid_lft forever preferred_lft forever
-   ```
+    The output is the public key:
 
-3. On each peer node, append the public key to `root`’s **authorized_keys** file. The `from=192.168.1.2` prefix restricts access to only the IP address of the primary node:
+    ```none
+    ssh-rsa AAAAB3Nz4rFgt...vgaD root@node1
+    ```
 
-   ```shell
-   sudo mkdir /root/.ssh
-   sudo echo 'from="192.168.1.2" ssh-rsa AAAAB3Nz4rFgt...vgaD root@node1' >> /root/.ssh/authorized_keys
-   ```
+1. Find the IP address of the primary node, for example `192.168.1.2`:
 
-4. Add the following line to **/etc/ssh/sshd_config**:
+    ```shell
+    ip -4 -brief address
+    ```
 
-   ```none
-   PermitRootLogin without-password
-   ```
+1. On each peer, add the public key to the **authorized_keys** file of `root`. The `from="192.168.1.2"` option accepts the key only from the address of the primary node:
 
-5. Reload `sshd` on each peer (but not the primary) to allow SSH key authentication
+    ```shell
+    sudo mkdir -p -m 700 /root/.ssh
+    echo 'from="192.168.1.2" ssh-rsa AAAAB3Nz4rFgt...vgaD root@node1' | sudo tee -a /root/.ssh/authorized_keys
+    ```
 
-   - for Amazon Linux, AlmaLinux, CentOS, Oracle Linux, RHEL, Rocky Linux:
+    Use `sudo tee -a` to append to the file. With `sudo echo ... >> /root/.ssh/authorized_keys`, your own shell opens the file before `sudo` runs, and fails with `Permission denied`.
 
-   ```shell
-   sudo systemctl restart sshd
-   ```
+1. On each peer, check that the SSH server lets `root` log in with a key:
 
-   - for Ubuntu, Debian, SLES:
+    ```shell
+    sudo sshd -T | grep -i permitrootlogin
+    ```
 
-   ```shell
-   sudo systemctl restart ssh
-   ```
+    The value must be `yes`, `prohibit-password`, or `without-password`, an older name of `prohibit-password`. `prohibit-password` is the default of OpenSSH. If the value is `no`, change the `PermitRootLogin` line in **/etc/ssh/sshd_config**, or in a file in **/etc/ssh/sshd_config.d**, to:
 
-6. Verify that the `root` user can `ssh` to each of the other nodes without providing a password:
+    ```none
+    PermitRootLogin prohibit-password
+    ```
 
-   ```shell
-   sudo ssh root@node2.example.com <hostname>
-   ```
+    The SSH server uses the first value that it reads for a keyword. So change the existing line, instead of adding one at the end of the file. Then restart the SSH server on the peer:
 
-<span id="in_detail3"></span>
-### Creating the nginx-sync.conf Configuration File on the Primary Node
+    - RHEL and its derivatives, and SLES:
+
+        ```shell
+        sudo systemctl restart sshd
+        ```
+
+    - Debian and Ubuntu:
+
+        ```shell
+        sudo systemctl restart ssh
+        ```
+
+1. On the primary node, check that `root` can connect to each peer without a password. The `hostname` command runs on the peer, and prints its name:
+
+    ```shell
+    sudo ssh root@node2.example.com hostname
+    ```
+
+    On the first connection, `ssh` asks you to confirm the host key of the peer. Answer `yes`, so that the script doesn't stop at this prompt later.
+
+---
+
+<span id="in_detail3"></span><span id="creating-the-nginx-syncconf-configuration-file-on-the-primary-node"></span>
+
+## Create the nginx-sync configuration file
 
 On the primary node, create the file **/etc/nginx-sync.conf** with these contents:
 
@@ -149,83 +153,107 @@ CONFPATHS="/etc/nginx/nginx.conf /etc/nginx/conf.d"
 EXCLUDE="default.conf"
 ```
 
-#### Common Parameters
+With this file, the script copies **/etc/nginx/nginx.conf** and the directory **/etc/nginx/conf.d** to the three peers, without the files named **default.conf**.
 
-Use a space or newline character to separate the items in each list:
+### Common parameters
 
+Separate the items of each list with spaces or new lines.
 
-{{<table>}}
+{{< table >}}
 
-| Parameter                | Description                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------|
-| `NODES`                  | List of peers that receive the configuration from the primary.                       |
-| `CONFPATHS`              | List of files and directories to distribute from the primary to the peers.           |
-| `EXCLUDE`                | (Optional) List of configuration files on the primary not to distribute to the peers.|
+| Parameter | Description |
+|---|---|
+| `NODES` | The peers that receive the configuration of the primary node. |
+| `CONFPATHS` | The files and directories to copy from the primary node to the peers. |
+| `EXCLUDE` | Optional. The configuration files of the primary node not to copy to the peers. |
 
-{{</table >}}
+{{< /table >}}
 
-#### Advanced Parameters
+### Advanced parameters
 
-{{<table>}}
+{{< table >}}
 
-| Parameter                | Description                                                                            | Default                 |
-| ------------------------ | ---------------------------------------------------------------------------------------|-------------------------|
-| `BACKUPDIR`              | Location of backup on each peer                                                        | **/var/lib/nginx-sync** |
-| `DIFF`                   | Location of `diff` binary                                                              | **/usr/bin/diff**       |
-| `LOCKFILE`               | Location of the lock file used to ensure only one `nginx-sync` operation runs at a time| **/tmp/nginx-sync.lock**|
-| `NGINX`                  | Location of the **nginx-plus** binary                                                  | **/usr/sbin/nginx**     |
-| `POSTSYNC`               | Space-separated list of file substitutions to make on each remote node in the format: </br>`'\<filename\>\|\<sed-expression\>'`<br/> The substitution is applied in place: </br>`sed -i' ' \<sed-expression\> \<filename\>` </br> For example, to substitute the IP address of *node2.example.com* (*192.168.2.2*) for the IP address of *node1.example.com* (*192.168.2.1*) in *keepalived.conf*:</br> `POSTSYNC="/etc/keepalived/keepalived.conf\|'s/192\.168\.2\.1/192.168.2.2/'"` |   |
-| `RSYNC`                  | Location of the `rsync` binary                                                         | **/usr/bin/rsync**      |
-| `SSH`                    | Location of the `ssh` binary                                                           | **/usr/bin/ssh**        |
+| Parameter | Description | Default |
+|---|---|---|
+| `BACKUPDIR` | The location of the backup on each peer. | **/var/lib/nginx-sync** |
+| `DIFF` | The location of the `diff` binary. | **/usr/bin/diff** |
+| `LOCKFILE` | The location of the lock file, which lets only one `nginx-sync` operation run at a time. | **/tmp/nginx-sync.lock** |
+| `NGINX` | The location of the **nginx-plus** binary. | **/usr/sbin/nginx** |
+| `POSTSYNC` | A space-separated list of substitutions to make in files on each peer, in the format `'<filename>\|<sed-expression>'`. The script applies each one in place, with `sed -i' ' <sed-expression> <filename>`. | None |
+| `RSYNC` | The location of the `rsync` binary. | **/usr/bin/rsync** |
+| `SSH` | The location of the `ssh` binary. | **/usr/bin/ssh** |
 
-{{</table >}}
+{{< /table >}}
 
-<span id="in_detail4"></span>
-### Testing the Configuration
+The script applies the same substitutions on every peer. So use `POSTSYNC` only for changes that all peers need, not for values that differ between the nodes, such as the addresses in **keepalived.conf**. For example, to turn off write access to the NGINX Plus API on the peers:
 
-Back up the configuration before testing.
-
-- Synchronize configuration and reload F5 NGINX Plus on the peers – `nginx-sync.sh`
-- Display usage information – `nginx-sync.sh -h`
-- Compare configuration between the primary and a peer – `nginx-sync.sh -c <PEER_NODE>`
-- Compare configuration on the primary to all peers – `nginx-sync.sh -C`
-
-
-<span id="faq"></span>
-## Frequently Asked Questions
-
-<span id="faq1"></span>
-### Why Do I Need to Grant SSH Access to `root`?
-
-The primary node needs to be able to remotely run commands on the peer as the `root` user (for example, `service nginx reload`), and needs to be able to update configuration files (for example, in **/etc/nginx/**) that are owned by `root`.
-
-It might seem that granting SSH access to `root` is giving away too many privileges, but it is important to remember that any process that can write remote NGINX Plus configuration and reload the remote NGINX Plus process can subvert this process to gain remote `root` access to the server.
-
-Therefore, assume that users who gain `root` access on the primary node also have `root` access on the peer nodes.
-
-<span id="faq2"></span>
-### How Do I Synchronize Configuration if the Primary Fails?
-
-If the primary fails and will not soon return to service, you need to promote a peer to operate as primary by following the instructions in [Installation](#instructions). This involves
-
-1. [Installing the `nginx-sync.sh` script](#in_detail1)
-2. [Granting SSH access to the remaining peers](#in_detail2)
-3. [Creating the configuration file](#in_detail3)
-
-You can preconfigure several machines to operate as primary, but must ensure that only one node actually runs as primary at a given time.
-
-<span id="faq3"></span>
-### What Happens if a Peer Node Fails?
-
-If a peer node fails, it no longer receives configuration updates. The `nginx-sync.sh` script returns an error but continues to distribute the configuration to the remaining peers.
-
-When the node recovers, its configuration is out of date. You can display the configuration differences by running `nginx-sync.sh -c <RECOVERED_PEER_NODE> -d`:
-
-```shell
-nginx-sync.sh -c node2.example.com -d
+```none
+POSTSYNC="/etc/nginx/conf.d/api.conf|'s/api write=on/api write=off/'"
 ```
 
-The output of the command:
+---
+
+<span id="in_detail4"></span><span id="testing-the-configuration"></span>
+
+## Synchronize the configuration
+
+Back up the configuration before you run the script for the first time. Run the script as `root` on the primary node, because it uses the SSH key of `root`:
+
+- To copy the configuration and reload NGINX Plus on the peers:
+
+    ```shell
+    sudo nginx-sync.sh
+    ```
+
+- To show the usage information:
+
+    ```shell
+    sudo nginx-sync.sh -h
+    ```
+
+- To compare the configuration of the primary node with one peer:
+
+    ```shell
+    sudo nginx-sync.sh -c <PEER_NODE>
+    ```
+
+- To compare the configuration of the primary node with all peers:
+
+    ```shell
+    sudo nginx-sync.sh -C
+    ```
+
+---
+
+<span id="faq"></span><span id="frequently-asked-questions"></span>
+
+## Handle failed nodes
+
+<span id="faq2"></span><span id="how-do-i-synchronize-configuration-if-the-primary-fails"></span>
+
+### If the primary node fails
+
+If the primary node fails, and won't return to service soon, make a peer the new primary node. On that peer:
+
+1. [Install nginx-sync](#in_detail1).
+1. [Set up root SSH access](#in_detail2) to the remaining peers.
+1. [Create the nginx-sync configuration file](#in_detail3).
+
+You can prepare several nodes to work as the primary node, but only one node may act as the primary node at a time.
+
+<span id="faq3"></span><span id="what-happens-if-a-peer-node-fails"></span>
+
+### If a peer node fails
+
+A peer that is down doesn't receive configuration changes. The script reports an error for that peer, and still copies the configuration to the other peers.
+
+When the peer is up again, its configuration is out of date. To show the differences, run `nginx-sync.sh -c` with the `-d` option on the primary node:
+
+```shell
+sudo nginx-sync.sh -c node2.example.com -d
+```
+
+The output shows the differences as a diff:
 
 ```diff
 diff -ru /tmp/localconf.1XrIqP7f/etc/nginx/conf.d/responder.conf /tmp/remoteconf.Xq5LWGKU/etc/nginx/conf.d/responder.conf
@@ -243,4 +271,36 @@ diff -ru /tmp/localconf.1XrIqP7f/etc/nginx/conf.d/responder.conf /tmp/remoteconf
 * Synchronization ended at Fri Sep 25 18:30:49 UTC 2020
 ```
 
-The next time you run `nginx-sync.sh`, the node gets updated with the current primary configuration.
+The next run of `nginx-sync.sh` updates the peer with the configuration of the primary node.
+
+---
+
+## Troubleshooting
+
+### ssh asks for a password or reports Permission denied
+
+**Symptom**: `sudo ssh root@node2.example.com hostname` asks for a password, or fails with a message such as `Permission denied (publickey)`.
+
+**Cause**: The peer doesn't accept the key of `root` on the primary node. For example, `PermitRootLogin` is `no`, or the key isn't in **/root/.ssh/authorized_keys**. Or the `from` option has another address than the primary node.
+
+**Fix**: On the peer, check the output of `sudo sshd -T | grep -i permitrootlogin`. Also check the line in **/root/.ssh/authorized_keys**. Then repeat the check from the primary node.
+
+---
+
+### nginx-sync.sh stops at a host key prompt
+
+**Symptom**: The script stops with a question such as `Are you sure you want to continue connecting (yes/no/[fingerprint])?`.
+
+**Cause**: `root` on the primary node hasn't connected to that peer before, so `ssh` doesn't know its host key.
+
+**Fix**: Connect once with `sudo ssh root@<PEER_NODE> hostname`, confirm the host key, and run the script again.
+
+---
+
+## References
+
+For more information, see:
+
+- [High Availability Support for NGINX Plus in On-Premises Deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}})
+- [Runtime State Sharing in a Cluster]({{< ref "/nginx/admin-guide/high-availability/zone_sync.md" >}})
+- [The sshd_config manual page](https://man.openbsd.org/sshd_config)

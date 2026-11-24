@@ -1,56 +1,88 @@
 ---
-description: Enable high availability of F5 NGINX Plus instances in on-premises deployments,
-  with active-active pairs and multiple passive instances.
-title: Configuring Active-Active High Availability and Additional Passive Nodes with
-  keepalived
+description: Extend an F5 NGINX Plus keepalived pair with a passive third node, or with a virtual IP address for each node so that all nodes handle traffic.
+title: Configuring Active-Active High Availability and Additional Passive Nodes with keepalived
 toc: true
 weight: 200
 f5-content-type: how-to
-f5-product: NGINX Plus
+f5-product: F5 NGINX Plus
+f5-keywords: "high availability, active-active, passive node, keepalived, VRRP, virtual IP address, VIP, nginx-ha-keepalived, priority"
+f5-summary: >
+  This guide shows how to extend an active-passive F5 NGINX Plus pair that uses keepalived.
+  You can add a passive node that takes over when the other nodes fail, give each node its own virtual IP address so that all nodes handle traffic, or combine both.
+  It also shows how to configure NGINX Plus for virtual IP addresses that move between nodes.
+f5-audience: operator
 ---
 
-<span id="intro"></span>
-## Introduction
+<span id="intro"></span><span id="introduction"></span>
 
-F5 NGINX Plus utilizes [keepalived](http://www.keepalived.org/) to provide high availability (HA) in a standard active‑passive fashion. This provides failover redundancy in the event of a problem on the primary NGINX Plus node. We can extend this functionality with additional nodes and changes to the `keepalived` configuration, providing additional redundancy and scalability options. This guide assumes that you have already configured NGINX Plus in an active‑passive implementation with [the NGINX HA solution]({{< ref "nginx/admin-guide/high-availability/ha-keepalived.md" >}}).
+## Overview
 
-**NOTE:** In a public cloud deployment we recommend using a Layer 4 or TCP load‑balancing service offered by the cloud provider to distribute traffic to NGINX Plus for active‑active functionality.
+F5 NGINX Plus uses [keepalived](https://www.keepalived.org/) for high availability (HA). The basic setup is an active-passive pair, as described in [High Availability Support for NGINX Plus in On-Premises Deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}). This guide extends that pair:
 
-<span id="why_passive"></span>
-## Why Add a Passive Node?
+- **An additional passive node** takes over the virtual IP address (VIP) when both other nodes are down.
+- **Active-active HA** gives each node its own VIP, so that all nodes handle traffic at the same time.
 
-Many organizations have strict requirements on levels of redundancy and a two node active‑passive system may not meet these requirements. Adding a third node configured to take over in the event that both other nodes are down, provides further redundancy while keeping the configuration simple. This also allows for maintenance on a node without losing redundancy.
+You can combine both methods, and extend them to more nodes.
 
-<span id="why_active"></span>
-## Why Configure Active-Active HA?
+{{< call-out class="note" >}} In a public cloud, use a Layer 4 (TCP) load balancer of the cloud provider to spread traffic across the NGINX Plus nodes, instead of keepalived. {{< /call-out >}}
 
-You can run NGINX Plus in an “active‑active” fashion, where two or more nodes handle traffic at the same time. This is achieved using multiple active IP addresses. Each IP address is hosted on a single NGINX instance, and the Keepalived configuration ensures that these IP addresses are spread across two or more active nodes.
+<span id="why_passive"></span><span id="why-add-a-passive-node"></span>
 
-- When hosting multiple services, each service’s DNS name should resolve to one of the IP addresses. Share the IP addresses between the services.
-- Use round‑robin DNS to map a single DNS name to multiple IP addresses.
-- Use a L3 load‑balancing device such as a datacenter edge load balancer to distribute L3 traffic between the IP addresses.
+### When to add a passive node
 
-Active‑active may be used to increase the capacity of your load‑balanced cluster, but be aware that if a single node in an active‑active pair were to fail, the capacity would be reduced by half. You can use active‑Active as a form of safety, to provide sufficient resource to absorb unexpected spikes of traffic when both nodes are active, and you can use active‑active in larger clusters to provide more redundancy.
+A two-node pair might not meet your requirements for redundancy. A third node that takes over when both other nodes are down adds redundancy, and keeps the configuration simple. It also lets you take one node down for maintenance without losing redundancy.
 
-Note that NGINX instances in a load‑balanced cluster do not share configuration or state. For best performance in an active‑active scenario, ensure that connections from the same client are routed to the same active IP address, and use session persistence methods such as [`sticky cookie`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_cookie) that do not rely on server‑side state.
+<span id="why_active"></span><span id="why-configure-active-active-ha"></span>
 
-<span id="conf_passive"></span>
-## Configuring keepalived for an Additional Passive Node
+### When to use active-active HA
 
-To configure an additional passive node for your existing NGINX Plus active‑passive HA pair, perform the following steps:
+In an active-active setup, two or more nodes handle traffic at the same time. Each node holds at least one VIP. To spread clients across the VIPs, use one of these methods:
 
-1. Install the **nginx-plus** and **nginx-ha-keepalived** packages on the new node.
-2. Copy **/etc/keepalived/keepalived.conf** from the secondary node to the same location on the new node.
-3. Edit **keepalived.conf** on the new node:
-    - Lower the `priority` on any `vrrp_instance` blocks so that it is lower than the other nodes.
-    - Change `unicast_src_ip` to match new node's host IP address.
-    - Add the IP address of the secondary node to the `unicast_peer` section so that all other nodes are listed.
+- Give each service a DNS name that resolves to one of the VIPs.
+- Use round-robin DNS to map one DNS name to all the VIPs.
+- Put a Layer 3 load balancer, such as an edge load balancer of the data center, in front of the VIPs.
 
-    Below is a sample **keepalived.conf** on an additional passive node with IP address 192.168.10.12. The IP addresses of the other two nodes are 192.168.10.10 and 192.168.10.11. The virtual IP address (VIP) is 192.168.10.100.
+Active-active HA adds capacity, but if one node of a pair fails, the capacity drops by half. Plan enough capacity for the remaining nodes.
 
-    ```yaml
+The NGINX Plus nodes don't share their configuration. They also keep their own runtime state, such as the sessions of `sticky learn`, unless you set up [zone synchronization]({{< ref "/nginx/admin-guide/high-availability/zone_sync.md" >}}). For session persistence, use methods that work the same on every node: [`sticky cookie`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_cookie), [`sticky route`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_route), or [`ip_hash`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#ip_hash). To share the sessions of [`sticky learn`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_learn), see [Sticky learn zone synchronization]({{< ref "/nginx/admin-guide/high-availability/zone_sync.md#sticky-learn-zone-synchronization" >}}).
+
+---
+
+## Before you begin
+
+Before you begin, make sure you have:
+
+- **An active-passive pair**: Two NGINX Plus nodes with the **nginx-ha-keepalived** package, set up as described in [High Availability Support for NGINX Plus in On-Premises Deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}).
+- **For a passive node**: A third node with NGINX Plus, in the same subnet as the pair.
+- **For active-active HA**: A free IP address in the subnet for each additional VIP.
+- **VRRP allowed between all nodes**: VRRP uses IP protocol 112.
+- **The same NGINX Plus configuration on all nodes**: All nodes need the same NGINX Plus configuration and TLS certificates. To keep them the same, see [Synchronizing NGINX Configuration in a Cluster]({{< ref "/nginx/admin-guide/high-availability/configuration-sharing.md" >}}).
+
+In this guide, the nodes are 192.168.10.10 (primary), 192.168.10.11 (backup), and 192.168.10.12 (new node). The first VIP is 192.168.10.100.
+
+The examples show only the `chk_nginx_service` script. The files that `nginx-ha-setup` creates also have the `chk_manual_failover` script and other settings. Keep them, and keep the script paths of your files, which depend on the operating system. For the meaning of each directive, see [The keepalived configuration]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md#the-keepalived-configuration" >}}).
+
+---
+
+<span id="conf_passive"></span><span id="configuring-keepalived-for-an-additional-passive-node"></span>
+
+## Add a passive node
+
+1. On the new node, install the **nginx-plus** and **nginx-ha-keepalived** packages.
+
+1. Copy **/etc/keepalived/keepalived.conf** from the backup node to the same location on the new node.
+
+1. On the new node, edit **keepalived.conf**:
+
+    - Set `priority` in each `vrrp_instance` block lower than on every other node, for example `99`.
+    - Set `unicast_src_ip` to the address of the new node.
+    - List the addresses of both other nodes in the `unicast_peer` block.
+
+    The file on the new node is now:
+
+    ```none
     vrrp_script chk_nginx_service {
-        script  "/usr/lib/keepalived/nginx-ha-check"
+        script   "/usr/lib/keepalived/nginx-ha-check"
         interval 3
         weight   50
     }
@@ -81,113 +113,162 @@ To configure an additional passive node for your existing NGINX Plus active‑p
     }
     ```
 
-4. Edit **keepalived.conf** on the other nodes, adding the IP address of the new passive node to the `unicast_peer` section so that all other nodes are listed:
+1. On the other two nodes, add the address of the new node to the `unicast_peer` block. On the primary node, the block is now:
 
-   ```yaml
-   unicast_peer {
-       192.168.10.11
-       192.168.10.12
-   }
-   ```
+    ```none
+    unicast_peer {
+        192.168.10.11
+        192.168.10.12
+    }
+    ```
 
-4. Restart `keepalived` on all nodes.
-5. Test by stopping NGINX Plus on the first two nodes.
+1. Restart keepalived on all nodes:
 
-All NGINX Plus nodes must have the identical configuration and SSL certificates. For information about synchronizing NGINX Plus configuration, see [Synchronizing NGINX Configuration in a Cluster]({{< ref "configuration-sharing.md" >}}).
+    ```shell
+    sudo systemctl restart keepalived
+    ```
 
-<span id="conf_active"></span>
-## Configuring keepalived for Active-Active HA
+1. Test the new node. Stop NGINX Plus on the first two nodes:
 
-In order to direct traffic to both nodes at the same time, an additional VIP must be used. This new VIP will be active on the previously passive node, so that each node is active with its own VIP. To configure an existing NGINX Plus HA pair as active‑active, perform the following steps:
+    ```shell
+    sudo systemctl stop nginx
+    ```
 
-1. Edit **keepalived.conf** on the secondary node:
-    - Copy the entire `vrrp_instance block VI_1` section and paste it below the existing block
-    - In the copied `vrrp_instance` section:
-        - Rename the new `vrrp_instance to VI_2` or another unique name
-        - Change the `virtual_router_id` to `61` or another unique value
-        - Change the `virtual_ipaddress` to an available IP address on the same subnet (in this example 192.168.10.101)
-        - Change the `priority` value to `100`
+    Within a few seconds, the new node holds the VIP:
 
-            ```none
-            vrrp_script chk_nginx_service {
-                script  "/usr/lib/keepalived/nginx-ha-check"
-                interval 3
-                weight   50
-            }
+    ```shell
+    ip -4 -brief address show eth0
+    ```
 
-            vrrp_instance VI_1 {
-                interface         eth0
-                state             BACKUP
-                priority          101
-                virtual_router_id 51
-                advert_int        1
-                accept
-                unicast_src_ip    192.168.10.10
+    ```none
+    eth0             UP             192.168.10.12/24 192.168.10.100/32
+    ```
 
-                unicast_peer {
-                    192.168.10.11
-                }
+    Then start NGINX Plus again on the first two nodes, with `sudo systemctl start nginx`. The primary node takes the VIP back.
 
-                virtual_ipaddress {
-                    192.168.10.100
-                }
+---
 
-                track_script {
-                    chk_nginx_service
-                }
+<span id="conf_active"></span><span id="configuring-keepalived-for-active-active-ha"></span>
 
-                notify "/usr/lib/keepalived/nginx-ha-notify"
-            }
+## Set up active-active HA
 
-            vrrp_instance VI_2 {
-                interface         eth0
-                state             BACKUP
-                priority          100
-                virtual_router_id 61
-                advert_int        1
-                accept
-                unicast_src_ip    192.168.10.10
+To send traffic to both nodes of a pair at the same time, add a second VIP, 192.168.10.101 in this guide. The backup node becomes the primary node for the new VIP, so that each node holds one VIP:
 
-                unicast_peer {
-                    192.168.10.11
-                }
+{{< table >}}
 
-                virtual_ipaddress {
-                    192.168.10.101
-                }
+| VRRP instance | VIP | Priority on 192.168.10.10 | Priority on 192.168.10.11 |
+|---|---|---|---|
+| `VI_1` | 192.168.10.100 | 101 | 100 |
+| `VI_2` | 192.168.10.101 | 99 | 100 |
 
-                track_script {
-                    chk_nginx_service
-                }
+{{< /table >}}
 
-                notify "/usr/lib/keepalived/nginx-ha-notify"
-            }
-            ```
+Each node adds the weight of its scripts while NGINX Plus is up. If NGINX Plus fails on one node, the other node holds both VIPs.
 
-2. Edit **keepalived.conf** on the primary node:
-    - Repeat the edits performed on the secondary node.
-    - Set the `priority` within the new `vrrp_instance` to `99` or a value lower than on the secondary node.
-3. Restart `keepalived` on all nodes.
+1. On the backup node (192.168.10.11), edit **keepalived.conf**:
 
-Configuration file and SSL certificate file synchronization is out of scope for this document but make sure all nodes have identical NGINX Plus configuration.
+    - Copy the whole `vrrp_instance VI_1` block, and paste it below the existing block.
+    - In the copy, change the name to `VI_2`, and the `virtual_router_id` to `61` or another unused value.
+    - In the copy, change the address in `virtual_ipaddress` to the new VIP.
+    - In the copy, keep `priority` at `100`.
 
-<span id="nginx_for_active"></span>
-## Configuring NGINX Plus for Active-Active HA
+    The file on the backup node is now:
 
-Now that the two NGINX Plus nodes are active with their own VIPs, NGINX Plus itself must be configured. There are two options for distributing traffic to the active nodes. Option 1 has all nodes active, with each node handling at least one application. Option 2 has all applications active on all nodes.
+    ```none
+    vrrp_script chk_nginx_service {
+        script   "/usr/lib/keepalived/nginx-ha-check"
+        interval 3
+        weight   50
+    }
 
-**NOTE:** If the application being load balanced requires session persistence, we recommend that you use [sticky cookie](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_cookie), [sticky route](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_route) or [IP hash](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#ip_hash) method, as they   function correctly with multiple active nodes. [Sticky learn](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky_learn) creates a session table in memory that is not shared between active nodes.
+    vrrp_instance VI_1 {
+        interface         eth0
+        state             BACKUP
+        priority          100
+        virtual_router_id 51
+        advert_int        1
+        accept
+        unicast_src_ip    192.168.10.11
 
+        unicast_peer {
+            192.168.10.10
+        }
 
-### Configuring NGINX Plus for Different Applications on Each Node
+        virtual_ipaddress {
+            192.168.10.100
+        }
 
-In this configuration, each NGINX Plus node only processes requests to `server` blocks for which it has an active VIP. In the event of a failover, the active node is primary for additional VIPs and processes requests for the associated `server` blocks.
+        track_script {
+            chk_nginx_service
+        }
 
-Each `server` block includes the [listen](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen) directive to specify which VIP it is listening on.
+        notify "/usr/lib/keepalived/nginx-ha-notify"
+    }
 
-Building on the active‑active `keepalived` configuration from the [previous section](#conf_active), we're using the same two VIPs here. In this example application 1 is active on NGINX Plus node 1 and application 2 is active on NGINX node 2:
+    vrrp_instance VI_2 {
+        interface         eth0
+        state             BACKUP
+        priority          100
+        virtual_router_id 61
+        advert_int        1
+        accept
+        unicast_src_ip    192.168.10.11
+
+        unicast_peer {
+            192.168.10.10
+        }
+
+        virtual_ipaddress {
+            192.168.10.101
+        }
+
+        track_script {
+            chk_nginx_service
+        }
+
+        notify "/usr/lib/keepalived/nginx-ha-notify"
+    }
+    ```
+
+1. On the primary node (192.168.10.10), make the same changes, but set `priority` in `VI_2` to `99`, lower than on the backup node.
+
+1. Restart keepalived on both nodes:
+
+    ```shell
+    sudo systemctl restart keepalived
+    ```
+
+1. Check that each node holds one VIP:
+
+    ```shell
+    ip -4 -brief address show eth0
+    ```
+
+    The node 192.168.10.10 holds 192.168.10.100, and the node 192.168.10.11 holds 192.168.10.101.
+
+---
+
+<span id="nginx_for_active"></span><span id="configuring-nginx-plus-for-active-active-ha"></span>
+
+## Configure NGINX Plus for active-active HA
+
+When both nodes have VIPs, configure NGINX Plus for them. Choose one of these options:
+
+- Each node handles at least one application, with its own VIP.
+- Each node handles all applications on all VIPs.
+
+<span id="configuring-nginx-plus-for-different-applications-on-each-node"></span>
+
+### Serve different applications on each node
+
+Each `server` block [listens](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen) on the VIP of its application. In this example, application 1 is on 192.168.10.100, which node 192.168.10.10 holds, and application 2 is on 192.168.10.101, which node 192.168.10.11 holds. After a failover, the other node holds both VIPs and serves both applications.
 
 ```nginx
+server {
+    listen 80 default_server;
+    return 444;
+}
+
 server {
     listen 192.168.10.100:80;
 
@@ -205,36 +286,57 @@ server {
 }
 ```
 
-### Configuring NGINX Plus for All Applications on All Nodes
+The first `server` block listens on all addresses of port 80. With it, NGINX binds only `*:80`, and chooses the `server` block by the address that each connection arrives on. Without it, NGINX binds each VIP. On a node that doesn't hold one of the VIPs, `nginx -t` and reloads then fail with `bind() to 192.168.10.101:80 failed (99: Cannot assign requested address)`. The default server answers requests to other addresses of the node by closing the connection.
 
-In this configuration, NGINX Plus is able to process the traffic for any application on any VIP. In the event of a failure on a node, the VIP for that node moves to the node with the next highest priority. This way the DNS load balancing configuration does not need to change.
+<span id="configuring-nginx-plus-for-all-applications-on-all-nodes"></span>
 
-Each NGINX Plus node listens for all requests. DNS load balancing is used to distribute requests to NGINX Plus nodes. Simple round-robin DNS is sufficient and can be configured according to the documentation for your DNS server. Ensure that there is an `A` for each VIP with the same fully qualified domain name (FQDN). Each time the name is resolved, the DNS server's response includes all VIPs, but in a different order.
+### Serve all applications on all nodes
+
+Each node listens on all addresses and serves every application. A failover moves a VIP to another node, so the DNS records don't need to change. Use round-robin DNS: add an `A` record for each VIP under the same fully qualified domain name (FQDN). Each response of the DNS server then lists all VIPs, in a changing order. For the steps, see the documentation of your DNS server.
 
 ```nginx
 server {
     listen *:80;
 
-    location /app1 {
-        root /application1;
+    location /app1/ {
+        alias /application1/;
     }
 
-    location /app2 {
-        root /application2;
+    location /app2/ {
+        alias /application2/;
     }
 }
 ```
 
-<span id="combine_methods"></span>
-## Combining and Expanding Methods
+Requests for **/app1/** get the files in **/application1**, and requests for **/app2/** get the files in **/application2**.
 
-Both of the methods in [Configuring NGINX Plus for Active-Active HA](#nginx_for_active) can be combined for an <span style="white-space: nowrap;">active-active-passive</span> configuration, or can even be extended to a configuration with any number of active nodes.
+---
 
-### Configuring All-Active HA on Three or More Nodes
+<span id="combine_methods"></span><span id="combining-and-expanding-methods"></span>
 
-The following `keepalived` configuration is for an <span style="white-space: nowrap;">active-active-active</span> configuration. Here the [steps for adding an active node](#conf_active) are just repeated for the third one. Notice that this node is active for one VIP, secondary for one VIP, and tertiary for one VIP.
+## Combine and extend the methods
 
-```yaml
+You can combine an additional passive node with active-active HA, or extend active-active HA to any number of nodes.
+
+<span id="configuring-all-active-ha-on-three-or-more-nodes"></span>
+
+### Set up all-active HA on three or more nodes
+
+Repeat the [steps for active-active HA](#conf_active) for each node. Each node is the primary node for one VIP, the second choice for another VIP, and the third choice for the third VIP:
+
+{{< table >}}
+
+| VRRP instance | VIP | Priority on 192.168.10.10 | Priority on 192.168.10.11 | Priority on 192.168.10.12 |
+|---|---|---|---|---|
+| `VI_1` | 192.168.10.100 | 101 | 99 | 100 |
+| `VI_2` | 192.168.10.101 | 100 | 101 | 99 |
+| `VI_3` | 192.168.10.102 | 99 | 100 | 101 |
+
+{{< /table >}}
+
+For example, if NGINX Plus fails on node 192.168.10.10, its VIP 192.168.10.100 moves to node 192.168.10.12, which has the next priority for `VI_1`. This is the file of node 192.168.10.10:
+
+```none
 vrrp_script chk_nginx_service {
     script   "/usr/lib/keepalived/nginx-ha-check"
     interval 3
@@ -253,7 +355,6 @@ vrrp_instance VI_1 {
     unicast_peer {
         192.168.10.11
         192.168.10.12
-        192.168.10.13
     }
 
     virtual_ipaddress {
@@ -279,7 +380,6 @@ vrrp_instance VI_2 {
     unicast_peer {
         192.168.10.11
         192.168.10.12
-        192.168.10.13
     }
 
     virtual_ipaddress {
@@ -305,7 +405,6 @@ vrrp_instance VI_3 {
     unicast_peer {
         192.168.10.11
         192.168.10.12
-        192.168.10.13
     }
 
     virtual_ipaddress {
@@ -320,9 +419,13 @@ vrrp_instance VI_3 {
 }
 ```
 
-### Configuring Active-Active-Passive HA
+The files of the other two nodes have their own address in `unicast_src_ip`, the other two addresses in `unicast_peer`, and their priorities from the table.
 
-This example `keepalived` configuration is for the passive node in an <span style="white-space: nowrap;">active-active-passive</span> configuration. It combines the steps in [Configuring keepalived for an Additional Passive Node](#conf_passive) and [Configuring keepalived for Active-Active HA](#conf_active).
+<span id="configuring-active-active-passive-ha"></span>
+
+### Set up active-active-passive HA
+
+This setup combines [an additional passive node](#conf_passive) with [active-active HA](#conf_active). Nodes 192.168.10.10 and 192.168.10.11 are the active pair from the previous sections, and node 192.168.10.12 is passive. This is the file of the passive node:
 
 ```none
 vrrp_script chk_nginx_service {
@@ -334,7 +437,7 @@ vrrp_script chk_nginx_service {
 vrrp_instance VI_1 {
     interface         eth0
     state             BACKUP
-    priority          99
+    priority          98
     virtual_router_id 51
     advert_int        1
     accept
@@ -359,7 +462,7 @@ vrrp_instance VI_1 {
 vrrp_instance VI_2 {
     interface         eth0
     state             BACKUP
-    priority          99
+    priority          98
     virtual_router_id 61
     advert_int        1
     accept
@@ -381,3 +484,50 @@ vrrp_instance VI_2 {
     notify "/usr/lib/keepalived/nginx-ha-notify"
 }
 ```
+
+The passive node has priority `98` for both VIPs, lower than every other node. If one active node fails, the other active node takes its VIP. The passive node takes over only when both active nodes are down.
+
+On both active nodes, also add the address of the passive node to the `unicast_peer` block of each `vrrp_instance`. On node 192.168.10.10, both blocks are then:
+
+```none
+unicast_peer {
+    192.168.10.11
+    192.168.10.12
+}
+```
+
+Without this step, the active nodes don't send advertisements to the passive node. The passive node then takes both VIPs, while the active nodes hold them too. Restart keepalived on all nodes after the changes.
+
+---
+
+## Troubleshooting
+
+### nginx -t reports that it can't assign the requested address
+
+**Symptom**: `nginx -t` or a reload fails with a message such as `nginx: [emerg] bind() to 192.168.10.101:80 failed (99: Cannot assign requested address)`.
+
+**Cause**: The node doesn't hold that VIP, and no `server` block listens on all addresses of the port. So NGINX tries to bind the VIP itself.
+
+**Fix**: Add a `server` block that listens on all addresses of the port, as described in [Serve different applications on each node](#configuring-nginx-plus-for-different-applications-on-each-node).
+
+---
+
+### The passive node takes a VIP while an active node is up
+
+**Symptom**: When one active node fails, its VIP moves to the passive node instead of the other active node.
+
+**Cause**: The passive node has the same priority for that VIP as the other active node. With equal priorities, VRRP gives the VIP to the node with the higher IP address ([RFC 5798, section 6.4.3](https://datatracker.ietf.org/doc/html/rfc5798#section-6.4.3)).
+
+**Fix**: For each VIP, give the passive node a lower priority than every active node, and restart keepalived on the passive node.
+
+---
+
+## References
+
+For more information, see:
+
+- [High Availability Support for NGINX Plus in On-Premises Deployments]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}})
+- [Synchronizing NGINX Configuration in a Cluster]({{< ref "/nginx/admin-guide/high-availability/configuration-sharing.md" >}})
+- [Runtime State Sharing in a Cluster]({{< ref "/nginx/admin-guide/high-availability/zone_sync.md" >}})
+- [The `listen` directive](https://nginx.org/en/docs/http/ngx_http_core_module.html#listen)
+- [RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3](https://datatracker.ietf.org/doc/html/rfc5798)

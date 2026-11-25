@@ -1,13 +1,13 @@
 # Documentation report: branch `claude/bugfixes-and-docs`
 
-This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done from 2026-11-14 to 2026-11-24. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
+This report covers documentation work on the NGINX section of this repository (fork `kool277/nginx.docs`), done from 2026-11-14 to 2026-11-25. It reports coverage, not completeness. Facts were checked against the nginx 1.31.9 source in the `kool277/nginx` fork, branch `claude/bugfixes-and-docs`.
 
 ## Branch state
 
 | | |
 |---|---|
 | Branch | `claude/bugfixes-and-docs`, from `main` at `364cbc06` |
-| Head | the commit that adds this version of the report (the last content commit is `40294523`) |
+| Head | the commit that adds this version of the report (the last content commit is `8be4c970`) |
 | Compared with `upstream/main` (nginx/documentation) | ahead by the commits on this branch; 32 behind on 2026-11-24. The fork's `main` was already 7 behind when the work started. Upstream's newer commits weren't merged, as instructed. Four of them change pages that this branch also changed. `2f7284a5` ("remove stale EOL release-version callouts") changes 18 of them and `releases.md`: it replaces NGINX Plus release callouts such as "R13 or later" with "a supported release", and turns `<span>` anchors into heading IDs. `16f6ef6d` and `26714f35` (NGINX Plus PLS.37.3.0.1 and PLS.37.3.1.1 CR, PLS.37.0.8.1 and PLS.37.0.9.1 LTS) update version numbers on four install and upgrade pages and in `releases.md`, and `16f6ef6d` also changes the `auth_jwt_key_cache` examples of the JWT page. `dec018e7` changes `releases.md` only. A later merge will have text conflicts on the rewritten pages. On `live-activity-monitoring.md`, this branch makes the same removal of release callouts in `07f242e4`, so the conflict there is in wording only. `releases.md` differs from `main` only in `f5-product`, and upstream's release notes merge into it without conflict (checked with `git merge-file`). |
 
 ## Scope
@@ -86,7 +86,7 @@ From page 31 on ([decision 10](#decisions)), each page uses the template of its 
 
 The whole `admin-guide/load-balancer/` and `admin-guide/security-controls/` sections are now done. Commit `69c66c16` also corrects page 4, as described in [Defects fixed](#defects-fixed).
 
-Every page keeps its URL and file path. Pages 1 to 28 and 99 to 117 also keep every anchor. Their headings keep their wording or custom IDs, or the old anchor is kept as a `<span id>`. On pages 29 to 98, 56 pages lost anchors; see [Flagged for the owner](#flagged-for-the-owner).
+Every page keeps its URL, file path and anchors. Their headings keep their wording or custom IDs, or the old anchor is kept as a `<span id>`. Pages 29 to 98 had lost 319 anchors on 56 pages, and commit `8be4c970` restores them; see [Defects fixed](#defects-fixed).
 
 ## Pages not reached
 
@@ -382,11 +382,58 @@ The page that each fix applies to is in brackets. Source references are in the n
 
 Fixed across the pages:
 
-- Lost anchors: on pages 1 to 28 and 99 to 117, every anchor of the old page still works. The gRPC page had lost three generated heading anchors, and they're aliased again in `28deafbd`. Pages 29 to 98 weren't checked the same way; see [Flagged for the owner](#flagged-for-the-owner).
+- Lost anchors: every anchor of the old pages works again.
+  - Pages 1 to 28 and 99 to 117 kept their anchors in the rewrite. The gRPC page had lost three, and they're aliased again in `28deafbd`.
+  - On pages 29 to 98, 56 pages had lost 319 anchors: 315 generated heading IDs and 4 explicit IDs (`#prereq`, `#configure` twice and `#info`).
+  - `8be4c970` restores each one as a `<span id>` on its own line, directly above the section that holds the old content. The list is in `work/doctest/anchor-map-2026-11-25.tsv`, outside the repository.
+  - Where an old section no longer exists, its anchor is on the section that now covers its content. These cases are listed under [Anchors on merged sections](#anchors-on-merged-sections).
+- Duplicate IDs: eight `<span id>` elements on seven pages repeated an ID that the page already had. `8be4c970` removes them.
+  - Six sat directly above a heading with the same ID: `#inheritance` and `#sample-configuration-file-with-multiple-contexts` on the configuration files page, `#update-the-notify-script` on the AWS keepalived page, `#deployment-scenarios` on the F5 BIG-IP page, and `#test-your-setup` on the njs-based Okta and OneLogin pages.
+  - On the AWS NLB and Azure Standard Load Balancer pages, an `#overview` span came after the Overview heading, so a link never reached it.
 - Broken inbound anchors: 11 links from other pages pointed at anchors on these pages that didn't exist. These are now aliased with `<span id>`; for example `#session-persistence`, `#purging-content-from-the-cache` and `#dns`.
 - Examples that couldn't be pasted, because of `...` placeholders, undefined upstreams, missing `listen` or `server_name`, or names that don't resolve.
-- On pages 99 to 117, the anchors of rewritten headings are kept as `<span id>` elements. From page 31 on, tables inside list items are indented three spaces, because the theme's `table` shortcode runs `markdownify` and four spaces made a code block.
+- On pages 29 to 117, the anchors of rewritten headings are kept as `<span id>` elements. From page 31 on, tables inside list items are indented three spaces, because the theme's `table` shortcode runs `markdownify` and four spaces made a code block.
 - Links to the retired `www.nginx.com` admin guide.
+
+### Anchors on merged sections
+
+Of the 319 anchors that `8be4c970` restores, 94 belong to old sections that no longer exist as sections. Each one is on the section that now covers its content:
+
+- 17 dynamic module pages: `#configuration` is on Load the module, and so is `#configure` on the GeoIP2 and headers-more pages. The old Configuration section started with the `load_module` step. Its content is now in Load the module and Configure the module.
+- `acme.md`: `#full-example` is on Configure the module, which ends with the complete configuration.
+- `opentelemetry.md`: `#usage-examples` is on Configure the module. The examples are its subsections now.
+- `dynamic-modules.md`:
+  - `#getting-started-with-the-dynamic-modules-repository` is on List the available modules. The old section is now two sections: List the available modules, and Install and load a module.
+  - `#caveats` is on Before you begin, which has the operating-system limit.
+- `prometheus-njs.md`: `#upgrade` is on the troubleshooting entry The configuration uses js_include. `#example` is on Set the module variables, because the old example showed the module variables.
+- `installing-nginx-open-source.md`:
+  - `#stable-and-mainline-versions`, `#mainline-version`, `#stable-version` and `#distribution-and-installation-methods` are on Choose a version and a method.
+  - `#repository-contents`, `#package-contents` and `#statically-linked-modules` are on Install dynamic module packages. That section says what the `nginx` package includes, and lists the module packages.
+  - `#core-modules` and `#select-the-nginx-modules-to-build` are on Modules built by default.
+  - `#statically-linked-modules-1` and `#dynamically-linked-modules` are on Third-party modules.
+  - `#amazon-linux-2-packages` is on Amazon Linux 2023. nginx.org no longer lists Amazon Linux 2.
+- `installing-nginx-plus.md`: `#install-f5-waf-for-nginx` is on References, which links the F5 WAF for NGINX installation.
+- `ec2-instances-for-nginx.md`: `#automate-installation-with-a-configuration-manager` is on Install NGINX with Ansible, its only subsection.
+- `high-availability-network-load-balancer.md` (AWS):
+  - `#about-aws-nlb`, `#about-nginxplus` and `#solution-overview` are on Overview.
+  - `#register-instances-in-the-target-group` is on Create the target group, and `#launch-the-aws-nlb` is on Create the load balancer.
+  - The appendix anchors `#configure-nginx-open-source-on-the-web-servers` and `#configure-nginxplus-on-the-load-balancers` are on Set up the EC2 instances.
+- `high-availability-standard-load-balancer.md` (Azure):
+  - `#about-standard-load-balancer`, `#about-nginx-plus` and `#solution-overview` are on Overview.
+  - The appendix anchors `#configuring-nginx-open-source-on-the-web-servers` and `#configuring-nginx-plus-on-the-load-balancers` are on Set up the VMs.
+- `ingress-controller-elastic-kubernetes-services.md`: `#use-a-network-load-balancer-in-front-of-nginx-ingress-controller` is on Create the Network Load Balancer. The old section is now that section and Turn on the PROXY protocol.
+- `high-availability-all-active.md` (Google Cloud):
+  - `#design-and-topology` is on Overview, and `#creating-firewall-rules` is on Task 1.
+  - `#creating-source-instances-from-vm-images` is on Task 2, where the VM image path is now the main path.
+  - The second application and load-balancing items now share a section in three places. `#creating-the-second-application-instance-from-a-vm-image` and `#creating-the-load-balancing-instance-from-a-vm-image` are on Create the second application instance and the load balancing instance. The `-instance-template` and `-instance-group` pairs are on the matching template and group sections.
+  - The five prebuilt-image anchors are on Use the NGINX Plus image from Google Cloud Marketplace instead. They are `#creating-the-first-application-instance-from-a-prebuilt-image`, the matching `second-application` and `load-balancing` anchors, `#configuring-php-and-fastcgi-on-the-prebuilt-based-instances` and `#configuring-nginx-plus-on-the-prebuilt-based-instances`.
+- `citrix-adc-configuration.md`:
+  - `#about-nginx-open-source-and-nginx-plus` is on Overview.
+  - Each old pair of Citrix ADC and NGINX Plus example headings is now one section, and the pair's anchors are on it. `#citrix-adc` and `#nginx-plus` are on Virtual servers. The `-1`, `-2` and `-3` pairs are on SSL/TLS termination, Service group entities and Review the complete configuration.
+  - The cookie and JSESSIONID pairs, such as `#citrix-adc---cookie-based` and `#nginx-plus---cookie-based`, are on Cookie persistence and JSESSIONID persistence. The default and custom health check pairs are on Default health check and Custom health check.
+- `f5-big-ip-configuration.md`:
+  - `#about-nginx-open-source-and-nginx-plus` is on Overview.
+  - Each old pair of BIG-IP LTM and NGINX Plus example headings is now one section. `#big-ip-ltm` and `#nginx-plus` are on Virtual servers. The `-1` to `-4` pairs are on SSL/TLS offload, Keepalive connections, Monitors and health checks, and Review the complete configuration.
 
 ## Examples not tested
 
@@ -455,6 +502,7 @@ These can't be checked against the open-source code:
 |---|---|---|
 | Hugo 0.152.2 build | OK, 3598 pages, no warnings | OK, 3598 pages, no warnings |
 | `markdownlint` with the repository config, all of `content/` | 2440 errors (976 in `content/nginx`) | 1620 errors (156 in `content/nginx`, all in `releases.md`, a known exception: see [decision 11](#decisions)); no new errors |
+| Anchor checks (`work/doctest/idcheck.py`), every page under `/nginx/` | Not applicable | Check 1: no ID missing. Before `8be4c970`, 319 IDs on 56 pages were missing. Check 2: no new duplicate ID; 7 pages had one before. Check 3: no in-site fragment link broken by `8be4c970`. |
 | `markdown-link-check`, `content/nginx` | 455 failures | No new failures on pages 1–30. From page 31 on, external links were checked with `curl` during the rewrite and by the reviewers. |
 
 The remaining link-check reports on the changed pages are all of kinds that were already present at baseline, and come from how the tool works with Hugo:
@@ -465,9 +513,17 @@ The remaining link-check reports on the changed pages are all of kinds that were
 
 Hugo itself checks `ref` shortcode links, and they pass.
 
+The anchor checks compare a build of `main` with a build of this branch, on every page under `/nginx/`:
+
+1. Every ID inside `<main>` of the `main` page exists on the branch page. Hugo's per-build code block IDs are ignored.
+1. No page has an ID twice, unless the `main` page has the same duplicate.
+1. Every in-site link with a fragment, on any page of the site, that works before a commit still works after it.
+
+Of the 13,440 in-site fragment links, 1,739 were already broken before `8be4c970`, and 1,090 of those are the theme's `#maincontent` skip link. The 11 that point into `/nginx/` are broken on `main` too; see [Flagged for the owner](#flagged-for-the-owner).
+
 ## Tools
 
-Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets. The security-controls pages used small Python TCP and HTTP servers, and certificate chains made with `openssl`.
+Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. Its `idcheck.py` runs the anchor checks on two or three Hugo builds. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets. The security-controls pages used small Python TCP and HTTP servers, and certificate chains made with `openssl`.
 
 Not used: the third-party GeoIP2 module (`leev/ngx_http_geoip2_module` 3.4) was cloned to `deps/geoip2-src`, but building it was blocked by the session's permission system, and wasn't retried another way. `mmdblookup` and `geoipupdate` were unpacked from their Ubuntu packages to read their file lists and documentation, but not run.
 
@@ -477,7 +533,10 @@ These weren't changed, because they're F5 choices, outside `content/nginx/`, or 
 
 - **F5 choices kept**: the NGINX Plus `.repo` files set `gpgcheck=0`; the FreeBSD steps set `SSL_NO_VERIFY_PEER "1"`; the Kubernetes builder always skips TLS verification for NGINX Agent v3.
 - **Dead partner links**: the PingIntelligence 5.1 documentation and `seerbox.it/en` return 404.
-- **Lost anchors on pages 29 to 98**: 56 of these pages no longer have 312 anchors that their `main` versions had. A check of the built site found this on 2026-11-24. Of these, 307 came from old headings, such as `#caveats` on the dynamic modules page. The other five were explicit IDs: `#prereq` on the NGINX Plus install page, `#configure` on the GeoIP2 and headers-more pages, `#info` on the RTMP page and `#center` on the demo environment page. No link in the built site points at any of them, so only links from outside the site are affected: they open the right page, but at its top. The pages are the debugging and live monitoring pages, 6 install pages, 24 dynamic module pages and 24 deployment guides. Each old anchor can be kept as a `<span id>` at its new section, as on pages 99 to 117. The list is in `work/doctest/lost-anchors-2026-11-24.json`, outside the repository.
+- **Broken links into this section**: 11 links from other sections have a fragment that doesn't exist on `main` either.
+  - Eight in the NGINX Ingress Controller and NGINXaaS for Azure changelogs point at release anchors such as `#nginxplusrelease-36-r36`. `releases.md` uses IDs such as `#r36`, and it stays equal to `main`.
+  - Two NGINX Ingress Controller pages link `#http-health-check` on `/nginx/admin-guide/load-balancer/`, a section index without that heading.
+  - One NGINXaaS for Azure page links `#complete-example` on the upstream TLS page, which has no such section.
 - **Include `f5-files` lists**: the front matter of each of the three fixed includes lists the pages that use it, and the lists are out of date. `custom-paths-jwt.md` names `installing-nginx-plus.md`, which doesn't use it, and misses `upgrading-nginx-plus.md`. The two Docker includes miss `nic/lts/install/images/registry-download.md`. The lists weren't changed, because only the defects were to change.
 - **URL typo**: the URL of `deployment-guides/single-sign-on/oidc-njs/_index.md` says `single-signon`. Changing it breaks existing links, so it's left for the owner.
 - **Unmaintained demos**: F5 archived the NS1 agent (`nginx-ns1-gslb`), and the AWS `aws-nlb-ha-asg` demo no longer runs. The guides now say so, but F5 might prefer to retire them.

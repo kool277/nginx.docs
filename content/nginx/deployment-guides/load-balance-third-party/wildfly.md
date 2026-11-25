@@ -44,7 +44,7 @@ This deployment guide explains how to use NGINX Open Source and F5 NGINX Plus to
 
 The commercially supported version of the Wildfly software is the [Red Hat JBoss Enterprise Application Platform](https://developers.redhat.com/products/eap/overview), and this guide applies to it and other commercial JBoss application servers as well.
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites-and-system-requirements"></span>
 
 ## Before you begin
 
@@ -196,7 +196,7 @@ or
 root# service nginx reload
 ```
 
-<span id="basic"></span>
+<span id="basic"></span><span id="configuring-basic-load-balancing-with-nginx-open-source-or-nginxplus"></span>
 
 ## Configuring Basic Load Balancing with NGINX Open Source or NGINX Plus
 
@@ -506,7 +506,7 @@ server {
 
 Replace `<CERTIFICATE_NAME>` with the filename of your SSL certificate and `<PRIVATE_KEY>` with the filename of your private key.
 
-<span id="enhanced"></span>
+<span id="enhanced"></span><span id="configuring-enhanced-load-balancing-with-nginxplus"></span>
 
 ## Configuring Enhanced Load Balancing with NGINX Plus
 

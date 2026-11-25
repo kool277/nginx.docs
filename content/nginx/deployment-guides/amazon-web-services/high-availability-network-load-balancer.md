@@ -13,7 +13,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="about-nlb"></span><span id="about-nginx"></span>
+<span id="about-nlb"></span><span id="about-nginx"></span><span id="about-aws-nlb"></span><span id="about-nginxplus"></span><span id="solution-overview"></span>
 
 ## Overview
 
@@ -21,8 +21,6 @@ This guide creates a highly available, active-active deployment of F5 NGINX Plus
 
 - The **AWS Network Load Balancer (NLB)** works at Layer 4. It sends each new connection to one of the NGINX Plus instances in its target group, with a [flow hash algorithm](https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html#routing-algorithm). It handles millions of requests per second at low latency.
 - **NGINX Plus** works at Layer 7. It load balances requests to the web servers by their content and by the results of [active health checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md" >}}). It also offers [session persistence]({{< ref "/nginx/admin-guide/load-balancer/http-load-balancer.md#session-persistence" >}}), [caching]({{< ref "/nginx/admin-guide/content-cache/content-caching.md" >}}), and monitoring with a [dashboard]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}).
-
-<span id="overview"></span>
 
 The deployment has an NLB with a target group of two NGINX Plus instances, and four NGINX Open Source web servers that serve two applications:
 
@@ -34,7 +32,7 @@ For an active-passive deployment without an NLB, see [Active-Passive HA for NGIN
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -46,7 +44,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="appendix"></span><span id="create-instance-install-nginx"></span>
+<span id="appendix"></span><span id="create-instance-install-nginx"></span><span id="create-ec2-instances-and-install-the-nginx-software"></span><span id="configure-nginx-open-source-on-the-web-servers"></span><span id="configure-nginxplus-on-the-load-balancers"></span>
 
 ## Set up the EC2 instances
 
@@ -74,7 +72,7 @@ An older demo created this environment with scripts. It no longer runs, as descr
 
 ---
 
-<span id="nlb-configure"></span>
+<span id="nlb-configure"></span><span id="configure-an-aws-network-load-balancer"></span>
 
 ## Create the AWS NLB
 
@@ -90,7 +88,7 @@ The Elastic IP address becomes the IP address of the NLB in an Availability Zone
 
 1. Select **Allocate**. The new address appears on the **Elastic IPs** page. Note it for a later step.
 
-<span id="nlb-routing-options"></span><span id="nlb-register-instances"></span>
+<span id="nlb-routing-options"></span><span id="nlb-register-instances"></span><span id="configure-the-awsnlb-routing-options"></span><span id="register-instances-in-the-target-group"></span>
 
 ### Create the target group
 
@@ -112,7 +110,7 @@ The target group lists the NGINX Plus instances that the NLB sends connections t
 
 1. Select **Create target group**.
 
-<span id="nlb-create"></span><span id="nlb-launch"></span>
+<span id="nlb-create"></span><span id="nlb-launch"></span><span id="create-the-awsnlb"></span><span id="launch-the-aws-nlb"></span>
 
 ### Create the load balancer
 
@@ -152,7 +150,7 @@ For all options, see [Create a Network Load Balancer](https://docs.aws.amazon.co
 
 ---
 
-<span id="create-instances-automated"></span>
+<span id="create-instances-automated"></span><span id="automate-instance-setup-with-packer-and-terraform"></span>
 
 ## Packer and Terraform demo
 

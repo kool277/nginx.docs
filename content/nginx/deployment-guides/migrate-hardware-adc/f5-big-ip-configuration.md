@@ -13,7 +13,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="about-nginx"></span>
+<span id="about-nginx"></span><span id="about-nginx-open-source-and-nginx-plus"></span>
 
 ## Overview
 
@@ -21,7 +21,7 @@ F5 NGINX Plus is a software replacement for hardware [application delivery contr
 
 [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) is a software load balancer, reverse proxy, and web server. It adds features to [NGINX Open Source](https://nginx.org/en/), such as active health checks, the [NGINX Plus API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}), and [high availability]({{< ref "/nginx/admin-guide/high-availability/ha-keepalived.md" >}}).
 
-<span id="scenarios"></span><span id="deployment-scenarios"></span>
+<span id="scenarios"></span><span id="nginx-plus-deployment-scenarios"></span>
 
 ### Deployment scenarios
 
@@ -37,7 +37,7 @@ A hardware application delivery controller (ADC) usually sits at the edge of the
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -51,7 +51,7 @@ All IP addresses and object names in this guide are examples. Replace them with 
 
 ---
 
-<span id="mapping"></span><span id="networking"></span>
+<span id="mapping"></span><span id="networking"></span><span id="mapping-f5-big-ip-ltm-networking-concepts-to-nginx-plus"></span>
 
 ## Map the BIG-IP LTM networking concepts
 
@@ -65,7 +65,7 @@ BIG-IP LTM separates the management network (management plane) from the applicat
 
 NGINX Plus uses the networking of its Linux host. It can bind several IP subnets or VLANs to one NIC, or use several NICs for separate client and server networks.
 
-<span id="mapping-concepts"></span>
+<span id="mapping-concepts"></span><span id="definitions-of-networking-concepts"></span>
 
 ### Networking concepts
 
@@ -84,7 +84,7 @@ NGINX Plus uses the networking of its Linux host. It can bind several IP subnets
 
 ---
 
-<span id="converting"></span><span id="convert-configuration"></span>
+<span id="converting"></span><span id="convert-configuration"></span><span id="converting-f5-big-ip-ltm-load-balancer-configuration-to-nginx-plus"></span>
 
 ## Convert the load balancer configuration
 
@@ -94,7 +94,7 @@ NGINX Plus keeps its configuration in text files. You can edit them directly, or
 
 The examples identify virtual servers by IP address only. NGINX Plus can also choose a `server` block by the `Host` header: add a [`server_name`](https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name) directive with host names, wildcards, or regular expressions. For details, see [Server names](https://nginx.org/en/docs/http/server_names.html).
 
-<span id="virtual-servers"></span>
+<span id="virtual-servers"></span><span id="big-ip-ltm"></span><span id="nginx-plus"></span>
 
 ### Virtual servers
 
@@ -129,7 +129,7 @@ http {
 
 The `listen` address must exist on the NGINX Plus host. Otherwise, `nginx -t` fails with `bind() to 192.168.10.10:80 failed (99: Cannot assign requested address)`. NGINX Plus connects to the servers from its own address, like the BIG-IP LTM `automap` source address translation.
 
-<span id="ssl-offload"></span><span id="ssl"></span>
+<span id="ssl-offload"></span><span id="ssl"></span><span id="ssltls-offload-termination-and-proxy"></span><span id="big-ip-ltm-1"></span><span id="nginx-plus-1"></span>
 
 ### SSL/TLS offload
 
@@ -218,6 +218,8 @@ server {
 
 BIG-IP LTM and NGINX Plus both set session persistence, also called affinity, on the server group. That's the BIG-IP LTM pool, or the NGINX Plus `upstream` block. Stateful applications need it. The [`sticky`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) directive is also in NGINX Open Source since version 1.29.6.
 
+<span id="cookie-based-session-persistence"></span>
+
 #### Cookie persistence
 
 The `sticky cookie` method works like the cookie insert method of BIG-IP LTM. The load balancer adds a cookie that names the server, and the client sends it back with later requests. If that server fails, the load balancer chooses another one.
@@ -254,6 +256,8 @@ upstream ssl_test_pool {
 }
 ```
 
+<span id="source-ip-address-based-session-persistence"></span>
+
 #### Source address persistence
 
 The load balancer computes a hash of the client IP address, and sends each request to the server for that hash. The [`ip_hash`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#ip_hash) method of NGINX uses the first three octets of an IPv4 address, or the whole IPv6 address. So all clients of a `/24` IPv4 network go to the same server.
@@ -275,6 +279,8 @@ upstream test_pool {
 }
 ```
 
+<span id="token-based-session-persistence"></span>
+
 #### Token persistence
 
 The `sticky learn` method uses a cookie or another token that the server creates, such as `jsessionid`. NGINX Plus keeps a table in shared memory that maps each token value to a server. BIG-IP LTM needs an iRule for this, which is outside the scope of this guide.
@@ -291,7 +297,7 @@ upstream test_pool {
 }
 ```
 
-<span id="keepalive-connections"></span>
+<span id="keepalive-connections"></span><span id="big-ip-ltm-2"></span><span id="nginx-plus-2"></span>
 
 ### Keepalive connections
 
@@ -327,7 +333,7 @@ server {
 
 Before NGINX 1.29.7, the proxy needs HTTP/1.1 and an empty `Connection` header to keep connections open, as in this example. Since 1.29.7, these are the defaults. An `upstream` block without a `keepalive` directive then also keeps up to 32 idle connections in each worker process. It reuses them only for the location that opened them, as with `keepalive 32 local;`. To turn that off, use `keepalive 0;`.
 
-<span id="health-checks"></span>
+<span id="health-checks"></span><span id="monitors-health-checks"></span><span id="big-ip-ltm-3"></span><span id="nginx-plus-3"></span>
 
 ### Monitors and health checks
 
@@ -366,7 +372,7 @@ The `zone` directive is needed: health checks keep the state of the servers in s
 
 ---
 
-<span id="summary"></span><span id="configuration-summary"></span>
+<span id="summary"></span><span id="configuration-summary"></span><span id="summary-of-converted-load-balancer-configuration"></span><span id="big-ip-ltm-4"></span><span id="nginx-plus-4"></span>
 
 ## Review the complete configuration
 

@@ -19,6 +19,8 @@ This guide explains how to enable single sign-on (SSO) for applications being pr
 
 {{< call-out class="note" >}} This guide needs [NGINX Plus R36]({{< ref "nginx/releases.md#r36" >}}) or later. The [OpenID Connect module](https://nginx.org/en/docs/http/ngx_http_oidc_module.html) is in NGINX Plus since R34, but R34 and R35 lack some of its directives in this guide, such as `pkce`. Earlier releases use an [njs-based solution](#legacy-njs-guide), with JavaScript files and key-value stores.{{< /call-out >}}
 
+<span id="prerequisites"></span>
+
 ## Before you begin
 
 Before you begin, make sure you have:
@@ -403,6 +405,8 @@ For NGINX Plus R33 and earlier, or if you still need the njs-based solution, see
 **Fix**: Check the `resolver` directive and the network access to the issuer URL. If needed, set `ssl_trusted_certificate` in the `oidc_provider` block.
 
 ---
+
+<span id="see-also"></span>
 
 ## References
 

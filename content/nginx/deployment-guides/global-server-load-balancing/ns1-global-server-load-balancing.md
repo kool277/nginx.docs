@@ -39,7 +39,7 @@ The solution functions alongside other NS1 capabilities, such as geo-proximal ro
 
 [NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) adds features to NGINX Open Source, such as active health checks and the [NGINX Plus API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}), which the agent reads.
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -50,7 +50,7 @@ Before you begin, make sure you have:
 - **Three or more NGINX Plus instances**: Each one needs the NGINX Plus API, as described in [Configure the API]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md#json_configure" >}}).
 - **Go 1.19 or later on each instance**: The agent's `go.mod` requires it. To install Go, see [Download and install](https://go.dev/doc/install). With Docker, you can use the agent's container image instead.
 
-<span id="ns1-setup"></span>
+<span id="ns1-setup"></span><span id="setting-up-ns1"></span>
 
 ## Set up NS1
 
@@ -124,7 +124,7 @@ Before you begin, make sure you have:
 
     <img src="/nginx/images/ns1-add-filters-summary.png" alt="Screenshot of NS1 GUI: Add Filters page with three filters defined" width="1024" height="543" class="aligncenter size-full wp-image-63019" />
 
-<span id="agent-install"></span>
+<span id="agent-install"></span><span id="installing-the-ns1-agent"></span>
 
 ## Install the NS1 agent
 
@@ -196,7 +196,7 @@ In this section we install and configure the NS1 agent on the same hosts as our 
 
    For details, see [Running the agent](https://github.com/nginxinc/nginx-ns1-gslb#running-the-agent).
 
-<span id="verify-redistribution"></span>
+<span id="verify-redistribution"></span><span id="verifying-that-ns1-redistributes-traffic"></span>
 
 ## Verify that NS1 redistributes traffic
 
@@ -206,7 +206,7 @@ In this section we describe how to verify that NS1 correctly redistributes traff
 - [Take down the servers in the proxied upstream group](#verify-when-upstream-down)
 - [Cause traffic to exceed a configured threshold](#verify-when-over-threshold)
 
-<span id="verify-when-status-down"></span>
+<span id="verify-when-status-down"></span><span id="verifying-traffic-redistribution-when-an-nginxplus-instance-is-marked-down"></span>
 
 ### Mark an NGINX Plus instance as down
 
@@ -240,7 +240,7 @@ Here we verify that NS1 switches over to the next-nearest NGINX Plus instance wh
    Address: 10.10.10.2
    ```
 
-<span id="verify-when-upstream-down"></span>
+<span id="verify-when-upstream-down"></span><span id="verifying-traffic-redistribution-when-an-upstream-group-is-down"></span>
 
 ### Take down an upstream group
 
@@ -354,13 +354,15 @@ We run the following commands on a host located in the US.
    Address: 10.10.10.2
    ```
 
-<span id="verify-when-over-threshold"></span>
+<span id="verify-when-over-threshold"></span><span id="verifying-traffic-redistribution-when-a-threshold-is-exceeded"></span>
 
 ### Exceed a load threshold
 
 You can configure NS1 to redistribute traffic away from a given NGINX Plus instance when a load metric for the instance exceeds one or more thresholds that you set. The thresholds are set in an NS1 _shed filter_, so-called because NS1 describes the shifting of traffic to a different IP address as "shedding load" from the current IP address.
 
 Here we verify that NS1 redistributes traffic correctly when the number of active connections on an instance exceeds the threshold we set.
+
+<span id="creating-the-shed-filter"></span>
 
 #### Create the shed filter
 
@@ -395,6 +397,8 @@ First we perform these steps to create the shed filter:
    After setting all three, select the **Ok** button. (The screenshot shows the window just before this action.)
 
    <img src="/nginx/images/ns1-shed-filter-metadata.png" alt="Screenshot of NS1 GUI: Answer Metadata page for shed filter" width="1024" height="1131" class="aligncenter size-full wp-image-63014" />
+
+<span id="testing-the-threshold"></span>
 
 #### Test the threshold
 

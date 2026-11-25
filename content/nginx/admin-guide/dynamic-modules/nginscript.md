@@ -30,6 +30,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="installation"></span>
+
 ## Install the module package
 
 Install the `nginx-plus-module-njs` package from the NGINX Plus repository:
@@ -66,6 +68,8 @@ Install the `nginx-plus-module-njs` package from the NGINX Plus repository:
     ```
 
 ---
+
+<span id="configuration"></span>
 
 ## Load the module
 
@@ -162,6 +166,8 @@ Set up the modules as described in the [njs documentation](https://nginx.org/en/
 **Fix**: Upgrade the module package to the version of NGINX Plus, as described in [Upgrade NGINX Plus modules]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md#upgrade_modules" >}}).
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

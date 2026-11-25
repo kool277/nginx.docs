@@ -45,6 +45,8 @@ You can use the WebLogic Server Administration Control graphical user interface 
 
 For more information about deploying a Java application on Oracle Java Cloud Service, see [Administering Oracle Java Cloud Service](https://docs.oracle.com/cloud/131/developer_services/CSJSU/java-admin.htm).
 
+<span id="prerequisites-and-system-requirements"></span>
+
 ## Before you begin
 
 - An Oracle WebLogic Server application server installed and configured on a physical or virtual system.
@@ -945,6 +947,8 @@ server {
 **Fix**: Add `http2 on;` to the `server` block for HTTPS traffic, or `listen 443 ssl http2;` on earlier versions, and reload the configuration.
 
 ---
+
+<span id="resources"></span>
 
 ## References
 

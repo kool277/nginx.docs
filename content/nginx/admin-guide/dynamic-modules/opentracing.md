@@ -121,6 +121,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="more-info"></span>
+
 ## References
 
 For more information, see:

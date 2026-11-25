@@ -13,7 +13,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="about-slb"></span><span id="about-traffic-manager"></span><span id="about-nginx"></span>
+<span id="about-slb"></span><span id="about-traffic-manager"></span><span id="about-nginx"></span><span id="about-standard-load-balancer"></span><span id="about-nginx-plus"></span><span id="solution-overview"></span>
 
 ## Overview
 
@@ -23,8 +23,6 @@ This guide creates a highly available, active-active deployment of F5 NGINX Plus
 - **NGINX Plus** works at Layer 7. It load balances requests to the web servers by their content and by the results of [active health checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md" >}}). It also offers [session persistence]({{< ref "/nginx/admin-guide/load-balancer/http-load-balancer.md#session-persistence" >}}), [caching]({{< ref "/nginx/admin-guide/content-cache/content-caching.md" >}}), and monitoring with a [dashboard]({{< ref "/nginx/admin-guide/monitoring/live-activity-monitoring.md" >}}).
 - **Azure Traffic Manager** is optional. It load balances with DNS across copies of the setup in several Azure regions. It sends each client to the best endpoint for the routing method that you choose.
 
-<span id="overview"></span>
-
 A Standard Load Balancer has a public front-end IP address, a backend pool, a health probe, and load balancing rules. The health probe checks whether each NGINX Plus instance can take new connections. The rule says which front-end port goes to which backend pool and port.
 
 <img src="/nginx/images/azure-ha-load-balancer-topology.png" alt="Topology diagram for high availability deployment of NGINX Plus in Azure" style="border:2px solid #666666; padding:2px; margin:2px;" />
@@ -33,7 +31,7 @@ In this guide, the backend pool has two NGINX Plus instances. They load balance 
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -46,7 +44,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="appendix"></span><span id="create-vm-install-nginx"></span>
+<span id="appendix"></span><span id="create-vm-install-nginx"></span><span id="creating-azure-vms-and-installing-the-nginx-software"></span><span id="configuring-nginx-open-source-on-the-web-servers"></span><span id="configuring-nginx-plus-on-the-load-balancers"></span>
 
 ## Set up the VMs
 
@@ -72,13 +70,13 @@ The two NGINX Plus VMs need public IP addresses with the same SKU as the Standar
 
 ---
 
-<span id="slb-set-up"></span>
+<span id="slb-set-up"></span><span id="setting-up-a-standard-load-balancer"></span>
 
 ## Set up a Standard Load Balancer
 
 Do these steps in each region of the deployment.
 
-<span id="slb-create"></span>
+<span id="slb-create"></span><span id="creating-a-standard-load-balancer"></span>
 
 ### Create the Standard Load Balancer
 
@@ -110,7 +108,7 @@ Do these steps in each region of the deployment.
 
     <img src="/nginx/images/azure-create-lb-deployment-complete.png" alt="The message that the load balancer deployment is complete" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-<span id="slb-configure"></span>
+<span id="slb-configure"></span><span id="configuring-the-standard-load-balancer"></span>
 
 ### Configure the Standard Load Balancer
 
@@ -166,7 +164,7 @@ Do these steps in each region of the deployment.
 
     After a few moments, the new rule appears on the **Load balancing rules** page.
 
-<span id="slb-verify-operation"></span>
+<span id="slb-verify-operation"></span><span id="verifying-correct-operation"></span>
 
 ### Verify the Standard Load Balancer
 
@@ -182,7 +180,7 @@ Do these steps in each region of the deployment.
 
 ---
 
-<span id="traffic-manager"></span>
+<span id="traffic-manager"></span><span id="setting-up-azure-traffic-manager"></span>
 
 ## Set up Azure Traffic Manager
 

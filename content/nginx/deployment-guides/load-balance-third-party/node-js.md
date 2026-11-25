@@ -46,7 +46,7 @@ To download the Node.js software and get installation instructions, visit the [N
 
 The information in this deployment guide applies equally to open source Node.js software and commercially supported Node.js frameworks.
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites-and-system-requirements"></span>
 
 ## Before you begin
 

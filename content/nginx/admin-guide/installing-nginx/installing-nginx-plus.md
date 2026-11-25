@@ -19,6 +19,8 @@ You install F5 NGINX Plus from the NGINX Plus repository with your package manag
 
 ---
 
+<span id="prereq"></span>
+
 ## Before you begin
 
 Before you begin, make sure you have:
@@ -32,6 +34,8 @@ Before you begin, make sure you have:
 If you already have NGINX Plus installed, back up its configuration and log files first. For details, see [Upgrading NGINX Plus]({{< ref "nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md" >}}).
 
 ---
+
+<span id="release-types-and-versioning"></span>
 
 ## Choose a release type
 
@@ -58,6 +62,8 @@ NGINX Plus Continuous Releases come out several times during an annual [LTS](#lt
 - **Patching model**: CRs are never patched. Fixes, including CVE fixes, come in the next CR.
 - **Support window**: Only the latest CR is supported. When a new CR comes out, the previous CR reaches End of Support immediately.
 - **Version format**: CRs increase the second number, for example `PLS.37.1.0.0` and `PLS.37.2.0.0`.
+
+<span id="repository-configuration-options"></span>
 
 ### Repository options
 
@@ -503,6 +509,8 @@ These are popular third-party modules that F5 NGINX distributes, with support fo
 
 {{< /table >}}
 
+<span id="dynamic-module-package-installation"></span>
+
 ### Install module packages {#install-module-packages}
 
 You can install [NGINX-authored](#nginx-authored-dynamic-modules) and [NGINX-certified community](#nginx-certified-community-dynamic-modules) modules as packages from the NGINX Plus repository. In the commands, replace `<MODULE_NAME>` with the package name, for example `nginx-plus-module-njs`.
@@ -817,6 +825,8 @@ You can install NGINX Plus and its [dynamic modules]({{< ref "/nginx/admin-guide
 
 1. Transfer the files to the target server.
 
+<span id="step-2-installing-nginx-plus-on-a-server-without-internet-connectivity"></span>
+
 ### Step 2: Install NGINX Plus on the server without internet access
 
 1. {{< include "nginx-plus/install/back-up-config-and-logs.md" >}}
@@ -945,6 +955,8 @@ You can install NGINX Plus and its [dynamic modules]({{< ref "/nginx/admin-guide
 **Fix**: Install the module package from the NGINX Plus repository together with NGINX Plus. For a community module, compile it again with the NGINX Open Source version that `nginx -v` shows.
 
 ---
+
+<span id="explore-related-topics"></span><span id="install-f5-waf-for-nginx"></span>
 
 ## References
 

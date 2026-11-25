@@ -87,15 +87,11 @@ flowchart TD
 
 Text description: The main context contains the `events`, `http`, `stream`, and `mail` contexts. The `http` context contains `upstream` and `server` blocks, and each HTTP `server` block contains `location` blocks, which can contain nested `location` blocks. The `stream` context contains `upstream` and `server` blocks. The `mail` context contains `server` blocks.
 
-<span id="inheritance"></span>
-
 ### Inheritance
 
 A _child_ context is a context inside another context, its _parent_. For example, a `location` block is a child of a `server` block. A child context inherits the settings of directives from its parent. To change an inherited setting, include the directive again in the child context.
 
 Some directives can appear several times in the same context, such as [proxy_set_header](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header) and [add_header](https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header). By default, these directives are inherited only if the child context doesn't contain any of them. If a `location` block has one `add_header` directive, it doesn't inherit any `add_header` directives from its `server` block. To keep the inherited `add_header` directives as well, add `add_header_inherit merge;` to the child context.
-
-<span id="sample-configuration-file-with-multiple-contexts"></span>
 
 ### Sample configuration file with multiple contexts
 

@@ -55,7 +55,7 @@ In the final section, you choose between basic Exchange load balancing and an en
 - For readability reasons, some commands appear on multiple lines. If you want to copy and paste them into a terminal window, we recommend that you first copy them into a text editor, where you can substitute the object names that are appropriate for your deployment and remove any extraneous formatting characters that your browser might insert.
 - The snippets in each section show only the directives that the section discusses. To create a configuration file, start from a complete configuration, as described in [Creating and Modifying Configuration Files](#config-files).
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites-and-system-requirements"></span>
 
 ## Before you begin
 

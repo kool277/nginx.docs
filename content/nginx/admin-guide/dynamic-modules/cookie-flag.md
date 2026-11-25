@@ -132,6 +132,8 @@ Set-Cookie: theme=dark; HttpOnly
 
 ---
 
+<span id="more-info"></span>
+
 ## References
 
 For more information, see:

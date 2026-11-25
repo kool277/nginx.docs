@@ -150,8 +150,6 @@ Take the steps in this section to set up NGINX Plus as the OpenID Connect Client
     sudo nginx -s reload
     ```
 
-<span id="test-your-setup"></span>
-
 ## Test your setup
 
 In a browser, enter the address of your NGINX Plus instance and try to log in using the credentials of a user assigned to the application (see [step 7 of _Set up OneLogin_](#onelogin-roles)).

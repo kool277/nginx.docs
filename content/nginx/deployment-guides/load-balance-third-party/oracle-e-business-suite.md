@@ -35,7 +35,7 @@ This deployment guide explains how to use F5 NGINX Plus to load balance traffic 
 
 [Oracle E-Business Suite](https://www.oracle.com/applications/ebusiness/) (EBS) is a comprehensive suite of integrated, global business applications that enable organizations to make better decisions, reduce costs, and increase performance. Its cross-industry capabilities include enterprise resource planning, customer relationship management, and supply chain planning.
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites-and-system-requirements"></span>
 
 ## Before you begin
 

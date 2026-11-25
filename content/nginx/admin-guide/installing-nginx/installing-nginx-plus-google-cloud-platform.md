@@ -29,6 +29,8 @@ The Google Cloud console changes over time. The options that you see can differ 
 
 ---
 
+<span id="install-the-nginx-plus-vm"></span>
+
 ## Deploy the NGINX Plus VM
 
 1. Open the [NGINX Plus page](https://console.cloud.google.com/marketplace/details/nginx-public/nginx-plus) in Google Cloud Marketplace, and select **LAUNCH ON COMPUTE ENGINE**.
@@ -77,6 +79,8 @@ When the project is deployed and the new VM runs, NGINX Plus starts automaticall
 
 ---
 
+<span id="what-if-i-need-help"></span>
+
 ## Get help
 
 For help with the NGINX Plus configuration, see the [nginx.org documentation](https://nginx.org/en/docs/) and the [NGINX Plus Admin Guide]({{< ref "/nginx/admin-guide/installing-nginx/" >}}).
@@ -84,6 +88,8 @@ For help with the NGINX Plus configuration, see the [nginx.org documentation](ht
 If you buy an NGINX Plus VM image on the Google Cloud Platform, the F5 NGINX engineering team supports the VM. To activate support, follow F5 article [K2633](https://my.f5.com/manage/s/article/K2633).
 
 ---
+
+<span id="access-the-opensource-licenses-for-nginx-plus"></span>
 
 ## Read the open source licenses of NGINX Plus
 

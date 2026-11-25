@@ -27,6 +27,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="install-the-f5-nginx-plus-ami"></span>
+
 ## Create an NGINX Plus instance from the AMI
 
 1. Go to the [NGINX Plus seller page](https://aws.amazon.com/marketplace/seller-profile?id=741df81b-dfdc-4d36-b8da-945ea66b522c) in the AWS Marketplace, and open the product page of the AMI for your operating system.
@@ -66,6 +68,8 @@ When the new EC2 instance starts, NGINX Plus starts automatically and serves a d
 **Fix**: Add an inbound rule for TCP port 80 to the security group of the instance. If you use HTTPS, add one for port 443 too.
 
 ---
+
+<span id="what-if-i-need-help"></span>
 
 ## Get help
 

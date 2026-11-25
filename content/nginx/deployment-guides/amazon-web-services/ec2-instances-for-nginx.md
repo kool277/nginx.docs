@@ -110,6 +110,8 @@ To install and set up NGINX on an instance, connect to it over SSH:
 
 After you connect to the instance, install NGINX as described in [Installing NGINX Open Source]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-open-source.md#prebuilt" >}}) or [Installing NGINX Plus]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md" >}}).
 
+<span id="automate-installation-with-a-configuration-manager"></span>
+
 ### Install NGINX with Ansible {#automate-ansible}
 
 F5 publishes an Ansible role for NGINX Open Source and NGINX Plus, `nginxinc.nginx`, on [Ansible Galaxy](https://galaxy.ansible.com/ui/standalone/roles/nginxinc/nginx/). Its source is in the [ansible-role-nginx project](https://github.com/nginx/ansible-role-nginx) on GitHub. These steps run the role on the instance itself.
@@ -184,6 +186,8 @@ Security groups are [stateful](https://docs.aws.amazon.com/vpc/latest/userguide/
     Keep outbound HTTPS (TCP port 443) to the internet in any case. The package manager needs it for updates, and NGINX Plus R33 and later sends its usage reports over it. If the initial usage report doesn't reach F5, NGINX Plus stops processing traffic, as the [R33 release notes]({{< ref "/nginx/releases.md#r33" >}}) describe.
 
 ---
+
+<span id="optional-create-an-nginx-open-source-ami"></span>
 
 ## Create an NGINX Open Source AMI
 

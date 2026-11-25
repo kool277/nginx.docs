@@ -205,6 +205,8 @@ http {
 
 ---
 
+<span id="example"></span>
+
 ## Set the module variables {#vars}
 
 Set these variables with the [`set`](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#set) directive in the metrics location:
@@ -367,6 +369,8 @@ You can leave out these endpoints:
 **Fix**: Add the `load_module` directive, as described in [Load the njs module](#load-the-njs-module).
 
 ---
+
+<span id="upgrade"></span>
 
 ### The configuration uses js_include
 

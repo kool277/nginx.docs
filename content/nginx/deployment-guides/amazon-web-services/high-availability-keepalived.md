@@ -44,7 +44,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="ha-aws_nginx-plus"></span><span id="ha-aws_step1"></span>
+<span id="ha-aws_nginx-plus"></span><span id="ha-aws_step1"></span><span id="step-1--launch-two-nginx-plus-instances"></span>
 
 ## Step 1: Create two NGINX Plus instances with an IAM role
 
@@ -86,7 +86,7 @@ The HA scripts use the AWS API to move the Elastic IP address, so they need cred
 
 ---
 
-<span id="ha-aws_eip"></span>
+<span id="ha-aws_eip"></span><span id="step-2--allocate-an-elastic-ip-address"></span>
 
 ## Step 2: Allocate an Elastic IP address
 
@@ -94,7 +94,7 @@ Allocate an Elastic IP address, and note its allocation ID. This step is needed 
 
 ---
 
-<span id="ha-aws_keepalived-install"></span><span id="ha-aws_step3"></span>
+<span id="ha-aws_keepalived-install"></span><span id="ha-aws_step3"></span><span id="step-3--install-keepalived-wget-and-the-aws-cli"></span>
 
 ## Step 3: Install keepalived, wget, and the AWS CLI
 
@@ -116,7 +116,7 @@ Allocate an Elastic IP address, and note its allocation ID. This step is needed 
 
 ---
 
-<span id="ha-aws_ha-scripts"></span><span id="ha-aws_step4"></span>
+<span id="ha-aws_ha-scripts"></span><span id="ha-aws_step4"></span><span id="step-4--download-the-ha-scripts"></span>
 
 ## Step 4: Download the HA scripts
 
@@ -136,8 +136,6 @@ Allocate an Elastic IP address, and note its allocation ID. This step is needed 
     ```
 
     On RHEL and its derivatives, use `/usr/libexec/keepalived` instead.
-
-<span id="update-the-notify-script"></span>
 
 ### Update the notify script
 
@@ -161,13 +159,13 @@ EIP_INSTANCE=`aws ec2 describe-addresses --allocation-ids $ALLOCATION_ID --query
 
 ---
 
-<span id="ha-aws_keepalived-configure"></span>
+<span id="ha-aws_keepalived-configure"></span><span id="step-5--configure-keepalived-and-the-ha-scripts"></span>
 
 ## Step 5: Configure keepalived and the HA scripts
 
 You set up two files on each instance: `keepalived.conf`, which differs a little between the instances, and the variables in `nginx-ha-notify`.
 
-<span id="ha-aws_keepalived-conf-file"></span>
+<span id="ha-aws_keepalived-conf-file"></span><span id="creating-keepalivedconf"></span>
 
 ### Create keepalived.conf
 
@@ -210,7 +208,7 @@ You set up two files on each instance: `keepalived.conf`, which differs a little
     - `<PASSWORD>`: a password that both instances share.
     - `<PATH/TO/NOTIFY_SCRIPT>`: the path of `nginx-ha-notify`, in the same directory as `nginx-ha-check`.
 
-<span id="ha-aws_nginx-ha-notify-script"></span>
+<span id="ha-aws_nginx-ha-notify-script"></span><span id="creating-nginx-ha-notify"></span>
 
 ### Set the variables in nginx-ha-notify
 
@@ -232,7 +230,7 @@ ALLOCATION_ID=<VALUE>
 
 ---
 
-<span id="ha-aws_testing"></span>
+<span id="ha-aws_testing"></span><span id="testing"></span>
 
 ## Test the failover
 
@@ -262,7 +260,7 @@ ALLOCATION_ID=<VALUE>
 
 ---
 
-<span id="ha-aws_caveats"></span>
+<span id="ha-aws_caveats"></span><span id="caveats"></span>
 
 ## Limitations
 
@@ -302,7 +300,7 @@ Apply the changes in [Update the notify script](#update-the-notify-script). To f
 
 ---
 
-<span id="has-aws_resources"></span>
+<span id="has-aws_resources"></span><span id="resources"></span>
 
 ## References
 

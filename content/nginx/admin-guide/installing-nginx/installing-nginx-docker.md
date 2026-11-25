@@ -19,7 +19,7 @@ You can run [F5 NGINX Plus](https://www.f5.com/products/nginx/nginx-plus) and NG
 
 ---
 
-<span id="prereq"></span>
+<span id="prereq"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -33,7 +33,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="nginx_plus_official_images"></span>
+<span id="nginx_plus_official_images"></span><span id="use-official-nginx-plus-docker-images"></span>
 
 ## Use the official NGINX Plus images
 
@@ -235,7 +235,7 @@ sudo docker run \
 
 ---
 
-<span id="docker_oss"></span>
+<span id="docker_oss"></span><span id="using-nginx-open-source-docker-images"></span>
 
 ## Use the NGINX Open Source image
 
@@ -271,7 +271,7 @@ The official NGINX Open Source image on Docker Hub is built from the [nginx.org 
 ---
 
 <span id="docker_plus_image"></span>
-<span id="docker_plus"></span>
+<span id="docker_plus"></span><span id="creating-custom-nginx-plus-docker-image"></span>
 
 ## Build your own NGINX Plus image
 
@@ -326,7 +326,7 @@ You manage NGINX Plus containers the same way as NGINX Open Source containers.
 
 ---
 
-<span id="manage"></span>
+<span id="manage"></span><span id="managing-content-and-configuration-files"></span>
 
 ## Manage content and configuration files
 
@@ -336,7 +336,7 @@ You can manage the content and the configuration files of NGINX in three ways:
 - [Copy the files into the image](#manage_copy).
 - [Change the files in a running container](#manage_container).
 
-<span id="manage_host"></span>
+<span id="manage_host"></span><span id="maintaining-content-and-configuration-files-on-the-docker-host"></span>
 
 ### Keep the files on the Docker host
 
@@ -352,7 +352,7 @@ docker run --name mynginx2 \
 
 Changes to the files in `/var/www` and `/var/nginx/conf.d` on the host appear in `/usr/share/nginx/html` and `/etc/nginx/conf.d` in the container. With `readonly`, the container can't change these files. After you change a configuration file, [reload NGINX](#control).
 
-<span id="manage_copy"></span>
+<span id="manage_copy"></span><span id="copy-content-and-configuration-files-from-the-docker-host"></span>
 
 ### Copy the files into the image
 
@@ -379,7 +379,7 @@ COPY conf /etc/nginx
 
 To change the files, build a new image and start a new container from it, or [change the files in the running container](#manage_container).
 
-<span id="manage_container"></span>
+<span id="manage_container"></span><span id="maintain-content-and-configuration-files-in-the-container"></span>
 
 ### Change files in a running container
 
@@ -415,7 +415,7 @@ docker run -it --volumes-from mynginx4 --name mynginx4_files debian /bin/bash
 
 ## Manage logging
 
-<span id="log_default"></span>
+<span id="log_default"></span><span id="use-default-logging"></span>
 
 ### Use the default logging
 
@@ -439,7 +439,7 @@ curl --unix-socket /var/run/docker.sock --output - "http://localhost/containers/
 
 Quote the URL, because the shell treats `&` as a special character. Without `--output -`, curl doesn't print the logs to a terminal, because they contain binary data. For a container without a terminal, the API puts a binary header of 8 bytes before each log message. For only the access log, use only `stdout=1`. For only the error log, use only `stderr=1`. For other options, see [Get container logs](https://docs.docker.com/reference/api/engine/version/v1.45/#tag/Container/operation/ContainerLogs) in the [Docker Engine API](https://docs.docker.com/reference/api/engine/version/v1.45/) documentation.
 
-<span id="log_custom"></span>
+<span id="log_custom"></span><span id="use-customized-logging"></span>
 
 ### Use custom logging
 

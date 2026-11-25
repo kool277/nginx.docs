@@ -39,6 +39,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="stable-and-mainline-versions"></span><span id="mainline-version"></span><span id="stable-version"></span><span id="distribution-and-installation-methods"></span>
+
 ## Choose a version and a method
 
 NGINX Open Source has two release branches:
@@ -63,9 +65,13 @@ Pick an installation method:
 
 ---
 
+<span id="official-repository"></span>
+
 ## Install from the nginx.org repository {#prebuilt}
 
 You set up the nginx.org repository once. After that, your package manager installs NGINX and its updates. Follow the steps for your operating system, and then [start NGINX](#start).
+
+<span id="rhel-based-packages"></span>
 
 ### RHEL and derivatives {#rhel}
 
@@ -118,6 +124,8 @@ These steps apply to Red Hat Enterprise Linux and its derivatives, such as AlmaL
     - `8540 A6F1 8833 A80E 9C16 53A4 2FD2 1310 B49F 6B46` (`signing-key-2@nginx.com`)
     - `573B FD6B 3D8F BC64 1079 A6AB ABF5 BD82 7BD9 BF62` (`signing-key@nginx.com`)
     - `9E9B E90E ACBC DE69 FE9B 204C BCDC D8A3 8D88 A2B3` (`signing-key-3@nginx.com`)
+
+<span id="debian-packages"></span>
 
 ### Debian {#debian}
 
@@ -191,6 +199,8 @@ These steps apply to Red Hat Enterprise Linux and its derivatives, such as AlmaL
 
     The package starts NGINX and sets it to start when the system starts.
 
+<span id="ubuntu-packages"></span>
+
 ### Ubuntu {#ubuntu}
 
 1. Install the prerequisites:
@@ -247,6 +257,8 @@ These steps apply to Red Hat Enterprise Linux and its derivatives, such as AlmaL
 
     The package starts NGINX and sets it to start when the system starts.
 
+<span id="suse-linux-enterprise-packages"></span>
+
 ### SLES {#sles}
 
 1. Install the prerequisites:
@@ -294,6 +306,8 @@ These steps apply to Red Hat Enterprise Linux and its derivatives, such as AlmaL
     ```shell
     sudo zypper install nginx
     ```
+
+<span id="alpine-linux-packages"></span>
 
 ### Alpine Linux {#alpine}
 
@@ -377,6 +391,8 @@ These steps apply to Red Hat Enterprise Linux and its derivatives, such as AlmaL
     sudo apk add nginx@nginx
     ```
 
+<span id="amazon-linux-2-packages"></span><span id="amazon-linux-2023-packages"></span>
+
 ### Amazon Linux 2023 {#amazon-linux}
 
 1. Install the prerequisites:
@@ -454,6 +470,8 @@ How you start NGINX depends on your operating system:
 To check that NGINX runs, [verify the installation](#verify).
 
 ---
+
+<span id="repository-contents"></span><span id="package-contents"></span><span id="statically-linked-modules"></span>
 
 ## Install dynamic module packages {#dynamic-modules}
 
@@ -584,9 +602,13 @@ To find where your package keeps the configuration and the logs, run the `nginx 
 
 ---
 
+<span id="compile-and-install-from-source"></span>
+
 ## Compile and install from source {#sources}
 
 Build NGINX from source when you need build options or third-party modules that packages don't offer, or library versions that your OS doesn't ship. You build and install every new version yourself.
+
+<span id="install-nginx-dependencies"></span>
 
 ### Install the build tools and libraries {#dependencies}
 
@@ -720,6 +742,8 @@ The tables below describe the most common options. For all of them, see [Buildin
 
 {{< /table >}}
 
+<span id="gcc-options"></span>
+
 #### Compiler options
 
 {{< table >}}
@@ -743,6 +767,8 @@ NGINX picks the most efficient [connection processing method](https://nginx.org/
 | `--with-poll_module`, `--without-poll_module` | Builds, or doesn't build, the module for the `poll()` method. `configure` builds it automatically if the platform has no better method. |
 
 {{< /table >}}
+
+<span id="core-modules"></span><span id="select-the-nginx-modules-to-build"></span>
 
 #### Modules built by default {#modules-built-by-default}
 
@@ -786,6 +812,8 @@ NGINX picks the most efficient [connection processing method](https://nginx.org/
 | [`http_uwsgi_module`](https://nginx.org/en/docs/http/ngx_http_uwsgi_module.html) | Passes requests to a uwsgi server. |
 
 {{< /table >}}
+
+<span id="include-modules-not-built-by-default"></span>
 
 #### Modules not built by default {#modules-not-built-by-default}
 
@@ -834,6 +862,8 @@ To build these modules, add their options to `configure`. Options marked with `=
 
 {{< /table >}}
 
+<span id="include-third-party-modules"></span><span id="statically-linked-modules-1"></span><span id="dynamically-linked-modules"></span>
+
 #### Third-party modules {#third-party}
 
 To build a third-party module, point `configure` to the directory of its source code. The stability of third-party modules isn't guaranteed, so use them at your own risk.
@@ -851,6 +881,8 @@ To build a third-party module, point `configure` to the directory of its source 
     ```
 
 To build a dynamic module for an NGINX binary from a package, use the source code of exactly the same NGINX version, and add `--with-compat`.
+
+<span id="complete-the-installation-from-source"></span>
 
 ### Build and install NGINX {#install}
 

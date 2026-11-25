@@ -23,7 +23,7 @@ The demo page of each web server shows its name, its address, and other informat
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -36,7 +36,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="nginx-oss"></span>
+<span id="nginx-oss"></span><span id="configuring-nginx-open-source-for-web-serving"></span>
 
 ## Set up the NGINX Open Source web servers
 
@@ -213,7 +213,7 @@ Repeat these steps on each web server.
 
 ---
 
-<span id="nginx-plus"></span>
+<span id="nginx-plus"></span><span id="configuring-nginx-plus-for-load-balancing"></span>
 
 ## Set up the NGINX Plus load balancer
 

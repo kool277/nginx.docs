@@ -33,6 +33,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="installation"></span>
+
 ## Install the module package
 
 Install the `nginx-plus-module-fips-check` package from the NGINX Plus repository:
@@ -69,6 +71,8 @@ Install the `nginx-plus-module-fips-check` package from the NGINX Plus repositor
     ```
 
 ---
+
+<span id="configuration"></span>
 
 ## Load the module
 
@@ -166,6 +170,8 @@ The module has no directives. After you load it, it reports the FIPS mode of Ope
 **Fix**: Upgrade the module package to the version of NGINX Plus, as described in [Upgrade NGINX Plus modules]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md#upgrade_modules" >}}).
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

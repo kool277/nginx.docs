@@ -30,6 +30,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="installation"></span>
+
 ## Install the module package
 
 Install the `nginx-plus-module-passenger` package from the NGINX Plus repository:
@@ -66,6 +68,8 @@ Install the `nginx-plus-module-passenger` package from the NGINX Plus repository
     ```
 
 ---
+
+<span id="configuration"></span>
 
 ## Load the module
 
@@ -159,6 +163,8 @@ Set up the module as described in the [Passenger documentation](https://www.phus
 **Fix**: Upgrade the module package to the version of NGINX Plus, as described in [Upgrade NGINX Plus modules]({{< ref "/nginx/admin-guide/installing-nginx/upgrading-nginx-plus.md#upgrade_modules" >}}).
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

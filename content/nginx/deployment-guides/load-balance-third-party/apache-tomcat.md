@@ -43,7 +43,7 @@ Apache Tomcat is an open source software implementation of the Java Servlet, Jav
 
 Apache Tomcat 8.0 was used to prepare the documentation for this guide.
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites-and-system-requirements"></span>
 
 ## Before you begin
 

@@ -64,6 +64,8 @@ Commercial third parties sell NGINX Certified Partner modules. Their authors dis
 
 ---
 
+<span id="prerequisites"></span><span id="caveats"></span>
+
 ## Before you begin
 
 Before you begin, make sure you have:
@@ -72,6 +74,8 @@ Before you begin, make sure you have:
 - **A supported operating system**: Some modules aren't available on every operating system because of platform limits. For details, see [Dynamic modules]({{< ref "/nginx/technical-specs.md#dynamic-modules" >}}) in the technical specifications.
 
 ---
+
+<span id="getting-started-with-the-dynamic-modules-repository"></span><span id="displaying-the-list-of-available-modules"></span>
 
 ## List the available modules
 
@@ -110,6 +114,8 @@ nginx-plus-module-xslt - NGINX Plus xslt dynamic module
 The output also lists a package with debugging symbols for each module, for example `nginx-plus-module-njs-dbg`. Install these packages only for troubleshooting, in debugging or development environments. For more information, see [Debugging NGINX]({{< ref "/nginx/admin-guide/monitoring/debugging.md" >}}).
 
 ---
+
+<span id="installing-and-loading-the-module"></span>
 
 ## Install and load a module
 
@@ -153,6 +159,8 @@ This example installs and loads the [njs dynamic modules]({{< ref "/nginx/admin-
 
 ---
 
+<span id="compiling-your-own-dynamic-modules"></span>
+
 ## Compile your own dynamic modules
 
 To use a module that isn't in the NGINX Plus repository, compile it yourself. Use the NGINX Open Source version that your NGINX Plus release is based on. For the steps, see [Compile a community dynamic module]({{< ref "/nginx/admin-guide/installing-nginx/installing-nginx-plus.md#install_modules_oss" >}}).
@@ -181,11 +189,15 @@ To use a module that isn't in the NGINX Plus repository, compile it yourself. Us
 
 ---
 
+<span id="uninstalling-a-dynamic-module"></span>
+
 ## Uninstall a dynamic module
 
 To remove a module, see [Uninstall a dynamic module]({{< ref "/nginx/admin-guide/dynamic-modules/uninstall.md" >}}).
 
 ---
+
+<span id="see-also"></span>
 
 ## References
 

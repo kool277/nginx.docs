@@ -27,6 +27,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="install-the-nginx-plus-vm"></span>
+
 ## Create the NGINX Plus virtual machines
 
 1. Create an Azure availability set. If Azure maintenance, planned or not, affects one virtual machine in the set, at least one other stays available. For more information, see [Availability options for Azure Virtual Machines](https://learn.microsoft.com/en-us/azure/virtual-machines/availability).
@@ -64,6 +66,8 @@ When a new virtual machine starts, NGINX Plus starts automatically and serves a 
 **Fix**: Add an inbound rule for port 80, and for port 443 if you use HTTPS, to the network security group of the virtual machine.
 
 ---
+
+<span id="what-if-i-need-help"></span>
 
 ## Get help
 

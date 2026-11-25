@@ -14,6 +14,8 @@ f5-summary: >
 f5-audience: operator
 ---
 
+<span id="introduction"></span>
+
 ## Overview
 
 When NGINX Open Source or F5 NGINX Plus crashes or behaves unexpectedly, the error log at its usual levels often doesn't say enough. NGINX has these debugging tools:
@@ -30,6 +32,8 @@ When NGINX Open Source or F5 NGINX Plus crashes or behaves unexpectedly, the err
 - Debug logging writes a lot of data. On a busy server, prefer the [memory buffer](#error_log_memory) or [selected client addresses](#error_log_ip) over a log file at the `debug` level for all traffic.
 - Core files and debug logs can contain sensitive data, such as passwords, cookies, and private keys. Store them securely, and remove them when you're done.
 
+<span id="configuring-nginx-binary-for-debugging"></span>
+
 ## Get an NGINX binary with debug support {#enable}
 
 The debugging log works only in an NGINX binary built with debug support. A binary without it has no code for debug messages. It accepts the `debug` level of `error_log`, but writes no `[debug]` lines.
@@ -42,6 +46,8 @@ nginx -V 2>&1 | grep -o -- '--with-debug'
 
 If the output is `--with-debug`, the binary has debug support. If it's empty, switch to the debug binary (NGINX Plus) or rebuild NGINX (NGINX Open Source).
 
+<span id="configuring-f5-nginx-plus-binary"></span>
+
 ### Switch to the NGINX Plus debug binary
 
 Starting from [Release 8]({{< ref "/nginx/releases.md#r8" >}}), NGINX Plus ships the `nginx-debug` binary together with the standard binary. To use it, stop NGINX Plus and start the debug binary:
@@ -53,6 +59,8 @@ sudo service nginx stop && sudo service nginx-debug start
 Then [enable the debugging log](#error_log) in the configuration.
 
 While the debug binary runs, use `nginx-debug` instead of `nginx` in the commands on this page. For example, run `sudo nginx-debug -t`, `sudo nginx-debug -s reload`, and `nginx-debug -V`. The standard binary has no debug support, so `nginx -t` fails for a configuration with `error_log memory:`.
+
+<span id="compiling-nginx-opensource-binary"></span>
 
 ### Build NGINX Open Source with debug support {#enable_oss}
 
@@ -83,6 +91,8 @@ To add debug support to NGINX Open Source, rebuild it with the `--with-debug` op
 
 5. Restart NGINX.
 
+<span id="nginx-and-debugging-symbols"></span>
+
 ### Debugging symbols {#compile_symbols}
 
 Debugging symbols map machine code back to functions, variables, source files, and line numbers. A debugger needs them to show a readable [backtrace](#backtrace).
@@ -97,11 +107,15 @@ NGINX is built with the `-O` optimization level by default. Optimization can mak
 ./configure --with-debug --with-cc-opt='-O0 -g' <OTHER_CONFIGURE_ARGUMENTS>
 ```
 
+<span id="enabling-debug-logging-in-nginx-configuration"></span>
+
 ## Enable the debugging log {#error_log}
 
 To turn on the debugging log, set the `debug` level in the [`error_log`](https://nginx.org/en/docs/ngx_core_module.html#error_log) directive. You can write the debugging log to a file, to a memory buffer, to `stderr`, or to syslog.
 
 Set the debugging log in the `main` context, outside any block. An `error_log` directive in the `http`, `server`, or `location` context replaces the one it inherits. A debug log set there misses the messages of the other contexts.
+
+<span id="writing-the-debugging-log-to-a-file"></span>
 
 ### Write the debugging log to a file {#error_log_file}
 
@@ -126,6 +140,8 @@ A debugging log in a file can slow NGINX down under high load, and the file can 
     ```shell
     sudo nginx -t && sudo nginx -s reload
     ```
+
+<span id="writing-the-debugging-log-to-memory"></span>
 
 ### Write the debugging log to memory {#error_log_memory}
 
@@ -152,6 +168,8 @@ To write the debugging log to memory:
     ```shell
     sudo nginx -t && sudo nginx -s reload
     ```
+
+<span id="extracting-debug-log-from-memory"></span>
 
 #### Extract the debugging log from memory
 
@@ -192,6 +210,8 @@ Read the buffer with a GDB script. The script needs an NGINX binary with [debugg
     less debug_log.txt
     ```
 
+<span id="debug-log-for-selected-ips"></span>
+
 ### Write the debugging log for selected clients {#error_log_ip}
 
 To write the debugging log only for connections from some clients, list their addresses with the [`debug_connection`](https://nginx.org/en/docs/ngx_core_module.html#debug_connection) directive in the [`events`](https://nginx.org/en/docs/ngx_core_module.html#events) block. NGINX logs connections from these addresses at the `debug` level, and other connections at the level that `error_log` sets. This works well on a production server, because only a few connections write debug messages.
@@ -208,6 +228,8 @@ events {
 ```
 
 Without debug support in the binary, NGINX ignores `debug_connection` and logs a warning: `"debug_connection" is ignored, you need to rebuild nginx using --with-debug option to enable it`.
+
+<span id="debug-log-for-each-virtual-host"></span>
 
 ### Set the debugging log for one virtual server {#error_log_server}
 
@@ -243,11 +265,15 @@ http {
 }
 ```
 
+<span id="enabling-core-dumps"></span>
+
 ## Enable core dumps {#coredump}
 
 A core file shows where an NGINX process crashed. To get one, the operating system must allow core dumps. NGINX also needs a directory to write them to, and a large enough size limit.
 
 Core files can be as large as the memory of the process. Make sure the file system has enough free space.
+
+<span id="enabling-core-dumps-in-the-operating-system"></span>
 
 ### Prepare the operating system {#coredump_os}
 
@@ -281,6 +307,8 @@ sudo sysctl kern.sugid_coredump=1
 sudo sysctl kern.corefile=/tmp/cores/%N.core.%P
 ```
 
+<span id="enabling-core-dumps-in-nginx-configuration"></span>
+
 ### Configure NGINX {#coredump_nginx}
 
 1. Open the NGINX configuration file, usually `/etc/nginx/nginx.conf`:
@@ -313,6 +341,8 @@ sudo sysctl kern.corefile=/tmp/cores/%N.core.%P
 
 The settings apply to worker processes, which handle the requests. They don't change the core file limit or the directory of the master process.
 
+<span id="obtaining-backtrace-from-a-core-dump-file"></span>
+
 ## Get a backtrace from a core file {#backtrace}
 
 A backtrace lists the function calls that led to the crash.
@@ -336,6 +366,8 @@ A backtrace lists the function calls that led to the crash.
 3. Quit GDB with **Ctrl+D**.
 
 If GDB reports "No symbol table info available", the binary has no debugging symbols. See [Debugging symbols](#compile_symbols).
+
+<span id="dumping-nginx-configuration-from-a-running-process"></span>
 
 ## See the configuration that NGINX loaded {#configdump}
 
@@ -492,6 +524,8 @@ Requests from `192.0.2.10` write `[debug]` lines to `/var/log/nginx/error.log`. 
 **Cause:** The binary has no debugging symbols.
 
 **Fix:** See [Debugging symbols](#compile_symbols).
+
+<span id="asking-for-help"></span>
 
 ## Ask for help
 

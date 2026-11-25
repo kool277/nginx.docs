@@ -15,7 +15,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="live-activity-monitoring"></span>
+<span id="live-activity-monitoring"></span><span id="about-live-activity-monitoring"></span>
 
 ## Overview {#overview}
 
@@ -25,6 +25,8 @@ F5 NGINX Plus has two tools for real-time monitoring:
 - **The NGINX Plus REST API.** It returns the same statistics in JSON, so that you can feed them to other monitoring tools or your own dashboard. It can also reset statistics and change upstream servers and key-value stores without a reload. The dashboard gets its data from the API.
 
 [![The NGINX Plus dashboard overview, with requests, connections, server zones, upstreams, and caches](/nginx/images/nginx-plus-dashboard-r35-overview.png)](https://demo.nginx.com/dashboard.html "Live status metrics from NGINX Plus")
+
+<span id="prerequisites"></span>
 
 ## Before you begin {#prereq}
 
@@ -179,13 +181,15 @@ location = /dashboard.html {
 
 ## Use the dashboard {#dashboard}
 
-<span id="using-the-dashboard"></span>
+<span id="using-the-dashboard"></span><span id="accessing-the-dashboard"></span>
 
 ### Open the dashboard {#dashboard_access}
 
 In a browser, open the address of the dashboard, in this example `http://192.168.1.23/dashboard.html`.
 
 A live demo is available at [demo.nginx.com/dashboard.html](https://demo.nginx.com/dashboard.html).
+
+<span id="tabs-overview"></span>
 
 ### Dashboard tabs {#dashboard_tabs}
 
@@ -225,6 +229,8 @@ The dashboard shows its information in tabs.
 
     ![The Workers tab of the NGINX Plus dashboard, with the worker processes and their connections](/nginx/images/dashboard-tab-workers.png)
 
+<span id="managing-upstream-servers-from-the-dashboard"></span>
+
 ### Manage upstream servers in the dashboard {#dashboard_upstream}
 
 You can add, change, and remove upstream servers in the dashboard. This needs the API in [read-write mode](#json_configure).
@@ -243,6 +249,8 @@ You can add, change, and remove upstream servers in the dashboard. This needs th
 
 4. Select **Save**.
 
+<span id="configuring-dashboard-options"></span>
+
 ### Dashboard options {#dashboard_options}
 
 To set the update interval and the thresholds for warnings and alerts, select the gear icon in the tab menu:
@@ -260,6 +268,8 @@ To set the update interval and the thresholds for warnings and alerts, select th
 <span id="using-the-rest-api"></span>
 
 The API uses standard HTTP methods: `GET` returns statistics, `DELETE` resets statistics and removes upstream servers, `POST` and `PATCH` add and change upstream servers, and `PUT` adds a license token in API version 10. Request and response bodies are JSON. See [Dynamic Configuration of Upstreams with the NGINX Plus API]({{< ref "nginx/admin-guide/load-balancer/dynamic-configuration-api.md" >}}) for upstream management.
+
+<span id="getting-statistics-with-the-api"></span>
 
 ### Get statistics {#json_get}
 
@@ -331,6 +341,8 @@ curl -s 'https://demo.nginx.com/api/10/nginx?fields=version,build' | json_pp
 
 For all endpoints and methods, see the [API module reference](https://nginx.org/en/docs/http/ngx_http_api_module.html), also available in [Redoc format]({{< ref "nginx/admin-guide/monitoring/nginx-plus-api-reference.md" >}}).
 
+<span id="resetting-the-statistics"></span>
+
 ### Reset statistics {#json_delete}
 
 To reset statistics, send a `DELETE` request to the endpoint. The API must be in [read-write mode](#json_configure). If you protect write methods with basic authentication, as in [Configure the API](#json_configure), add your credentials with the `-u` option of `curl`. Replace `<USER>` and `<PASSWORD>` with a user name and password from the password file.
@@ -357,6 +369,8 @@ To reset the counts of accepted and dropped client connections:
 ```shell
 curl -X DELETE -i -u '<USER>:<PASSWORD>' 'http://192.168.1.23/api/10/connections'
 ```
+
+<span id="managing-upstream-servers-with-the-api"></span>
 
 ### Manage upstream servers with the API {#api_use}
 
@@ -435,6 +449,8 @@ This table matches each OpenAPI YAML file and API version to the [NGINX Plus rel
 
 {{</table >}}
 
+<span id="enabling-the-swagger-ui"></span>
+
 ### Set up Swagger UI {#swagger_enable}
 
 <span id="the-swagger-ui"></span>
@@ -480,6 +496,8 @@ This table matches each OpenAPI YAML file and API version to the [NGINX Plus rel
     sudo nginx -t && sudo nginx -s reload
     ```
 
+<span id="disabling-the-swagger-ui"></span>
+
 ### Block access to Swagger UI {#swagger_disable}
 
 If you've set up Swagger UI, you might want to block access to it later, for [security reasons](https://support.f5.com/csp/article/K73710094). One way is to [return](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#return) the `404` status code for the `/swagger-ui` location:
@@ -489,6 +507,8 @@ location /swagger-ui {
     return 404;
 }
 ```
+
+<span id="using-the-swagger-ui"></span>
 
 ### Use Swagger UI {#swagger_access}
 
@@ -502,6 +522,8 @@ location /swagger-ui {
 5. Fill in the required fields. Usually, it's the name of a shared memory zone.
 6. Optional: to return only some fields, list them separated by commas in the **Fields** box. If it's empty, all fields are returned.
 7. Select **Execute**. The response and its HTTP status code appear under **Execute**.
+
+<span id="api-and-swagger-ui-live-examples"></span>
 
 ### Live examples of the API and Swagger UI {#json_example}
 

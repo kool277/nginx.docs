@@ -13,7 +13,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="about-nginx"></span>
+<span id="about-nginx"></span><span id="about-nginx-open-source-and-nginx-plus"></span>
 
 ## Overview
 
@@ -25,7 +25,7 @@ NGINX Plus and Citrix ADC are both full reverse proxies and load balancers. The 
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -39,7 +39,7 @@ All IP addresses and object names in this guide are examples. Replace them with 
 
 ---
 
-<span id="networking"></span>
+<span id="networking"></span><span id="mapping-citrix-adc-networking-concepts-to-nginx-plus"></span>
 
 ## Map the Citrix ADC networking concepts
 
@@ -57,13 +57,13 @@ Citrix ADC defines three types of IP addresses:
 
 ---
 
-<span id="convert-configuration"></span>
+<span id="convert-configuration"></span><span id="converting-citrix-adc-load-balancer-configuration-to-nginx-plus"></span>
 
 ## Convert the load balancer configuration
 
 Citrix ADC stores its configuration as CLI commands, even for changes that you make in the GUI. So this guide shows CLI commands. NGINX Plus keeps its configuration in text files with directives.
 
-<span id="virtual-servers"></span>
+<span id="virtual-servers"></span><span id="citrix-adc"></span><span id="nginx-plus"></span>
 
 ### Virtual servers
 
@@ -91,7 +91,7 @@ server {
 
 The `listen` address must exist on the NGINX Plus host. Otherwise, `nginx -t` fails with `bind() to 10.0.0.99:80 failed (99: Cannot assign requested address)`.
 
-<span id="ssl"></span>
+<span id="ssl"></span><span id="citrix-adc-1"></span><span id="nginx-plus-1"></span>
 
 ### SSL/TLS termination
 
@@ -118,7 +118,7 @@ server {
 
 Relative file names start in the configuration directory, for example `/etc/nginx`.
 
-<span id="service-group"></span>
+<span id="service-group"></span><span id="citrix-adc-2"></span><span id="nginx-plus-2"></span>
 
 ### Service group entities
 
@@ -155,6 +155,8 @@ upstream myapp {
 
 Stateful applications need session persistence, and it also helps with continuous delivery. Citrix ADC sets session persistence on the virtual server. NGINX Plus sets it on the group of back-end servers, the `upstream` block, with the [`sticky`](https://nginx.org/en/docs/http/ngx_http_upstream_module.html#sticky) directive. That directive is also in NGINX Open Source since version 1.29.6.
 
+<span id="citrix-adc---cookie-based"></span><span id="nginx-plus---cookie-based"></span>
+
 #### Cookie persistence
 
 The `sticky cookie` method works like the cookie insert method of Citrix ADC. The load balancer adds a cookie that names the server, and the client sends it back with later requests. It's simple to set up, and if that server fails, the load balancer chooses another one.
@@ -175,6 +177,8 @@ upstream myapp {
     sticky cookie mysession expires=1h;
 }
 ```
+
+<span id="citrix-adc---jsessionid-based"></span><span id="nginx-plus---jsessionid-based"></span>
 
 #### JSESSIONID persistence
 
@@ -201,11 +205,13 @@ upstream myapp {
 
 A third method, `sticky route`, is comparable to the [custom server ID persistence](https://docs.netscaler.com/us/en/citrix-adc/current-release/load-balancing/load-balancing-persistence/custom-server-id-persistence.html) of Citrix ADC.
 
-<span id="health-checks"></span>
+<span id="health-checks"></span><span id="monitors-health-checks"></span>
 
 ### Monitors and health checks
 
 Citrix ADC calls them monitors, and NGINX Plus calls them [health checks]({{< ref "/nginx/admin-guide/load-balancer/http-health-check.md" >}}). You attach a Citrix ADC monitor to a service or service group. An NGINX Plus health check goes in the `location` that proxies to the group. Active health checks are an NGINX Plus feature.
+
+<span id="citrix-adc---default-health-check"></span><span id="nginx-plus---default-health-check"></span>
 
 #### Default health check
 
@@ -226,6 +232,8 @@ location / {
     health_check;
 }
 ```
+
+<span id="citrix-adc---custom-health-check"></span><span id="nginx-plus---custom-health-check"></span>
 
 #### Custom health check
 
@@ -255,7 +263,7 @@ server {
 }
 ```
 
-<span id="configuration-summary"></span>
+<span id="configuration-summary"></span><span id="summary-of-converted-load-balancer-configuration"></span><span id="citrix-adc-3"></span><span id="nginx-plus-3"></span>
 
 ### Review the complete configuration
 
@@ -307,7 +315,7 @@ server {
 
 ---
 
-<span id="ha"></span>
+<span id="ha"></span><span id="configuring-high-availability"></span>
 
 ## Set up high availability
 
@@ -322,7 +330,7 @@ For [on-premises deployments]({{< ref "/nginx/admin-guide/high-availability/ha-k
 
 ---
 
-<span id="logging"></span>
+<span id="logging"></span><span id="logging-in-citrix-adc-and-nginx-plus"></span>
 
 ## Logging and monitoring
 

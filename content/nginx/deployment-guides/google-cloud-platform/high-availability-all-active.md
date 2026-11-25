@@ -13,7 +13,7 @@ f5-summary: >
 f5-audience: operator
 ---
 
-<span id="design"></span>
+<span id="design"></span><span id="design-and-topology"></span>
 
 ## Overview
 
@@ -36,7 +36,7 @@ The Google Cloud console changes over time, so the names and places of its optio
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -49,7 +49,7 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="project-firewall"></span>
+<span id="project-firewall"></span><span id="task-1-creating-a-project-and-firewall-rules"></span><span id="creating-firewall-rules"></span>
 
 ## Task 1: Create a project and firewall rules
 
@@ -79,13 +79,13 @@ Before you begin, make sure you have:
 
 ---
 
-<span id="source"></span><span id="source-vm"></span>
+<span id="source"></span><span id="source-vm"></span><span id="task-2-creating-source-instances"></span><span id="creating-source-instances-from-vm-images"></span>
 
 ## Task 2: Create source instances
 
 Create three source instances: one NGINX Plus load balancer and two NGINX Plus PHP application servers. Later tasks turn them into images and templates for the instance groups.
 
-<span id="source-vm-app-1"></span>
+<span id="source-vm-app-1"></span><span id="creating-the-first-application-instance-from-a-vm-image"></span>
 
 ### Create the first application instance
 
@@ -122,7 +122,7 @@ Create three source instances: one NGINX Plus load balancer and two NGINX Plus P
 
     <img src="/nginx/images/gce-ubuntu-instance-summary.png" alt="The VM instances page with the new instance" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-<span id="source-vm-app-2"></span><span id="source-vm-lb"></span>
+<span id="source-vm-app-2"></span><span id="source-vm-lb"></span><span id="creating-the-second-application-instance-from-a-vm-image"></span><span id="creating-the-load-balancing-instance-from-a-vm-image"></span>
 
 ### Create the second application instance and the load balancing instance
 
@@ -131,7 +131,7 @@ Repeat [Create the first application instance](#source-vm-app-1) twice, with the
 - Second application instance: name `nginx-plus-app-2`, description `NGINX Plus app-2 Image`
 - Load balancing instance: name `nginx-plus-lb`, description `NGINX Plus Load Balancing Image`
 
-<span id="source-vm-php"></span>
+<span id="source-vm-php"></span><span id="configuring-php-and-fastcgi-on-the-vm-based-instances"></span>
 
 ### Set up PHP-FPM on the application instances
 
@@ -163,7 +163,7 @@ Do these steps on `nginx-plus-app-1` and `nginx-plus-app-2`.
     sudo systemctl restart php8.3-fpm
     ```
 
-<span id="source-vm-nginx-plus"></span>
+<span id="source-vm-nginx-plus"></span><span id="installing-and-configuring-nginx-plus-on-the-vm-based-instances"></span>
 
 ### Install and set up NGINX Plus on the source instances
 
@@ -252,7 +252,7 @@ The configuration and content files of this deployment are in the [NGINX-Demos r
 
     The dashboard is at `http://<EXTERNAL_IP>:8080/dashboard.html`.
 
-<span id="source-prebuilt"></span><span id="source-prebuilt-app-1"></span><span id="source-prebuilt-app-2"></span><span id="source-prebuilt-lb"></span><span id="source-prebuilt-php"></span><span id="source-prebuilt-nginx-plus"></span>
+<span id="source-prebuilt"></span><span id="source-prebuilt-app-1"></span><span id="source-prebuilt-app-2"></span><span id="source-prebuilt-lb"></span><span id="source-prebuilt-php"></span><span id="source-prebuilt-nginx-plus"></span><span id="creating-source-instances-from-prebuilt-nginxplus-images"></span><span id="creating-the-first-application-instance-from-a-prebuilt-image"></span><span id="creating-the-second-application-instance-from-a-prebuilt-image"></span><span id="creating-the-load-balancing-instance-from-a-prebuilt-image"></span><span id="configuring-php-and-fastcgi-on-the-prebuilt-based-instances"></span><span id="configuring-nginx-plus-on-the-prebuilt-based-instances"></span>
 
 ### Use the NGINX Plus image from Google Cloud Marketplace instead
 
@@ -262,7 +262,7 @@ Instead of installing NGINX Plus, you can create the three source instances from
 
 ---
 
-<span id="gold"></span>
+<span id="gold"></span><span id="task-3-creating-gold-images"></span>
 
 ## Task 3: Create gold images
 
@@ -292,13 +292,13 @@ Gold images are the base images that Google Cloud copies when it creates instanc
 
 ---
 
-<span id="templates"></span>
+<span id="templates"></span><span id="task-4-creating-instance-templates"></span>
 
 ## Task 4: Create instance templates
 
 The instance groups create their instances from instance templates.
 
-<span id="templates-app-1"></span>
+<span id="templates-app-1"></span><span id="creating-the-first-application-instance-template"></span>
 
 ### Create the first application instance template
 
@@ -330,7 +330,7 @@ The instance groups create their instances from instance templates.
 
 1. Select **Create**.
 
-<span id="templates-app-2"></span><span id="templates-lb"></span>
+<span id="templates-app-2"></span><span id="templates-lb"></span><span id="creating-the-second-application-instance-template"></span><span id="creating-the-load-balancing-instance-template"></span>
 
 ### Create the second application template and the load balancing template
 
@@ -341,7 +341,7 @@ Repeat [Create the first application instance template](#templates-app-1) twice,
 
 ---
 
-<span id="health-checks"></span>
+<span id="health-checks"></span><span id="task-5-creating-image-health-checks"></span>
 
 ## Task 5: Create a health check
 
@@ -365,11 +365,11 @@ The instance groups use this HTTP health check to find instances that don't work
 
 ---
 
-<span id="groups"></span>
+<span id="groups"></span><span id="task-6-creating-instance-groups"></span>
 
 ## Task 6: Create instance groups
 
-<span id="groups-app-1"></span>
+<span id="groups-app-1"></span><span id="creating-the-first-application-instance-group"></span>
 
 ### Create the first application instance group
 
@@ -386,7 +386,7 @@ The instance groups use this HTTP health check to find instances that don't work
 
     <img src="/nginx/images/gce-create-instance-group.png" alt="The page for creating an instance group" style="border:2px solid #666666; padding:2px; margin:2px;" />
 
-<span id="groups-app-2"></span><span id="groups-lb"></span>
+<span id="groups-app-2"></span><span id="groups-lb"></span><span id="creating-the-second-application-instance-group"></span><span id="creating-the-load-balancing-instance-group"></span>
 
 ### Create the second application group and the load balancing group
 
@@ -395,7 +395,7 @@ Repeat [Create the first application instance group](#groups-app-1) twice, with 
 - `nginx-plus-app-2-instance-group`, with the template `nginx-plus-app-2-instance-template` and the description `Instance group to host NGINX Plus app-2 instances`
 - `nginx-plus-lb-instance-group`, with the template `nginx-plus-lb-instance-template` and the description `Instance group to host NGINX Plus load balancing instances`
 
-<span id="update-test"></span>
+<span id="update-test"></span><span id="updating-and-testing-the-nginxplus-configuration"></span>
 
 ### Update and test the NGINX Plus configuration
 
@@ -436,7 +436,7 @@ The load balancing instances must list the four application instances. Do these 
 
 ---
 
-<span id="static-ip"></span>
+<span id="static-ip"></span><span id="task-7-configuring-gce-network-load-balancer"></span>
 
 ## Task 7: Set up the Google Cloud network load balancer
 
@@ -472,7 +472,7 @@ For the details of each step, see [Set up a backend service-based external passt
 
 ---
 
-<span id="testing"></span>
+<span id="testing"></span><span id="task-8-testing-the-all-active-load-balancing-deployment"></span>
 
 ## Task 8: Test the all-active deployment
 

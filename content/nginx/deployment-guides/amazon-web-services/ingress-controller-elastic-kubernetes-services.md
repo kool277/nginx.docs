@@ -21,7 +21,7 @@ The steps work with NGINX Ingress Controller based on NGINX Open Source or on F5
 
 ---
 
-<span id="prereqs"></span>
+<span id="prereqs"></span><span id="prerequisites"></span>
 
 ## Before you begin
 
@@ -50,7 +50,7 @@ You can create a cluster with the AWS Management Console, the AWS CLI, or `eksct
 
 ---
 
-<span id="amazon-ecr"></span>
+<span id="amazon-ecr"></span><span id="push-the-nginx-plus-ingress-controller-image-to-aws-ecr"></span>
 
 ## Push the image to Amazon ECR
 
@@ -84,13 +84,15 @@ Skip this section if your cluster pulls the image from Docker Hub, from the F5 r
 
 ---
 
-<span id="ingress-controller"></span>
+<span id="ingress-controller"></span><span id="install-the-nginx-plus-ingress-controller"></span>
 
 ## Install NGINX Ingress Controller
 
 Install NGINX Ingress Controller in the cluster, as described in [Installation with Manifests]({{< ref "/nic/install/manifests.md" >}}). Use your image in the Deployment or DaemonSet. Stop before you create a Service for NGINX Ingress Controller. The next section creates one for AWS.
 
 ---
+
+<span id="use-a-network-load-balancer-in-front-of-nginx-ingress-controller"></span><span id="configure-a-loadbalancer-service-to-use-nlb"></span>
 
 ## Create the Network Load Balancer
 
@@ -108,6 +110,8 @@ The `nlb-target-type` annotation of the manifest is for the [AWS Load Balancer C
 For all annotations, see [Service annotations](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/service/annotations/).
 
 ---
+
+<span id="enable-the-proxy-protocol"></span>
 
 ## Turn on the PROXY protocol
 
@@ -163,7 +167,7 @@ An NLB doesn't change the TCP connections, so it can't add an `X-Forwarded-For` 
 
 ---
 
-<span id="appendix"></span>
+<span id="appendix"></span><span id="appendix-disable-the-proxy-protocol"></span>
 
 ## Turn off the PROXY protocol
 

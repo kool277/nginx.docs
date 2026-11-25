@@ -35,6 +35,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="configuration"></span>
+
 ## Remove the module from the configuration
 
 1. Find the `load_module` directives in the configuration:
@@ -69,6 +71,8 @@ Before you begin, make sure you have:
     ```
 
 ---
+
+<span id="instructions"></span>
 
 ## Uninstall the module package
 
@@ -129,6 +133,8 @@ Other module packages can depend on the one you remove. For example, the Lua pac
 **Fix**: Delete or replace the directive, and test the configuration again.
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

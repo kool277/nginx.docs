@@ -34,6 +34,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="installation"></span>
+
 ## Install the module package
 
 Install the `nginx-plus-module-acme` package from the NGINX Plus repository:
@@ -82,6 +84,8 @@ Install the `nginx-plus-module-acme` package from the NGINX Plus repository:
     ```
 
 ---
+
+<span id="configuration"></span><span id="full-example"></span>
 
 ## Configure the module
 
@@ -263,6 +267,8 @@ http {
 **Fix**: Open port 80 in your firewall, check the DNS records, and reload the configuration.
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

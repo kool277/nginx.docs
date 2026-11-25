@@ -179,8 +179,6 @@ Take the steps below to set up JWK authorization using a local file:
 1. In `/etc/nginx/conf.d/frontend.conf`, change the second parameter of the `set $oidc_jwt_keyfile` directive to the local file path of the JWK file.
 1. Confirm that the user named by the [user](https://nginx.org/en/docs/ngx_core_module.html#user) directive in the NGINX Plus configuration -- usually found in `/etc/nginx/nginx.conf` -- has read permission on the JWK file.
 
-<span id="test-your-setup"></span>
-
 ## Test your setup
 
 1. In a browser, enter the address of your NGINX Plus instance. You should be directed to the okta login page, as shown in the example below.

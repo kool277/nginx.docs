@@ -39,6 +39,8 @@ Before you begin, make sure you have:
 
 ---
 
+<span id="installation"></span>
+
 ## Install the module package
 
 Install the `nginx-plus-module-otel` package from the NGINX Plus repository:
@@ -82,6 +84,8 @@ Install the `nginx-plus-module-otel` package from the NGINX Plus repository:
 
 ---
 
+<span id="configuration"></span><span id="usage-examples"></span>
+
 ## Configure the module
 
 1. In the `http` block, set where NGINX Plus sends the traces, and the name of the service in the traces:
@@ -100,6 +104,8 @@ Install the `nginx-plus-module-otel` package from the NGINX Plus repository:
 
 For all directives, variables, and default span attributes, see the [ngx_otel_module documentation](https://nginx.org/en/docs/ngx_otel_module.html).
 
+<span id="simple-tracing"></span>
+
 ### Trace every request
 
 This setup traces each request, even when no other service sends trace context. `otel_trace_context inject` adds a new trace context to the proxied request:
@@ -112,6 +118,8 @@ location / {
 }
 ```
 
+<span id="parent-based-tracing"></span>
+
 ### Trace the requests that the caller traces
 
 This setup traces a request only if the caller traced it. The [`$otel_parent_sampled`](https://nginx.org/en/docs/ngx_otel_module.html#var_otel_parent_sampled) variable holds the sampled flag of the incoming trace context. `otel_trace_context propagate` keeps that context and passes it on to the proxied server:
@@ -123,6 +131,8 @@ location / {
     proxy_pass         http://backend;
 }
 ```
+
+<span id="ratio-based-tracing"></span>
 
 ### Trace a share of requests
 
@@ -239,6 +249,8 @@ http {
 **Fix**: Check the `endpoint` value and the NGINX Plus error log. Then check that the endpoint accepts OTLP over gRPC on that port.
 
 ---
+
+<span id="more-info"></span>
 
 ## References
 

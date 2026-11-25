@@ -523,7 +523,9 @@ Of the 13,440 in-site fragment links, 1,739 were already broken before `8be4c970
 
 ## Tools
 
-Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. Its `idcheck.py` runs the anchor checks on two or three Hugo builds. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets. The security-controls pages used small Python TCP and HTTP servers, and certificate chains made with `openssl`.
+Hugo 0.152.2 extended with Go 1.23.4, markdownlint-cli 0.45.0, markdown-link-check 3.13.7, @mermaid-js/mermaid-cli 11.4.2. The test harness is in the working directory, outside the repository: `work/doctest/`. Its `idcheck.py` runs the anchor checks on two or three Hugo builds.
+
+The working notes are backed up in the `kool277/nginx` fork, in `workspace/` on branch `claude/bugfixes-and-docs`. The latest copy is commit [`96bea104b`](https://github.com/kool277/nginx/tree/96bea104bbbd796283cd52fc62050e5c60469867/workspace), from 2026-11-25. `LEDGER.md` there has the decisions, the page log with source citations, and dated session notes. `CLAUDE.md` has the build and test commands. The gRPC page was tested with a small gRPC health server and client built with grpc-go 1.68.1, and with grpc-health-probe 0.4.35, in `work/grpcprobe/`. The UDP and PROXY protocol pages also used `dig`, `nc`, `curl --haproxy-protocol` and Python sockets. The security-controls pages used small Python TCP and HTTP servers, and certificate chains made with `openssl`.
 
 Not used: the third-party GeoIP2 module (`leev/ngx_http_geoip2_module` 3.4) was cloned to `deps/geoip2-src`, but building it was blocked by the session's permission system, and wasn't retried another way. `mmdblookup` and `geoipupdate` were unpacked from their Ubuntu packages to read their file lists and documentation, but not run.
 
